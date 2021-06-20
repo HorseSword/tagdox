@@ -5,7 +5,7 @@ block_cipher = None
 
 
 a = Analysis(['我的文库.py'],
-             pathex=['D:\\MyPython\\我的文库'],
+             pathex=['d:\\MyPython\\我的文库'],
              binaries=[],
              datas=[],
              hiddenimports=[],
@@ -27,7 +27,7 @@ exe = EXE(pyz,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
-          console=False , icon='icon2.ico')
+          console=False , icon='icon.ico')
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,

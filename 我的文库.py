@@ -18,19 +18,11 @@ dT=[]
 lst_tags=[] # 全部标签
 URL_HELP='https://gitee.com/horse_sword/my-local-library'
 TAR='我的文库'
-VER='v0.5.0'
-
-#%%
-'''
-v0.5.0 2021年6月19日22:57:25 ,实现自由搜索，绑定回车键，增加使用说明按钮
-'''
+VER='v0.5.1'
 
 #%%
 
 # 准备基础数据
-
-# lst_my_path=[r'D:\MaJian\Desktop\@短文剪辑', \
-#             r'D:\MaJian\Documents\NutNotes\_MY_NOTES']
 
 with open('data.json','r',encoding='utf8')as fp:
     json_data = json.load(fp)
@@ -40,6 +32,8 @@ with open('data.json','r',encoding='utf8')as fp:
 lst_my_path=[]
 for i in opt_data['tar']:
     lst_my_path.append(i)
+
+V_SEP=opt_data['sep'] # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
 
 #%%
 def get_data():
@@ -54,15 +48,15 @@ def get_file_part(tar):
     # 这里 tar 是完整路径
     [fpath,ffname]=os.path.split(tar) #所在文件夹、原始文件名
     [fname,fename]=os.path.splitext(ffname) #文件名前半部分，扩展名
-    lst_sp=fname.split('#') #拆分为多个片段
+    lst_sp=fname.split(V_SEP) #拆分为多个片段
     fname_0 = lst_sp[0]+fename #fname_0 去掉标签之后的文件名
     ftags=lst_sp[1:] #标签部分
     # 增加对文件目录带井号的解析
-    tmp=fpath.split('#')
+    tmp=fpath.split(V_SEP)
     if len(tmp)>1:
         for j in tmp[1:]:
             if j.find('\\')<0 and j.find('/')<0:
-                ftags.append(j)
+                ftags.append(j) # 只对最后的文件夹带井号的有反应
     ftags=list(set(ftags))
     ftags.sort()
     
@@ -200,7 +194,7 @@ def input_new_tag(event=None):
 
 def file_add_tag(filename,tag0):
     # 增加标签
-    tag_list=tag0.split("#")
+    tag_list=tag0.split(V_SEP)
     tag_old = get_file_part(filename)['ftags'] #已有标签
     file_old = get_file_part(filename)['ffname'] #原始的文件名
     path_old = get_file_part(filename)['fpath'] #路径
@@ -209,7 +203,7 @@ def file_add_tag(filename,tag0):
     old_n=path_old+os.sep+fname+fename
     for i in tag_list:
         if not i in tag_old:
-            new_n=path_old+os.sep+fname+"#"+i+fename
+            new_n=path_old+os.sep+fname + V_SEP + i + fename
             print(old_n)
             print(new_n)
             os.rename(old_n,new_n)
@@ -239,7 +233,7 @@ def my_help(event=None):
 
 #项目上，鼠标左键双击
 tree.bind('<Double-Button-1>', treeOpen)
-# tree.bind('<ButtonPress-3>', input_newname) # 右键
+# tree.bind('<ButtonPress-3>', input_newname) # 右键，此功能作废
 
 
 

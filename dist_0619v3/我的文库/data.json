@@ -1,0 +1,9 @@
+{
+	"options":{
+		"//":"在这里输入需要关注的文件夹，注意分割线必须是左斜线/，不能是右斜线",
+		"tar":[
+			"D:/MaJian/Desktop/@短文剪辑",
+			"D:/MaJian/Documents/NutNotes/_MY_NOTES"
+		]
+	}
+ }

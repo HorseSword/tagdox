@@ -12,13 +12,15 @@ import tkinter as tk
 from tkinter import ttk
 import json
 
-cALL_FILES='( 全部 )'
+# cALL_FILES='( 全部 )'
+cALL_FILES=''
 lst_file=[] # 所有文件的完整路径
 dT=[]
 lst_tags=[] # 全部标签
+
 URL_HELP='https://gitee.com/horse_sword/my-local-library'
 TAR='我的文库'
-VER='v0.5.1'
+VER='v0.5.2'
 
 #%%
 
@@ -34,6 +36,7 @@ for i in opt_data['tar']:
     lst_my_path.append(i)
 
 V_SEP=opt_data['sep'] # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
+V_FOLDERS=int(opt_data['vfolders']) # 目录最末层数名称检查，作为标签的检查层数
 
 #%%
 def get_data():
@@ -44,6 +47,11 @@ def get_data():
                 lst_file.append(os.path.join(root, name)) 
     return lst_file
 
+def split_path(inp): # 将完整路径拆分
+    test_str=inp.replace('\\', '/',-1)
+    test_str_res=test_str.split('/')
+    return(test_str_res)
+
 def get_file_part(tar):
     # 这里 tar 是完整路径
     [fpath,ffname]=os.path.split(tar) #所在文件夹、原始文件名
@@ -51,14 +59,34 @@ def get_file_part(tar):
     lst_sp=fname.split(V_SEP) #拆分为多个片段
     fname_0 = lst_sp[0]+fename #fname_0 去掉标签之后的文件名
     ftags=lst_sp[1:] #标签部分
+    
+    '''
     # 增加对文件目录带井号的解析
     tmp=fpath.split(V_SEP)
     if len(tmp)>1:
         for j in tmp[1:]:
             if j.find('\\')<0 and j.find('/')<0:
                 ftags.append(j) # 只对最后的文件夹带井号的有反应
+    '''
+    
+    # 对文件目录的解析算法2：
+    tmp=split_path(fpath)
+    tmp2=[]
+    try: # 只要最后若干层的目录，取变量 V_FOLDERS
+        for i in range(V_FOLDERS):
+            tmp2.append(tmp[-i-1])
+    except:
+        pass
+    
+    for i in tmp2:
+        i2=i.split(V_SEP)
+        i3=i2[1:]
+        ftags+=i3 
+    
+    # 对当前文件，进行标签整理、去重并排序
     ftags=list(set(ftags))
     ftags.sort()
+    # print(ftags)
     
     return {'fname_0':fname_0,'ftags':ftags,'ffname':ffname,'fpath':fpath,'fename':fename,'tar':tar}
     
@@ -263,17 +291,17 @@ v_tag.bind('<<ComboboxSelected>>', v_tag_choose)
 v_tag.bind('<Return>',v_tag_choose) #绑定回车键
 
 lable_tag=tk.Label(frame0, text = '添加新标签')
-lable_tag.grid(row=0,column=2,padx=10, pady=5,sticky=tk.W)
+lable_tag.grid(row=0,column=3,padx=10, pady=5,sticky=tk.W)
 
 v_inp=ttk.Entry(frame0,width=16)
-v_inp.grid(row=0,column=3 ,padx=10, pady=5)
+v_inp.grid(row=0,column=4 ,padx=10, pady=5)
 v_inp.bind('<Return>',input_new_tag)
 
 bt_clear=ttk.Button(frame0,text='点此添加标签',command=input_new_tag)
-bt_clear.grid(row=0,column=4,padx=10, pady=5,sticky=tk.EW)
+bt_clear.grid(row=0,column=5,padx=10, pady=5,sticky=tk.EW)
 
 bt_clear=ttk.Button(frame0,text='刷新',command=my_reload)
-bt_clear.grid(row=0,column=6,padx=10, pady=5,sticky=tk.EW)
+bt_clear.grid(row=0,column=2,padx=10, pady=5,sticky=tk.EW)
 
 bt_help=ttk.Button(frame0,text='使用说明',command=my_help)
 bt_help.grid(row=0,column=99,padx=10, pady=5,sticky=tk.EW)

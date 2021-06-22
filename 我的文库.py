@@ -5,28 +5,27 @@ Created on Thu Jun 17 09:28:24 2021
 @author: MaJian
 """
 
-
 import os
-# 用tk的表格处理
 import tkinter as tk
 from tkinter import ttk
 import json
 
-# cALL_FILES='( 全部 )'
-cALL_FILES=''
+#常量
+cALL_FILES='' # 标签为空的表达方式，默认是空字符串
+LARGE_FONT=12 # 表头字号
+MON_FONTSIZE=10 # 正文字号
+ORDER_BY_N=1 # 排序列，1代表标签，以后可以自定义
+
+URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
+TAR='我的文库' # 程序名称
+VER='v0.6.2' # 版本号
+EXP_FOLDERS=['_img'] # 排除文件夹规则，以后会加到自定义里面
+
+#变量
 lst_file=[] # 所有文件的完整路径
 dT=[]
 lst_tags=[] # 全部标签
-
-LARGE_FONT=12
-MON_FONTSIZE=10
-ORDER_BY_N=1
-
-URL_HELP='https://gitee.com/horse_sword/my-local-library'
-TAR='我的文库'
-VER='v0.6.0'
-
-#%%
+lst_my_path0=[] # json里面，要扫描的文件夹列表
 
 # 准备基础数据
 
@@ -35,27 +34,45 @@ with open('data.json','r',encoding='utf8')as fp:
     # tag_data=json_data['tags']      #标签
     opt_data=json_data['options']   #设置
     
-lst_my_path=[]
-for i in opt_data['tar']:
-    lst_my_path.append(i)
+for i in opt_data['tar']: 
+    lst_my_path0.append(i)
+    
+lst_my_path=lst_my_path0.copy() #为将来按文件夹筛选做准备，还没开发完
 
 V_SEP=opt_data['sep'] # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
 V_FOLDERS=int(opt_data['vfolders']) # 目录最末层数名称检查，作为标签的检查层数
 
 #%%
-def get_data():
-    lst_file=list() #获取所有文件的完整路径
-    for vPath in lst_my_path:
-        for root, dirs, files in os.walk(vPath):
-            # 以后考虑在这里增加“排除文件夹”的功能，比如下划线开头。
-            for name in files:
-                lst_file.append(os.path.join(root, name)) 
-    return lst_file
 
 def split_path(inp): # 将完整路径拆分
     test_str=inp.replace('\\', '/',-1)
     test_str_res=test_str.split('/')
     return(test_str_res)
+
+def get_data(vpath=lst_my_path):
+    lst_file=list() #获取所有文件的完整路径
+    for vPath in vpath:
+        for root, dirs, files in os.walk(vPath):
+            
+            tmp=[]
+            vpass=0
+            
+            tmp_path=split_path(root)
+            for tmp2 in tmp_path:
+                if tmp2 in EXP_FOLDERS:
+                    vpass=1
+                elif tmp2[0]=='.': # 排除.开头的文件夹内容
+                    vpass=1
+                
+            for name in files:
+                tmp.append(os.path.join(root, name))
+                if name=='_nomedia':
+                    vpass=1
+                    
+            if not vpass==1:
+                lst_file+=tmp 
+            
+    return lst_file
 
 def get_file_part(tar):
     # 这里 tar 是完整路径
@@ -262,7 +279,7 @@ def my_reload(event=None):
         v_inp.delete(0,len(v_inp.get()))
     # v_inp.delete(0,len(v_inp.get()))
     
-    lst_file = get_data()
+    lst_file = get_data(lst_my_path)
     (dT, lst_tags)=get_dt()
     # tree_clear(tree)
 
@@ -288,6 +305,15 @@ def tree_clear(tree):
     for item in x:
         tree.delete(item)
     
+def v_folder_choose(event=None):
+    global lst_my_path
+    tmp=v_folders.get()
+    if tmp=='':
+        lst_my_path=lst_my_path0
+    else:
+        lst_my_path=[tmp]
+    my_reload(lst_my_path)
+    
 def v_tag_choose(event=None):
     tmp_tag=v_tag.get()
     tree_clear(tree)
@@ -297,39 +323,53 @@ def v_tag_key(event):
     print(event.char)
 
 v_tag=ttk.Combobox(frame0)
+v_folders=ttk.Combobox(frame0)
+
+vPDX=10
+vPDY=5
+lable_folders=tk.Label(frame0, text = '文件夹')
+# lable_tag.grid(row=0,column=1,padx=10, pady=5,sticky=tk.W)
+lable_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+v_folders['value']=['']+lst_my_path
+v_folders['state'] = 'readonly'
+# v_folders.grid(row=0,column=2, padx=10, pady=5,sticky=tk.W)
+v_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+v_folders.bind('<<ComboboxSelected>>', v_folder_choose)
+v_folders.bind('<Return>',v_folder_choose) #绑定回车键
+
+bt_folders=ttk.Button(frame0,text='跳转',command=v_folder_choose)
+# bt_folders.grid(row=0,column=3,padx=10, pady=5,sticky=tk.EW)
+bt_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 lable_tag=tk.Label(frame0, text = '按标签或名称搜索')
-lable_tag.grid(row=0,column=0,padx=10, pady=5,sticky=tk.W)
+# lable_tag.grid(row=0,column=11,padx=10, pady=5,sticky=tk.W)
+lable_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 v_tag['value']=lst_tags
 # v_tag['state'] = 'readonly'
-v_tag.grid(row=0,column=1,padx=10, pady=5,sticky=tk.W)
+# v_tag.grid(row=0,column=12,padx=10, pady=5,sticky=tk.W)
+v_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 v_tag.bind('<<ComboboxSelected>>', v_tag_choose)
 v_tag.bind('<Return>',v_tag_choose) #绑定回车键
 
-bt_clear=ttk.Button(frame0,text='搜索',command=v_tag_choose)
-bt_clear.grid(row=0,column=2,padx=10, pady=5,sticky=tk.EW)
-
-bt_clear=ttk.Button(frame0,text='刷新',command=my_reload)
-bt_clear.grid(row=0,column=5,padx=10, pady=5,sticky=tk.EW)
+bt_search=ttk.Button(frame0,text='搜索',command=v_tag_choose)
+# bt_search.grid(row=0,column=13,padx=10, pady=5,sticky=tk.EW)
+bt_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 lable_tag=tk.Label(frame0, text = '添加新标签')
-lable_tag.grid(row=0,column=13,padx=10, pady=5,sticky=tk.W)
+# lable_tag.grid(row=2,column=20,padx=10, pady=5,sticky=tk.W)
+lable_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 v_inp=ttk.Entry(frame0,width=16) # 新标签的输入框
-v_inp.grid(row=0,column=14 ,padx=10, pady=5)
+# v_inp.grid(row=2,column=21 ,padx=10, pady=5)
+v_inp.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 v_inp.bind('<Return>',input_new_tag)
 
 bt_clear=ttk.Button(frame0,text='点此添加标签',command=input_new_tag)
-bt_clear.grid(row=0,column=15,padx=10, pady=5,sticky=tk.EW)
+# bt_clear.grid(row=2,column=22,padx=10, pady=5,sticky=tk.EW)
+bt_clear.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
-
-
-bt_clear=ttk.Button(frame0,text='设置（开发中）',state=tk.DISABLED)#,command=my_reload)
-bt_clear.grid(row=0,column=50,padx=10, pady=5,sticky=tk.EW)
-
-bt_help=ttk.Button(frame0,text='使用说明',command=my_help)
-bt_help.grid(row=0,column=99,padx=10, pady=5,sticky=tk.EW)
 
 # 布局
 bar2.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=2,pady=1) # 用pack 可以实现自适应side=tk.LEFTanchor=tk.E
@@ -342,11 +382,25 @@ tree.pack(side=tk.LEFT,expand=1,fill=tk.BOTH,padx=2,pady=1)
 # bar1.place(x=0,y=0,anchor=tk.NE)
 bar1.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=2,pady=1) # 用pack 可以实现自适应side=tk.LEFTanchor=tk.E
 
-
-
+vPDX=10
+vPDY=5
 lable_sum=tk.Label(frameBtm, text = str_btm,textvariable=str_btm)
+# lable_sum.grid(row=2,column=0,padx=10, pady=5,sticky=tk.W)
+lable_sum.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
-lable_sum.grid(row=2,column=0,padx=10, pady=5,sticky=tk.W)
+
+
+bt_help=ttk.Button(frameBtm,text='使用说明',command=my_help)
+# bt_help.grid(row=2,column=99,padx=10, pady=5,sticky=tk.EW)
+bt_help.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+
+bt_setting=ttk.Button(frameBtm,text='设置（开发中）',state=tk.DISABLED)#,command=my_reload)
+# bt_setting.grid(row=2,column=50,padx=10, pady=5,sticky=tk.EW)
+bt_setting.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+
+bt_clear=ttk.Button(frameBtm,text='刷新',command=my_reload)
+# bt_clear.grid(row=0,column=20,padx=10, pady=5,sticky=tk.EW)
+bt_clear.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 #%%
 
@@ -363,8 +417,8 @@ window.title(TAR+' '+VER)
 
 screenwidth = window.winfo_screenwidth()
 screenheight = window.winfo_screenheight()
-w_width = int(screenwidth*0.8)
-w_height = int(screenheight*0.7)
+w_width = int(screenwidth*0.85)
+w_height = int(screenheight*0.8)
 window.geometry('%dx%d+%d+%d'%(w_width, w_height, (screenwidth-w_width)/2, (screenheight-w_height)/2))
 
 # window.resizable(0,0) #限制尺寸

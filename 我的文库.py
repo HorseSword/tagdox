@@ -18,7 +18,7 @@ ORDER_BY_N=1 # 排序列，1代表标签，以后可以自定义
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='我的文库' # 程序名称
-VER='v0.6.2' # 版本号
+VER='v0.6.4' # 版本号
 EXP_FOLDERS=['_img'] # 排除文件夹规则，以后会加到自定义里面
 
 #变量
@@ -26,6 +26,8 @@ lst_file=[] # 所有文件的完整路径
 dT=[]
 lst_tags=[] # 全部标签
 lst_my_path0=[] # json里面，要扫描的文件夹列表
+lst_my_path_s=[]
+dict_path=dict() # 用于列表简写和实际值
 
 # 准备基础数据
 
@@ -34,22 +36,37 @@ with open('data.json','r',encoding='utf8')as fp:
     # tag_data=json_data['tags']      #标签
     opt_data=json_data['options']   #设置
     
+def split_path(inp): # 通用函数：将完整路径拆分
+    test_str=inp.replace('\\', '/',-1)
+    test_str_res=test_str.split('/')
+    return(test_str_res)
+
+# lst_my_path=lst_my_path0.copy() #按文件夹筛选用
+
 for i in opt_data['tar']: 
-    lst_my_path0.append(i)
+    # lst_my_path0.append(i)
+    tmp_L=i['pth']
+    lst_my_path0.append(tmp_L)
+    try:
+        tmp_S=i['short']
+    except:
+        tmp_S=split_path(i['pth'])[-1]
+    lst_my_path_s.append(tmp_S)
+    tmp={tmp_S:tmp_L}
+    dict_path.update(tmp)
     
-lst_my_path=lst_my_path0.copy() #为将来按文件夹筛选做准备，还没开发完
+# print(lst_my_path_s)
+
+lst_my_path=lst_my_path_s.copy()
 
 V_SEP=opt_data['sep'] # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
 V_FOLDERS=int(opt_data['vfolders']) # 目录最末层数名称检查，作为标签的检查层数
 
 #%%
 
-def split_path(inp): # 将完整路径拆分
-    test_str=inp.replace('\\', '/',-1)
-    test_str_res=test_str.split('/')
-    return(test_str_res)
 
-def get_data(vpath=lst_my_path):
+
+def get_data(vpath=lst_my_path0):
     lst_file=list() #获取所有文件的完整路径
     for vPath in vpath:
         for root, dirs, files in os.walk(vPath):
@@ -246,6 +263,7 @@ def input_new_tag(event=None):
         
         # new_tag = tk.simpledialog.askstring(title="添加标签", prompt="请输入新的标签")#, initialvalue=tmp)
         new_tag=v_inp.get()
+        new_tag=str(new_tag).strip()
         
         if new_tag == None or new_tag == '':
             pass
@@ -295,6 +313,8 @@ def my_help(event=None):
 
 #项目上，鼠标左键双击
 tree.bind('<Double-Button-1>', treeOpen)
+# 回车
+tree.bind('<Return>', treeOpen)
 # tree.bind('<ButtonPress-3>', input_newname) # 右键，此功能作废
 
 
@@ -304,14 +324,20 @@ def tree_clear(tree):
     x=tree.get_children()
     for item in x:
         tree.delete(item)
-    
-def v_folder_choose(event=None):
+        
+def folder_s2l(inp):
+    return dict_path[inp]
+    pass
+
+def v_folder_choose(event=None): # 获取文件夹名称
     global lst_my_path
     tmp=v_folders.get()
     if tmp=='':
-        lst_my_path=lst_my_path0
+        lst_my_path=lst_my_path0.copy()
     else:
+        tmp=folder_s2l(tmp) #将显示值转换为实际值
         lst_my_path=[tmp]
+
     my_reload(lst_my_path)
     
 def v_tag_choose(event=None):
@@ -338,9 +364,9 @@ v_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) #
 v_folders.bind('<<ComboboxSelected>>', v_folder_choose)
 v_folders.bind('<Return>',v_folder_choose) #绑定回车键
 
-bt_folders=ttk.Button(frame0,text='跳转',command=v_folder_choose)
+# bt_folders=ttk.Button(frame0,text='跳转',command=v_folder_choose)
 # bt_folders.grid(row=0,column=3,padx=10, pady=5,sticky=tk.EW)
-bt_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+# bt_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 lable_tag=tk.Label(frame0, text = '按标签或名称搜索')
 # lable_tag.grid(row=0,column=11,padx=10, pady=5,sticky=tk.W)

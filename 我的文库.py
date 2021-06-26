@@ -17,8 +17,8 @@ MON_FONTSIZE=10 # 正文字号
 ORDER_BY_N=1 # 排序列，1代表标签，以后可以自定义
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
-TAR='我的文库' # 程序名称
-VER='v0.6.4' # 版本号
+TAR='标签文库' # 程序名称
+VER='v0.7.0' # 版本号
 EXP_FOLDERS=['_img'] # 排除文件夹规则，以后会加到自定义里面
 
 #变量
@@ -162,10 +162,50 @@ def get_dt():
 lst_file = get_data()
 (dT, lst_tags)=get_dt()
 
+
+
 #%%
 
+# 窗体设计
 
 window = tk.Tk() # 主窗口
+window.title(TAR+' '+VER)
+screenwidth = window.winfo_screenwidth()
+screenheight = window.winfo_screenheight()
+w_width = int(screenwidth*0.8)
+w_height = int(screenheight*0.8)
+window.geometry('%dx%d+%d+%d'%(w_width, w_height, (screenwidth-w_width)/2, (screenheight-w_height)/2))
+
+# window.resizable(0,0) #限制尺寸
+
+#%%
+# 菜单
+
+menu1=tk.Menu(window)
+
+mFile=tk.Menu(menu1,tearoff=False)
+menu1.add_cascade(label='文件', menu=mFile)
+
+mFile.add_command(label='新建',accelerator='Ctrl+N')
+mFile.add_command(label='打开', accelerator='Ctrl+O')
+mFile.add_command(label='保存', accelerator='Ctrl+S')
+
+mHelp=tk.Menu(menu1,tearoff=False)
+menu1.add_cascade(label='帮助', menu=mHelp)
+
+mHelp.add_command(label='使用说明',accelerator='Ctrl+N')
+
+# window.configure(menu=menu1) # 菜单生效
+
+#%%
+
+# 框架设计
+
+# 文件夹区
+frameFolder=ttk.LabelFrame(window,text='',width=int(w_width*0.4))#,width=600)
+# frame0.grid(row=0,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
+# frame0.pack(side=tk.TOP,expand=1,fill=tk.X,padx=10,pady=5)
+frameFolder.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=10,pady=5)
 
 # 上面功能区
 frame0=ttk.LabelFrame(window,text='',height=80)#,width=600)
@@ -183,30 +223,73 @@ frameMain.pack(expand=1,fill=tk.BOTH,padx=10,pady=0)
 frameBtm=ttk.LabelFrame(window,text='',height=80)
 # frameBtm.grid(row=2,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
 # frameBtm.pack(side=tk.BOTTOM,expand=1,fill=tk.X,padx=10,pady=5)
-frameBtm.pack(expand=0,fill=tk.X,padx=10,pady=5)
+frameBtm.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
 
-columns = ("file", "tags", "path","file0")
-
+#%%
+v_tag=ttk.Combobox(frame0) # 标签选择框
+v_folders=ttk.Combobox(frameFolder) # 文件夹选择框
 bar1=tk.Scrollbar(frameMain,width=20) #右侧滚动条
 bar2=tk.Scrollbar(frameMain,orient=tk.HORIZONTAL)#,width=20) #底部滚动条
 
-str_btm=tk.StringVar() #最下面显示状态用的
-str_btm.set("加载中")
+#%%
+vPDX=10
+vPDY=5
+
+bt_setting=ttk.Button(frameFolder,text='设置（开发中）',state=tk.DISABLED)#,command=my_reload)
+# bt_setting.grid(row=2,column=50,padx=10, pady=5,sticky=tk.EW)
+bt_setting.pack(side=tk.BOTTOM,expand=0,padx=0,pady=10)#,fill=tk.X) # 
+
+bar_folder=tk.Scrollbar(frameFolder,width=20)
+bar_folder.pack(side=tk.RIGHT, expand=0,fill=tk.Y)
+
+tk_lst_folder = ttk.Treeview(frameFolder, show = "headings", columns = ['folders'], 
+                             selectmode = tk.BROWSE, 
+                             # rowheight=int(MON_FONTSIZE*3.5),
+                             # font=(None, MON_FONTSIZE),
+                             yscrollcommand = bar_folder.set)#, height=18)
+bar_folder.config( command = tk_lst_folder.yview )
+# tk_lst_folder=tk.Listbox(frameFolder,yscrollcommand=bar_folder.set,
+#                          relief=tk.FLAT,
+#                          # rowheight=int(MON_FONTSIZE*3.5),
+#                          font=(None, MON_FONTSIZE))
+tk_lst_folder.heading("folders", text = "文件夹",anchor='w')
+tk_lst_folder.column('folders', width=300, anchor='w')
+
+# tk_lst_folder.insert(0,"（全部）")
+tmp=0
+tk_lst_folder.insert('',tmp,values=("（全部）"))
+for i in lst_my_path_s:
+    tmp+=1
+    tk_lst_folder.insert('',tmp,values=(i))
+
+    # tk_lst_folder.insert(tk.END,i)
+tmp=tk_lst_folder.get_children()[0]
+# tk_lst_folder.focus(tmp)
+tk_lst_folder.selection_set(tmp)
+# tk_lst_folder.selection_set()
+tk_lst_folder.pack(side=tk.LEFT,expand=0,fill=tk.BOTH)
+
+
+#%%
+columns = ("index","file", "tags", "path","file0")
 
 tree = ttk.Treeview(frameMain, show = "headings", columns = columns, selectmode = tk.BROWSE, \
                     yscrollcommand = bar1.set,xscrollcommand = bar2.set)#, height=18)
 
-tree.column('file', width=600, anchor='w')
+tree.column('index', width=30, anchor='center')
+tree.column('file', width=400, anchor='w')
 tree.column('tags', width=400, anchor='w')
-tree.column('path', width=20, anchor='w')
+tree.column('path', width=30, anchor='w')
 tree.column('file0', width=80, anchor='w')
 
+tree.heading("index", text = "序号",anchor='center')
 tree.heading("file", text = "文件名",anchor='w')
 tree.heading("tags", text = "标签",anchor='w')
 tree.heading("path", text = "文件夹",anchor='w')
 tree.heading("file0", text = "文件路径",anchor='w')
 
-
+str_btm=tk.StringVar() #最下面显示状态用的
+str_btm.set("加载中")
 def add_tree_item(tree,dT,tag=''):
     k=0
     for i in range(len(dT)):
@@ -219,10 +302,10 @@ def add_tree_item(tree,dT,tag=''):
             
         if tag=='' or tag==cALL_FILES or (tag in tag_lower) or str.lower(tmp[3]).find(tag)>0:
             k+=1
-            if i%2==1:
-                tree.insert('',i,values=(tmp[0],tmp[1],tmp[2],tmp[3]),tag='line1')
+            if k%2==1:
+                tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]),tag='line1')
             else:
-                tree.insert('',i,values=(tmp[0],tmp[1],tmp[2],tmp[3]))
+                tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
     str_btm.set("找到 "+str(k)+" 个结果")
     # tree.insert('',i,values=(d[0][i],d[1][i],d[2][i],d[3][i]))
 
@@ -230,7 +313,25 @@ add_tree_item(tree,dT)
 
 tree.tag_configure('line1', background='#cccccc') # 灰色底纹,然而无效
 
+def get_folder():
+    # res= v_folders.get()
+    # res='（全部）'
+    for item in tk_lst_folder.selection():
+        res = tk_lst_folder.item(item, "values")
 
+    # res=tk_lst_folder.get(tk_lst_folder.curselection())
+    try:
+        res=res[0]
+        if res=='（全部）':
+            res=''
+    except:
+        res=''
+    # print(res)
+    return res
+
+def get_tag(tar=v_tag):
+    res=tar.get()
+    return res
 
 bar1.config( command = tree.yview )
 bar2.config( command = tree.xview )
@@ -288,32 +389,35 @@ def file_add_tag(filename,tag0):
             print(new_n)
             os.rename(old_n,new_n)
             old_n=new_n #多标签时避免重命名错误
-    my_reload(0)
+    my_reload(0) # 此处可以优化，避免完全重载
 
-def my_reload(event=None):
+def clear_entry(tar):
+    try:
+        tar.delete(0,len(tar.get()))
+    except:
+        pass
+    pass
+
+def my_reload(event=None): # 刷新
     global lst_file,dT,lst_tags
     
     if not event==0:
-        v_inp.delete(0,len(v_inp.get()))
+        clear_entry(v_inp)
+        # v_inp.delete(0,len(v_inp.get()))
     # v_inp.delete(0,len(v_inp.get()))
     
-    lst_file = get_data(lst_my_path)
+    # v_folder_choose(refresh=0)
+    lst_file = get_data(lst_my_path) # 此处存在bug，导致刷新之后没有数据。尚未修复。
     (dT, lst_tags)=get_dt()
     # tree_clear(tree)
 
     v_tag_choose()
     v_tag['value']=lst_tags
-    # tmp_tag=v_tag.get()
-    # add_tree_item(tree,dT)
-
-    pass
 
 def my_help(event=None):
     os.startfile(URL_HELP)
 
-#项目上，鼠标左键双击
 tree.bind('<Double-Button-1>', treeOpen)
-# 回车
 tree.bind('<Return>', treeOpen)
 # tree.bind('<ButtonPress-3>', input_newname) # 右键，此功能作废
 
@@ -329,38 +433,37 @@ def folder_s2l(inp):
     return dict_path[inp]
     pass
 
-def v_folder_choose(event=None): # 获取文件夹名称
+
+
+def v_folder_choose(event=None,refresh=1): # 获取文件夹名称
     global lst_my_path
-    tmp=v_folders.get()
+    tmp=get_folder()
     if tmp=='':
         lst_my_path=lst_my_path0.copy()
     else:
         tmp=folder_s2l(tmp) #将显示值转换为实际值
         lst_my_path=[tmp]
-
-    my_reload(lst_my_path)
+    if refresh==1:
+        my_reload(lst_my_path)
+    
     
 def v_tag_choose(event=None):
-    tmp_tag=v_tag.get()
+    tmp_tag=get_tag()
     tree_clear(tree)
     add_tree_item(tree,dT,tag=tmp_tag)
 
-def v_tag_key(event):
-    print(event.char)
 
-v_tag=ttk.Combobox(frame0)
-v_folders=ttk.Combobox(frame0)
 
 vPDX=10
 vPDY=5
-lable_folders=tk.Label(frame0, text = '文件夹')
+# lable_folders=tk.Label(frameFolder, text = '文件夹')
 # lable_tag.grid(row=0,column=1,padx=10, pady=5,sticky=tk.W)
-lable_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+# lable_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 v_folders['value']=['']+lst_my_path
 v_folders['state'] = 'readonly'
 # v_folders.grid(row=0,column=2, padx=10, pady=5,sticky=tk.W)
-v_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+# v_folders.pack(expand=0,padx=vPDX,pady=vPDY) # 
 v_folders.bind('<<ComboboxSelected>>', v_folder_choose)
 v_folders.bind('<Return>',v_folder_choose) #绑定回车键
 
@@ -420,33 +523,14 @@ bt_help=ttk.Button(frameBtm,text='使用说明',command=my_help)
 # bt_help.grid(row=2,column=99,padx=10, pady=5,sticky=tk.EW)
 bt_help.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
-bt_setting=ttk.Button(frameBtm,text='设置（开发中）',state=tk.DISABLED)#,command=my_reload)
-# bt_setting.grid(row=2,column=50,padx=10, pady=5,sticky=tk.EW)
-bt_setting.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
-
 bt_clear=ttk.Button(frameBtm,text='刷新',command=my_reload)
 # bt_clear.grid(row=0,column=20,padx=10, pady=5,sticky=tk.EW)
 bt_clear.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 #%%
-
-#%%
 # 运行
-
-window.title(TAR+' '+VER)
-# 用于 grid 布局，已取消
-# window.rowconfigure(2, weight=1)
-# window.columnconfigure(1, weight=1)
-
-# window.geometry("1600x800+100+50")
-
-
-screenwidth = window.winfo_screenwidth()
-screenheight = window.winfo_screenheight()
-w_width = int(screenwidth*0.85)
-w_height = int(screenheight*0.8)
-window.geometry('%dx%d+%d+%d'%(w_width, w_height, (screenwidth-w_width)/2, (screenheight-w_height)/2))
-
-# window.resizable(0,0) #限制尺寸
+# tk_lst_folder.bind('<<ListboxSelect>>',v_folder_choose)
+# tk_lst_folder.bind('<Button-1>',v_folder_choose)
+tk_lst_folder.bind('<ButtonRelease-1>',v_folder_choose)
 
 window.mainloop() 

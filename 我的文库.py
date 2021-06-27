@@ -9,6 +9,10 @@ import os
 import tkinter as tk
 from tkinter import ttk
 import json
+from tkinter import filedialog
+import windnd
+from os.path import isdir
+from os.path import isfile
 
 #常量
 cALL_FILES='' # 标签为空的表达方式，默认是空字符串
@@ -17,9 +21,19 @@ MON_FONTSIZE=10 # 正文字号
 ORDER_BY_N=1 # 排序列，1代表标签，以后可以自定义
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
-TAR='标签文库' # 程序名称
-VER='v0.7.0' # 版本号
+TAR='Tagdox / 标签文库' # 程序名称
+VER='v0.8.0' # 版本号
 EXP_FOLDERS=['_img'] # 排除文件夹规则，以后会加到自定义里面
+ALL_FOLDERS=1 # 是否有“显示所有文件夹”的功能，还没开发完，存在预加载的bug；
+OPTIONS_FILE='options.json'
+OPT_DEFAULT={
+	"options":{
+		"sep":"#",
+		"vfolders":"2",
+		"tar":[
+		]
+	}
+ }
 
 #变量
 lst_file=[] # 所有文件的完整路径
@@ -27,48 +41,91 @@ dT=[]
 lst_tags=[] # 全部标签
 lst_my_path0=[] # json里面，要扫描的文件夹列表
 lst_my_path_s=[]
+lst_my_path=[]
 dict_path=dict() # 用于列表简写和实际值
+V_SEP='#'
+V_FOLDERS=2
 
-# 准备基础数据
-
-with open('data.json','r',encoding='utf8')as fp:
-    json_data = json.load(fp)
-    # tag_data=json_data['tags']      #标签
-    opt_data=json_data['options']   #设置
-    
+#%%
+# 通用函数
 def split_path(inp): # 通用函数：将完整路径拆分
     test_str=inp.replace('\\', '/',-1)
     test_str_res=test_str.split('/')
     return(test_str_res)
 
-# lst_my_path=lst_my_path0.copy() #按文件夹筛选用
+def tree_clear(tar): # treeview 清除，必须带参数
+    x=tar.get_children()
+    for item in x:
+        tar.delete(item)
+#%%
+# 加载设置项 json 内容。保存到 opt_data 变量中，这是个 dict。
 
-for i in opt_data['tar']: 
-    # lst_my_path0.append(i)
-    tmp_L=i['pth']
-    lst_my_path0.append(tmp_L)
-    try:
-        tmp_S=i['short']
-    except:
-        tmp_S=split_path(i['pth'])[-1]
-    lst_my_path_s.append(tmp_S)
-    tmp={tmp_S:tmp_L}
-    dict_path.update(tmp)
+json_data = OPT_DEFAULT
+def update_json(tar=OPTIONS_FILE,data=json_data): # 写入 json 文件
+    with open(tar,'w',encoding='utf-8') as f:
+        json.dump(data,f,ensure_ascii=False)
+        
+def load_json_data():
+    global json_data
+    global V_SEP
+    global V_FOLDERS
+    global lst_my_path0
+    global lst_my_path_s
+    global lst_my_path
     
-# print(lst_my_path_s)
+    need_init_json=0
+    try:
+        with open(OPTIONS_FILE,'r',encoding='utf8')as fp:
+            json_data = json.load(fp)
+    except:
+        need_init_json=1
+        json_data = OPT_DEFAULT
+       
+    opt_data=json_data['options']   #设置
+    V_SEP=opt_data['sep'] # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
+    V_FOLDERS=int(opt_data['vfolders']) # 目录最末层数名称检查，作为标签的检查层数
+    
+    # lst_my_path=lst_my_path0.copy() #按文件夹筛选用
+    lst_my_path0=[]
+    lst_my_path_s=[]
+    
+    for i in opt_data['tar']: 
+        # lst_my_path0.append(i)
+        tmp_L=i['pth']
+        lst_my_path0.append(tmp_L)
+        try:
+            tmp_S=i['short']
+        except:
+            tmp_S=split_path(i['pth'])[-1]
+        tmp_S=tmp_S.replace(' ','_') # 修复路径空格bug的权宜之计，以后应该可以优化
+        
+        # 增加逻辑：避免短路径重名：
+        j=1
+        tmp_2=tmp_S
+        while tmp_2 in lst_my_path_s:
+            j+=1
+            tmp_2=tmp_S+"("+str(j)+")"
+            print(tmp_2)
+        tmp_S=tmp_2
+        
+        lst_my_path_s.append(tmp_S)
+        tmp={tmp_S:tmp_L}
+        dict_path.update(tmp)
+    
+    lst_my_path=lst_my_path_s.copy() # 此处有大量的可优化空间。
+    
+    if need_init_json==1: # 如果没能正常读取 json 的话
+        update_json()
+        
+load_json_data()
 
-lst_my_path=lst_my_path_s.copy()
 
-V_SEP=opt_data['sep'] # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
-V_FOLDERS=int(opt_data['vfolders']) # 目录最末层数名称检查，作为标签的检查层数
-
+    
 #%%
 
-
-
-def get_data(vpath=lst_my_path0):
+def get_data(ipath=lst_my_path0):
     lst_file=list() #获取所有文件的完整路径
-    for vPath in vpath:
+    for vPath in ipath:
         for root, dirs, files in os.walk(vPath):
             
             tmp=[]
@@ -91,8 +148,7 @@ def get_data(vpath=lst_my_path0):
             
     return lst_file
 
-def get_file_part(tar):
-    # 这里 tar 是完整路径
+def get_file_part(tar):     # 这里 tar 是完整路径
     [fpath,ffname]=os.path.split(tar) # fpath 所在文件夹、ffname 原始文件名
     [fname,fename]=os.path.splitext(ffname) # fname 文件名前半部分，fename 扩展名
     lst_sp=fname.split(V_SEP) #拆分为多个片段
@@ -202,10 +258,13 @@ mHelp.add_command(label='使用说明',accelerator='Ctrl+N')
 # 框架设计
 
 # 文件夹区
-frameFolder=ttk.LabelFrame(window,text='',width=int(w_width*0.4))#,width=600)
+frameFolder=ttk.Frame(window,width=int(w_width*0.4))#,width=600)
 # frame0.grid(row=0,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
 # frame0.pack(side=tk.TOP,expand=1,fill=tk.X,padx=10,pady=5)
-frameFolder.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=10,pady=5)
+frameFolder.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=10,pady=10)
+
+frameFolderCtl=ttk.Frame(frameFolder,height=50,borderwidth=0,relief=tk.FLAT)
+frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=10)
 
 # 上面功能区
 frame0=ttk.LabelFrame(window,text='',height=80)#,width=600)
@@ -214,13 +273,13 @@ frame0=ttk.LabelFrame(window,text='',height=80)#,width=600)
 frame0.pack(expand=0,fill=tk.X,padx=10,pady=5)
 
 # 主功能区
-frameMain=ttk.LabelFrame(window,text='')#,height=800)
+frameMain=ttk.Frame(window)#,height=800)
 # frameMain.grid(row=1,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
 # frameMain.pack(side=tk.TOP,expand=1,fill=tk.BOTH,padx=10,pady=5)
 frameMain.pack(expand=1,fill=tk.BOTH,padx=10,pady=0)
 
 # 底部区
-frameBtm=ttk.LabelFrame(window,text='',height=80)
+frameBtm=ttk.LabelFrame(window,height=80)
 # frameBtm.grid(row=2,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
 # frameBtm.pack(side=tk.BOTTOM,expand=1,fill=tk.X,padx=10,pady=5)
 frameBtm.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
@@ -235,9 +294,14 @@ bar2=tk.Scrollbar(frameMain,orient=tk.HORIZONTAL)#,width=20) #底部滚动条
 vPDX=10
 vPDY=5
 
-bt_setting=ttk.Button(frameFolder,text='设置（开发中）',state=tk.DISABLED)#,command=my_reload)
-# bt_setting.grid(row=2,column=50,padx=10, pady=5,sticky=tk.EW)
-bt_setting.pack(side=tk.BOTTOM,expand=0,padx=0,pady=10)#,fill=tk.X) # 
+bt_setting=ttk.Button(frameFolderCtl,text='设置') #state=tk.DISABLED,,command=setting_fun
+# bt_setting.pack(side=tk.LEFT,expand=0,padx=5,pady=10)#,fill=tk.X) # 
+
+bt_folder_add=ttk.Button(frameFolderCtl,text='添加文件夹') #state=tk.DISABLED,,command=setting_fun
+bt_folder_add.pack(side=tk.LEFT,expand=0,padx=20,pady=10,fill=tk.X) # 
+
+bt_folder_drop=ttk.Button(frameFolderCtl,text='移除文件夹') #state=tk.DISABLED,,command=setting_fun
+bt_folder_drop.pack(side=tk.RIGHT,expand=0,padx=20,pady=10,fill=tk.X) # 
 
 bar_folder=tk.Scrollbar(frameFolder,width=20)
 bar_folder.pack(side=tk.RIGHT, expand=0,fill=tk.Y)
@@ -252,21 +316,28 @@ bar_folder.config( command = tk_lst_folder.yview )
 #                          relief=tk.FLAT,
 #                          # rowheight=int(MON_FONTSIZE*3.5),
 #                          font=(None, MON_FONTSIZE))
-tk_lst_folder.heading("folders", text = "文件夹",anchor='w')
+tk_lst_folder.heading("folders", text = "关注的文件夹",anchor='w')
 tk_lst_folder.column('folders', width=300, anchor='w')
 
 # tk_lst_folder.insert(0,"（全部）")
-tmp=0
-tk_lst_folder.insert('',tmp,values=("（全部）"))
-for i in lst_my_path_s:
-    tmp+=1
-    tk_lst_folder.insert('',tmp,values=(i))
-
-    # tk_lst_folder.insert(tk.END,i)
-tmp=tk_lst_folder.get_children()[0]
-# tk_lst_folder.focus(tmp)
-tk_lst_folder.selection_set(tmp)
+def update_folder_list():
+    global tk_lst_folder
+    tree_clear(tk_lst_folder)
+    tmp=0
+    if ALL_FOLDERS==1:
+        tk_lst_folder.insert('',tmp,values=("（全部）"))
+    for i in lst_my_path_s:
+        tmp+=1
+        print(i)
+        tk_lst_folder.insert('',tmp,values=(str(i))) # 此处有bug，对存在空格的不可用
+    
+        # tk_lst_folder.insert(tk.END,i)
+    tmp=tk_lst_folder.get_children()[0]
+    # tk_lst_folder.focus(tmp)
+    tk_lst_folder.selection_set(tmp)
 # tk_lst_folder.selection_set()
+
+update_folder_list()
 tk_lst_folder.pack(side=tk.LEFT,expand=0,fill=tk.BOTH)
 
 
@@ -360,7 +431,7 @@ def input_new_tag(event=None):
     for item in tree.selection():
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
-        tmp_file_name = get_file_part(tmp_full_name)['ffname']
+        # tmp_file_name = get_file_part(tmp_full_name)['ffname'] # 没有用到
         
         # new_tag = tk.simpledialog.askstring(title="添加标签", prompt="请输入新的标签")#, initialvalue=tmp)
         new_tag=v_inp.get()
@@ -424,10 +495,7 @@ tree.bind('<Return>', treeOpen)
 
 
 # 搜索框
-def tree_clear(tree):
-    x=tree.get_children()
-    for item in x:
-        tree.delete(item)
+
         
 def folder_s2l(inp):
     return dict_path[inp]
@@ -526,6 +594,143 @@ bt_help.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) #
 bt_clear=ttk.Button(frameBtm,text='刷新',command=my_reload)
 # bt_clear.grid(row=0,column=20,padx=10, pady=5,sticky=tk.EW)
 bt_clear.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+#%% 
+
+def init_form_setting(): # 设置窗口
+        
+    form_setting=tk.Toplevel(window)
+    v2sep=tk.StringVar(value=V_SEP)
+    v2fdepth=tk.StringVar(value=V_FOLDERS)
+    v2mypath=list()
+    for i in range(5):
+        if i<len(lst_my_path):
+            v2mypath.append(tk.StringVar(value=lst_my_path[i]))
+        else:
+            v2mypath.append(tk.StringVar(value=''))
+    # v2sep=V_SEP
+    frame_setting1=ttk.LabelFrame(form_setting,text='参数设置',height=80,width=800)
+    frame_setting1.grid(row=0,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
+    frame_setting1.columnconfigure(1, weight=1)
+    
+    frame_setting2=ttk.LabelFrame(form_setting,text='待扫描文件夹',width=800)
+    frame_setting2.grid(row=1,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
+    frame_setting2.columnconfigure(1, weight=1)
+    
+    lable_set_sep=tk.Label(frame_setting1, text = '标签分隔符')
+    lable_set_sep.grid(row=0,column=0,padx=10, pady=5,sticky=tk.W)
+    
+    v_inp_sep=ttk.Entry(frame_setting1,width=16,textvariable=v2sep)
+    v_inp_sep.grid(row=0,column=1 ,padx=10, pady=5)
+    # v_inp_sep.set(V_SEP)
+    # v_inp.bind('<Return>',input_new_tag)
+    
+    lable_set_folder_depth=tk.Label(frame_setting1, text = '识别为标签的文件夹层数')
+    lable_set_folder_depth.grid(row=1,column=0,padx=10, pady=5,sticky=tk.W)
+    
+    v_inp_folder_depth=ttk.Entry(frame_setting1,width=16,textvariable=v2fdepth)
+    v_inp_folder_depth.grid(row=1,column=1 ,padx=10, pady=5)
+    # v_inp.bind('<Return>',input_new_tag)
+    
+    lst_folder_togo_label=[]
+    lst_folder_togo_value=[]
+    for i in range(5):
+        lst_folder_togo_label.append(tk.Label(frame_setting2, text = '文件夹'+str(i+1)))
+        lst_folder_togo_label[-1].grid(row=i+2,column=0,padx=10, pady=5,sticky=tk.W)
+        
+        lst_folder_togo_value.append(ttk.Entry(frame_setting2,width=16,textvariable=v2mypath[i]))
+        lst_folder_togo_value[-1].grid(row=i+2,column=1 ,padx=10, pady=5,sticky=tk.EW)
+    bt_setting_yes=ttk.Button(form_setting,text='确定',command=setting_yes)
+    bt_setting_yes.grid(row=10,column=0,padx=10, pady=5,sticky=tk.EW)
+    
+    bt_setting_cancel=ttk.Button(form_setting,text='取消',command=form_setting.destroy)
+    bt_setting_cancel.grid(row=10,column=1,padx=10, pady=5,sticky=tk.EW)
+    
+    form_setting.title('设置')
+    form_setting.resizable(0,0) #限制尺寸
+
+def my_folder_add_click(): # 获取要添加的目录
+    
+    res=filedialog.askdirectory()#选择目录，返回目录名
+    res=[res]
+    print(res)
+    if res=='':
+        print('取消添加文件夹')
+    else:
+        my_folder_add(res)
+
+
+def my_folder_add_drag(files):
+    filenames=list() #可以得到文件路径编码, 可以看到实际上就是个列表。
+    folders=list()
+    # print(files)
+    for item in files:
+        item=item.decode('gbk')
+        if isdir(item):
+            folders.append(item)
+        elif isfile(item):
+            filenames.append(item)
+    if len(folders)>0:
+        my_folder_add(folders)
+
+# 设置拖拽反映函数
+windnd.hook_dropfiles(tk_lst_folder, func=my_folder_add_drag)
+
+def my_folder_refresh(): # 刷新左侧的文件夹列表
+    # 更新json文件
+    update_json(data=json_data)
+    load_json_data()
+    # 更新左侧列表
+    update_folder_list()
+    # 更新正文
+    v_folder_choose()
+
+def my_folder_add(tar_list): # 添加关注的目录
+    global json_data
+    for tar in tar_list:
+        tar=str(tar).replace("\\",'/')
+        tmp={"pth":tar}
+        if not tmp in json_data['options']['tar']: # 此处判断条件有漏洞，因为加入short参数之后就不对了
+            json_data['options']['tar'].append(tmp)
+    # 刷新目录
+    my_folder_refresh()
+    
+
+def my_folder_drop(): # 删除关注的目录
+    global json_data
+    # 获取当前选中的文件夹
+    short_name=get_folder()
+    print(short_name)
+    if short_name=='':
+        pass
+    else:
+        long_name=folder_s2l(short_name) #将显示值转换为实际值
+        print(long_name)
+    
+    # 在 json 里面找到对应项目并删除
+    n=0
+    for i in json_data['options']['tar']:
+        if i['pth']==long_name:
+            json_data['options']['tar'].pop(n)
+            break
+        n+=1
+    # 刷新目录
+    my_folder_refresh()
+    
+    
+def my_folder_open(tar=None): # 打开目录
+    pass
+
+def set_local_data(): # 修改 json
+    pass
+
+def setting_yes(event=None):
+    # 获得新参数
+    
+    pass
+
+bt_setting.configure(command=init_form_setting) # 功能绑定
+bt_folder_add.configure(command=my_folder_add_click) # 功能绑定
+bt_folder_drop.configure(command=my_folder_drop) # 功能绑定
 
 #%%
 # 运行

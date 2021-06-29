@@ -14,17 +14,19 @@ from tkinter import simpledialog
 import windnd
 from os.path import isdir
 from os.path import isfile
+import time
 # from docx import Document# 用于创建word文档
 
 #常量
 cALL_FILES='' # 标签为空的表达方式，默认是空字符串
 LARGE_FONT=12 # 表头字号
 MON_FONTSIZE=10 # 正文字号
-ORDER_BY_N=1 # 排序列，1代表标签，以后可以自定义
+ORDER_BY_N=1 # 排序列，1代表标签，后面按顺序对应
+ORDER_DESC=False
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.8.9' # 版本号
+VER='v0.9.0' # 版本号
 EXP_FOLDERS=['_img'] # 排除文件夹规则，以后会加到自定义里面
 ALL_FOLDERS=1 # 是否有“显示所有文件夹”的功能，还没开发完，存在预加载的bug；
 OPTIONS_FILE='options.json'
@@ -157,6 +159,9 @@ def get_file_part(tar):     # 这里 tar 是完整路径
     fname_0 = lst_sp[0]+fename # fname_0 去掉标签之后的文件名
     ftags=lst_sp[1:] # ftags 标签部分
     
+    mtime = os.stat(tar).st_mtime
+    file_modify_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))
+    
     '''
     # 增加对文件目录带井号的解析（作废）
     tmp=fpath.split(V_SEP)
@@ -194,7 +199,8 @@ def get_file_part(tar):     # 这里 tar 是完整路径
             'ffname':ffname,
             'fpath':fpath,
             'fename':fename,
-            'tar':tar}
+            'tar':tar,
+            'file_mdf_time':file_modify_time}
     
 def sort_by_tag(elem): # 主题表格排序
     global ORDER_BY_N
@@ -205,7 +211,8 @@ def get_dt():
     dT=list()
     for tar in lst_file:
         tmp=get_file_part(tar)
-        dT.append([tmp['fname_0'],tmp['ftags'],tmp['fpath'],tmp['tar']])
+        # dT.append([tmp['fname_0'],tmp['ftags'],tmp['fpath'],tmp['tar']])
+        dT.append([tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar']])
     
     # 获取所有tag
     tmp=[]
@@ -218,7 +225,7 @@ def get_dt():
     # lst_tags.sort()
     
     
-    dT.sort(key=sort_by_tag)
+    dT.sort(key=sort_by_tag,reverse=ORDER_DESC)
     
     return (dT, lst_tags)
 
@@ -375,24 +382,48 @@ def update_folder_list():
 update_folder_list()
 tk_lst_folder.pack(side=tk.LEFT,expand=0,fill=tk.BOTH)
 
+def tree_order_base(inp):
+    global ORDER_BY_N,ORDER_DESC  
+    if ORDER_BY_N==inp:
+        ORDER_DESC=not ORDER_DESC
+    else:
+        ORDER_BY_N=inp
+        ORDER_DESC=False
+    my_reload(0)
+    
+def tree_order_filename(inp=None):
+    tree_order_base(0)
+    
+def tree_order_tag(inp=None):
+    tree_order_base(1)
+    
+def tree_order_modi_time(inp=None):
+    tree_order_base(2)
+    
+def tree_order_path(inp=None):
+    tree_order_base(3)
+
+    
 
 #%%
-columns = ("index","file", "tags", "path","file0")
+columns = ("index","file", "tags", "modify_time","file0")
 
-tree = ttk.Treeview(frameMain, show = "headings", columns = columns, selectmode = tk.BROWSE, \
+tree = ttk.Treeview(frameMain, show = "headings", columns = columns, \
+                    displaycolumns = ["file", "tags", "modify_time","file0"], \
+                    selectmode = tk.BROWSE, \
                     yscrollcommand = bar1.set,xscrollcommand = bar2.set)#, height=18)
 
 tree.column('index', width=30, anchor='center')
 tree.column('file', width=400, anchor='w')
-tree.column('tags', width=400, anchor='w')
-tree.column('path', width=30, anchor='w')
+tree.column('tags', width=300, anchor='w')
+tree.column('modify_time', width=100, anchor='w')
 tree.column('file0', width=80, anchor='w')
 
 tree.heading("index", text = "序号",anchor='center')
-tree.heading("file", text = "文件名",anchor='w')
-tree.heading("tags", text = "标签",anchor='w')
-tree.heading("path", text = "文件夹",anchor='w')
-tree.heading("file0", text = "文件路径",anchor='w')
+tree.heading("file", text = "文件名",anchor='w',command=tree_order_filename)
+tree.heading("tags", text = "标签",anchor='w',command=tree_order_tag)
+tree.heading("modify_time", text = "修改时间",anchor='w',command=tree_order_modi_time)
+tree.heading("file0", text = "完整路径",anchor='w',command=tree_order_path)
 
 str_btm=tk.StringVar() #最下面显示状态用的
 str_btm.set("加载中")

@@ -4,7 +4,7 @@
 block_cipher = None
 
 
-a = Analysis(['我的文库.py'],
+a = Analysis(['标签文库.py'],
              pathex=['d:\\MyPython\\我的文库'],
              binaries=[],
              datas=[],
@@ -22,7 +22,7 @@ exe = EXE(pyz,
           a.scripts,
           [],
           exclude_binaries=True,
-          name='我的文库',
+          name='标签文库',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
@@ -35,4 +35,4 @@ coll = COLLECT(exe,
                strip=False,
                upx=True,
                upx_exclude=[],
-               name='我的文库')
+               name='标签文库')

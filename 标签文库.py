@@ -10,9 +10,11 @@ import tkinter as tk
 from tkinter import ttk
 import json
 from tkinter import filedialog
+from tkinter import simpledialog
 import windnd
 from os.path import isdir
 from os.path import isfile
+# from docx import Document# 用于创建word文档
 
 #常量
 cALL_FILES='' # 标签为空的表达方式，默认是空字符串
@@ -22,7 +24,7 @@ ORDER_BY_N=1 # 排序列，1代表标签，以后可以自定义
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.8.0' # 版本号
+VER='v0.8.9' # 版本号
 EXP_FOLDERS=['_img'] # 排除文件夹规则，以后会加到自定义里面
 ALL_FOLDERS=1 # 是否有“显示所有文件夹”的功能，还没开发完，存在预加载的bug；
 OPTIONS_FILE='options.json'
@@ -112,7 +114,7 @@ def load_json_data():
         tmp={tmp_S:tmp_L}
         dict_path.update(tmp)
     
-    lst_my_path=lst_my_path_s.copy() # 此处有大量的可优化空间。
+    lst_my_path=lst_my_path0.copy() # 此处有大量的可优化空间。
     
     if need_init_json==1: # 如果没能正常读取 json 的话
         update_json()
@@ -123,7 +125,7 @@ load_json_data()
     
 #%%
 
-def get_data(ipath=lst_my_path0):
+def get_data(ipath=lst_my_path0): # 返回 lst_file 列表
     lst_file=list() #获取所有文件的完整路径
     for vPath in ipath:
         for root, dirs, files in os.walk(vPath):
@@ -187,9 +189,14 @@ def get_file_part(tar):     # 这里 tar 是完整路径
     fpath=fpath.replace('\\','/')
     tar=tar.replace('\\','/')
     
-    return {'fname_0':fname_0,'ftags':ftags,'ffname':ffname,'fpath':fpath,'fename':fename,'tar':tar}
+    return {'fname_0':fname_0,
+            'ftags':ftags,
+            'ffname':ffname,
+            'fpath':fpath,
+            'fename':fename,
+            'tar':tar}
     
-def sort_by_tag(elem):
+def sort_by_tag(elem): # 主题表格排序
     global ORDER_BY_N
     return str(elem[ORDER_BY_N])
 
@@ -234,6 +241,33 @@ window.geometry('%dx%d+%d+%d'%(w_width, w_height, (screenwidth-w_width)/2, (scre
 
 # window.resizable(0,0) #限制尺寸
 
+#%%
+
+# 自制输入窗体
+def my_input_window(title='未命名',msg='未定义'):
+    screenwidth = window.winfo_screenwidth()
+    screenheight = window.winfo_screenheight()
+    w_width = 500
+    w_height = 100
+    input_window=tk.Toplevel(window)
+    input_window.geometry('%dx%d+%d+%d'%(w_width, w_height, (screenwidth-w_width)/2, (screenheight-w_height)/2))
+    input_window.title(title)
+    # input_window.withdraw()
+    input_window.deiconify()
+    input_window.lift()
+    input_window.focus_force()
+
+    iframe=tk.Frame(input_window,padx=5,pady=5)
+    iframe.pack(expand=0,fill=tk.BOTH)
+    
+    lb=tk.Label(iframe,text=msg)
+    lb.pack(anchor='sw')
+    
+    et=tk.Entry(iframe)
+    et.pack(expand=0,fill=tk.X)
+    
+# my_input_window()
+    
 #%%
 # 菜单
 
@@ -286,6 +320,7 @@ frameBtm.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
 
 #%%
 v_tag=ttk.Combobox(frame0) # 标签选择框
+v_search=ttk.Entry(frame0) # 标签选择框
 v_folders=ttk.Combobox(frameFolder) # 文件夹选择框
 bar1=tk.Scrollbar(frameMain,width=20) #右侧滚动条
 bar2=tk.Scrollbar(frameMain,orient=tk.HORIZONTAL)#,width=20) #底部滚动条
@@ -361,22 +396,49 @@ tree.heading("file0", text = "文件路径",anchor='w')
 
 str_btm=tk.StringVar() #最下面显示状态用的
 str_btm.set("加载中")
-def add_tree_item(tree,dT,tag=''):
+
+
+def get_tag(tar=v_tag): # 获取标签
+    res=[]
+    if len(v_tag.get())>0:
+        res+=[v_tag.get()]
+    if len(v_search.get())>0:
+        res+=str(v_search.get()).split(' ')
+    return res
+
+def add_tree_item(tree,dT): # 关键函数：增加主框架的内容
+    # 先获得搜索项目以及 tag
+    tmp_search_items=get_tag() # 列表
     k=0
+    print(tmp_search_items)
     for i in range(len(dT)):
         tmp=dT[i]
-        tag=str.lower(tag)
+        try:
+            if tmp[0][0:2]=='~$': # 排除word临时文件
+                continue
+        except:
+            pass
         tag_lower=[]
         for j in tmp[1]:
             tag_lower.append(str.lower(j))
             #搜索的时候转小写，避免找不到类似于MySQL这样的标签
-            
-        if tag=='' or tag==cALL_FILES or (tag in tag_lower) or str.lower(tmp[3]).find(tag)>0:
+        
+        canadd=1
+        
+        for tag in tmp_search_items:            
+            tag=str.lower(tag)
+            if tag=='' or tag==cALL_FILES or (tag in tag_lower):
+                canadd=1
+            elif str.lower(tmp[3]).find(tag)<0:
+                canadd=0
+        
+        if canadd==1:
             k+=1
             if k%2==1:
                 tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]),tag='line1')
             else:
                 tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
+        
     str_btm.set("找到 "+str(k)+" 个结果")
     # tree.insert('',i,values=(d[0][i],d[1][i],d[2][i],d[3][i]))
 
@@ -384,7 +446,7 @@ add_tree_item(tree,dT)
 
 tree.tag_configure('line1', background='#cccccc') # 灰色底纹,然而无效
 
-def get_folder():
+def get_folder(): # 获取文件夹名称
     # res= v_folders.get()
     # res='（全部）'
     for item in tk_lst_folder.selection():
@@ -398,10 +460,6 @@ def get_folder():
     except:
         res=''
     # print(res)
-    return res
-
-def get_tag(tar=v_tag):
-    res=tar.get()
     return res
 
 bar1.config( command = tree.yview )
@@ -425,6 +483,47 @@ def treeOpen(event=None): #单击
         item_text = tree.item(item, "values")
         print(item_text[-1])
         os.startfile(item_text[-1]) #打开这个文件
+
+def file_rename(tar=None): # 对文件重命名
+    for item in tree.selection():
+        item_text = tree.item(item, "values")
+        tmp_full_path = item_text[-1]
+        tmp_file_name = split_path(tmp_full_path)[-1]
+        print('正在重命名：')
+        print(tmp_full_path)
+        print(tmp_file_name)
+        res = simpledialog.askstring('文件重命名',prompt='请输入新的文件名',initialvalue =tmp_file_name) # 有bug，不能输入#号
+        tmp_new_name='/'.join(split_path(tmp_full_path)[0:-1]+[res])
+        print(tmp_new_name)
+        if res is not None:
+            try:
+                os.rename(tmp_full_path,tmp_new_name)
+                my_reload(0)
+            except:
+                t=tk.messagebox.showerror(title = 'ERROR',message='重命名失败！')
+                # print(t)
+                pass
+        
+    
+
+def tree_open_folder(event=None): #打开当前文件所在的目录
+    VMETHOD=1
+    for item in tree.selection():
+        item_text = tree.item(item, "values")
+        tmp_file=item_text[-1]
+        tmp_file=tmp_file.replace('/','\\')
+        tmp_folder=item_text[-2]
+        print(tmp_folder)
+        if VMETHOD==1:
+            os.startfile(tmp_folder) #打开这个文件
+        elif VMETHOD==2: 
+            tmp=r'explorer /select,'+tmp_file
+            print(tmp)
+            os.system(tmp) # 性能极差，不知道哪的原因
+            # os.system(r'explorer /select,d:\tmp\b.txt') # 这是打开文件夹并选中文件的方法
+        
+    pass
+
 
 def input_new_tag(event=None):
     new_name=''
@@ -473,17 +572,21 @@ def my_reload(event=None): # 刷新
     global lst_file,dT,lst_tags
     
     if not event==0:
-        clear_entry(v_inp)
+        clear_entry(v_search)
+        v_tag.current(0)
         # v_inp.delete(0,len(v_inp.get()))
     # v_inp.delete(0,len(v_inp.get()))
     
     # v_folder_choose(refresh=0)
     lst_file = get_data(lst_my_path) # 此处存在bug，导致刷新之后没有数据。尚未修复。
+    # 原因是 lst_my_path 应该是长路径，不是短路径
+    
     (dT, lst_tags)=get_dt()
     # tree_clear(tree)
 
     v_tag_choose()
     v_tag['value']=lst_tags
+    v_inp['value']=lst_tags
 
 def my_help(event=None):
     os.startfile(URL_HELP)
@@ -503,22 +606,29 @@ def folder_s2l(inp):
 
 
 
-def v_folder_choose(event=None,refresh=1): # 获取文件夹名称
+def v_folder_choose(event=None,refresh=1): # 点击新的文件夹之后
     global lst_my_path
     tmp=get_folder()
     if tmp=='':
         lst_my_path=lst_my_path0.copy()
+        # 设置按钮为无效
+        bt_new.configure(state=tk.DISABLED)
+        bt_folder_drop.configure(state=tk.DISABLED)
     else:
         tmp=folder_s2l(tmp) #将显示值转换为实际值
         lst_my_path=[tmp]
+        # 设置按钮有效
+        bt_new.configure(state=tk.NORMAL)
+        bt_folder_drop.configure(state=tk.NORMAL)
     if refresh==1:
         my_reload(lst_my_path)
     
     
 def v_tag_choose(event=None):
-    tmp_tag=get_tag()
+    # tmp_tag=get_tag()
     tree_clear(tree)
-    add_tree_item(tree,dT,tag=tmp_tag)
+    # add_tree_item(tree,dT,tag=tmp_tag)
+    add_tree_item(tree,dT)
 
 
 
@@ -539,33 +649,39 @@ v_folders.bind('<Return>',v_folder_choose) #绑定回车键
 # bt_folders.grid(row=0,column=3,padx=10, pady=5,sticky=tk.EW)
 # bt_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
-lable_tag=tk.Label(frame0, text = '按标签或名称搜索')
+lable_tag=tk.Label(frame0, text = '标签筛选')
 # lable_tag.grid(row=0,column=11,padx=10, pady=5,sticky=tk.W)
 lable_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 v_tag['value']=lst_tags
-# v_tag['state'] = 'readonly'
+v_tag['state'] = 'readonly' # 只读
 # v_tag.grid(row=0,column=12,padx=10, pady=5,sticky=tk.W)
 v_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 v_tag.bind('<<ComboboxSelected>>', v_tag_choose)
 v_tag.bind('<Return>',v_tag_choose) #绑定回车键
 
+
+lable_search=tk.Label(frame0, text = '按名称')
+# lable_tag.grid(row=0,column=11,padx=10, pady=5,sticky=tk.W)
+lable_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+# v_tag['value']=lst_tags
+# v_tag['state'] = 'readonly' # 只读
+# v_tag.grid(row=0,column=12,padx=10, pady=5,sticky=tk.W)
+v_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+# v_search.bind('<<ComboboxSelected>>', v_tag_choose)
+v_search.bind('<Return>',v_tag_choose) #绑定回车键
+
 bt_search=ttk.Button(frame0,text='搜索',command=v_tag_choose)
 # bt_search.grid(row=0,column=13,padx=10, pady=5,sticky=tk.EW)
 bt_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
-lable_tag=tk.Label(frame0, text = '添加新标签')
-# lable_tag.grid(row=2,column=20,padx=10, pady=5,sticky=tk.W)
-lable_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-
-v_inp=ttk.Entry(frame0,width=16) # 新标签的输入框
-# v_inp.grid(row=2,column=21 ,padx=10, pady=5)
-v_inp.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-v_inp.bind('<Return>',input_new_tag)
-
-bt_clear=ttk.Button(frame0,text='点此添加标签',command=input_new_tag)
-# bt_clear.grid(row=2,column=22,padx=10, pady=5,sticky=tk.EW)
+bt_clear=ttk.Button(frame0,text='清空',command=my_reload)
+# bt_search.grid(row=0,column=13,padx=10, pady=5,sticky=tk.EW)
 bt_clear.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+
+
 
 
 # 布局
@@ -585,8 +701,6 @@ lable_sum=tk.Label(frameBtm, text = str_btm,textvariable=str_btm)
 # lable_sum.grid(row=2,column=0,padx=10, pady=5,sticky=tk.W)
 lable_sum.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
-
-
 bt_help=ttk.Button(frameBtm,text='使用说明',command=my_help)
 # bt_help.grid(row=2,column=99,padx=10, pady=5,sticky=tk.EW)
 bt_help.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
@@ -594,6 +708,24 @@ bt_help.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) #
 bt_clear=ttk.Button(frameBtm,text='刷新',command=my_reload)
 # bt_clear.grid(row=0,column=20,padx=10, pady=5,sticky=tk.EW)
 bt_clear.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+
+bt_new=ttk.Button(frameBtm,text='新建笔记(Ctrl+N)',state=tk.DISABLED)#,command=my_reload)
+# bt_clear.grid(row=0,column=20,padx=10, pady=5,sticky=tk.EW)
+bt_new.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+
+bt_add_tag=ttk.Button(frameBtm,text='点此添加标签',command=input_new_tag)
+# bt_clear.grid(row=2,column=22,padx=10, pady=5,sticky=tk.EW)
+bt_add_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+
+v_inp=ttk.Combobox(frameBtm,width=16) # 新标签的输入框
+# v_inp.grid(row=2,column=21 ,padx=10, pady=5)
+v_inp.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+v_inp.bind('<Return>',input_new_tag)
+v_inp['value']=lst_tags
+
+lable_tag=tk.Label(frameBtm, text = '添加新标签')
+# lable_tag.grid(row=2,column=20,padx=10, pady=5,sticky=tk.W)
+lable_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 #%% 
 
 def init_form_setting(): # 设置窗口
@@ -718,7 +850,14 @@ def my_folder_drop(): # 删除关注的目录
     
     
 def my_folder_open(tar=None): # 打开目录
-    pass
+    # 获得当前选中的长目录
+    if len(lst_my_path)!=1:
+        pass
+    else:
+        try:
+            os.startfile(lst_my_path[0])
+        except:
+            pass
 
 def set_local_data(): # 修改 json
     pass
@@ -732,10 +871,113 @@ bt_setting.configure(command=init_form_setting) # 功能绑定
 bt_folder_add.configure(command=my_folder_add_click) # 功能绑定
 bt_folder_drop.configure(command=my_folder_drop) # 功能绑定
 
+def create_note(event=None):
+    global lst_my_path
+    NOTE_NAME='未命名'
+    NOTE_EXT='.docx'
+    tags=['Tagdox笔记']
+    
+    if len(lst_my_path)!=1:
+        print('新建功能锁定，暂不可用')
+        return
+    #
+    print('新建功能跳过')
+    res = simpledialog.askstring('新建 Tagdox 笔记',prompt='请输入文件名',initialvalue =NOTE_NAME)
+    if res is not None:
+        print(res)
+        NOTE_NAME=res
+        if len(tags)>0:
+            stags='#'+'#'.join(tags)
+        else:
+            stags=''
+            
+        if len(lst_my_path)>1:
+            pass
+        
+        if len(lst_my_path)==1:
+            pth=lst_my_path[0]
+            print(pth)
+            if pth in lst_my_path0:
+                fpth=pth+'/'+ NOTE_NAME + stags + NOTE_EXT 
+                
+                # 检查是否有这个文件
+                i=0
+                while isfile(fpth):
+                    i+=1
+                    fpth=pth+'/'+ NOTE_NAME +'('+str(i)+')'+ stags+ NOTE_EXT
+                
+                #创建文件
+                print(fpth)
+                if NOTE_EXT in ['.md','.txt','.docx']:
+                    with open(fpth,'w') as _:
+                        pass
+                elif NOTE_EXT in ['.docxXXXXX']:
+                    # d=Document()
+                    # d.save(fpth)
+                    pass
+                # 打开
+                os.startfile(fpth) #打开这个文件
+                #刷新
+                my_reload()
+    else:
+        pass
+    #
+    
+            
+bt_new.configure(command=create_note)
+bt_folder_drop.configure(state=tk.DISABLED)
+
+#%%
+# 弹出菜单
+menu_folder = tk.Menu(window,tearoff=0)
+menu_folder.add_command(label="添加文件夹",command=my_folder_add_click)
+menu_folder.add_command(label="转到所选文件夹",command=my_folder_open)
+menu_folder.add_separator()
+menu_folder.add_command(label="取消关注所选文件夹",command=my_folder_drop)
+
+menu_folder_no = tk.Menu(window,tearoff=0)
+menu_folder_no.add_command(label="添加文件夹",command=my_folder_add_click)
+menu_folder_no.add_command(label="转到所选文件夹",state=tk.DISABLED,command=my_folder_open)
+menu_folder_no.add_separator()
+menu_folder_no.add_command(label="取消关注所选文件夹",state=tk.DISABLED,command=my_folder_drop)
+
+def popup_menu_folder(event):
+    if len(lst_my_path)!=1:
+        menu_folder_no.post(event.x_root,event.y_root)
+    else:
+        menu_folder.post(event.x_root,event.y_root)
+
+menu_file = tk.Menu(window,tearoff=0)
+menu_file.add_command(label="打开文件",command=treeOpen)
+menu_file.add_command(label="转到所在文件夹",command=tree_open_folder)
+menu_file.add_command(label="重命名（尚未开发完成）",state=tk.DISABLED,command=file_rename)
+menu_file.add_separator()
+menu_file.add_command(label="刷新",command=my_reload)
+
+menu_file_no_selection = tk.Menu(window,tearoff=0)
+menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=treeOpen)
+menu_file_no_selection.add_command(label="转到所在文件夹",state=tk.DISABLED,command=tree_open_folder)
+menu_file_no_selection.add_command(label="重命名",state=tk.DISABLED)#,command=my_folder_add_click)
+menu_file_no_selection.add_separator()
+menu_file_no_selection.add_command(label="刷新",command=my_reload)
+
+def popup_menu_file(event):
+    tmp=0
+    for item in tree.selection():
+        tmp+=1
+    if tmp>0:
+        menu_file.post(event.x_root,event.y_root)
+    else:
+        menu_file_no_selection.post(event.x_root,event.y_root)
+
+tk_lst_folder.bind("<Button-3>",popup_menu_folder) # 绑定文件夹区域的功能
+tree.bind("<Button-3>",popup_menu_file) # 绑定文件夹区域的功能
+
 #%%
 # 运行
 # tk_lst_folder.bind('<<ListboxSelect>>',v_folder_choose)
 # tk_lst_folder.bind('<Button-1>',v_folder_choose)
 tk_lst_folder.bind('<ButtonRelease-1>',v_folder_choose)
-
+window.bind_all('<Control-n>',create_note)
+window.state('zoomed')
 window.mainloop() 

@@ -26,7 +26,7 @@ ORDER_DESC=False
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.1' # 版本号
+VER='v0.9.2' # 版本号
 EXP_FOLDERS=['_img'] # 排除文件夹规则，以后会加到自定义里面
 ALL_FOLDERS=1 # 是否有“显示所有文件夹”的功能，还没开发完，存在预加载的bug；
 OPTIONS_FILE='options.json'
@@ -96,7 +96,7 @@ def load_json_data():
     for i in opt_data['tar']: 
         # lst_my_path0.append(i)
         tmp_L=i['pth']
-        lst_my_path0.append(tmp_L)
+        tmp_L=tmp_L.strip()
         try:
             tmp_S=i['short']
         except:
@@ -111,10 +111,17 @@ def load_json_data():
             tmp_2=tmp_S+"("+str(j)+")"
             print(tmp_2)
         tmp_S=tmp_2
+        tmp_S=tmp_S.strip()
         
-        lst_my_path_s.append(tmp_S)
-        tmp={tmp_S:tmp_L}
-        dict_path.update(tmp)
+        if tmp_S=='' or tmp_L=='': # 出现空白文件夹
+            for j in range(len(opt_data['tar'])-1,-1,-1):
+                if opt_data['tar'][j]['pth'].strip()=='':    
+                    opt_data['tar'].pop(j)
+        else:
+            lst_my_path0.append(tmp_L)
+            lst_my_path_s.append(tmp_S)
+            tmp={tmp_S:tmp_L}
+            dict_path.update(tmp)
     
     lst_my_path=lst_my_path0.copy() # 此处有大量的可优化空间。
     

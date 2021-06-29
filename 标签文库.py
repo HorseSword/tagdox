@@ -26,7 +26,7 @@ ORDER_DESC=False
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.0' # 版本号
+VER='v0.9.1' # 版本号
 EXP_FOLDERS=['_img'] # 排除文件夹规则，以后会加到自定义里面
 ALL_FOLDERS=1 # 是否有“显示所有文件夹”的功能，还没开发完，存在预加载的bug；
 OPTIONS_FILE='options.json'
@@ -212,7 +212,10 @@ def get_dt():
     for tar in lst_file:
         tmp=get_file_part(tar)
         # dT.append([tmp['fname_0'],tmp['ftags'],tmp['fpath'],tmp['tar']])
-        dT.append([tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar']])
+        # 增加检查重复项的逻辑：
+        tmp_v=[tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar']]
+        if not tmp_v in dT:
+            dT.append(tmp_v)
     
     # 获取所有tag
     tmp=[]
@@ -543,7 +546,10 @@ def tree_open_folder(event=None): #打开当前文件所在的目录
         item_text = tree.item(item, "values")
         tmp_file=item_text[-1]
         tmp_file=tmp_file.replace('/','\\')
-        tmp_folder=item_text[-2]
+        
+        tmp_folder='/'.join(split_path(tmp_file)[0:-1])
+        # tmp_folder=item_text[-2]
+        
         print(tmp_folder)
         if VMETHOD==1:
             os.startfile(tmp_folder) #打开这个文件
@@ -850,10 +856,11 @@ def my_folder_refresh(): # 刷新左侧的文件夹列表
 def my_folder_add(tar_list): # 添加关注的目录
     global json_data
     for tar in tar_list:
-        tar=str(tar).replace("\\",'/')
-        tmp={"pth":tar}
-        if not tmp in json_data['options']['tar']: # 此处判断条件有漏洞，因为加入short参数之后就不对了
-            json_data['options']['tar'].append(tmp)
+        if len(tar)>0: # 用于避免空白项目，虽然不知道哪里来的
+            tar=str(tar).replace("\\",'/')
+            tmp={"pth":tar}
+            if not tmp in json_data['options']['tar']: # 此处判断条件有漏洞，因为加入short参数之后就不对了
+                json_data['options']['tar'].append(tmp)
     # 刷新目录
     my_folder_refresh()
     

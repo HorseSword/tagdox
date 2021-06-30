@@ -26,7 +26,7 @@ ORDER_DESC=False
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.2' # 版本号
+VER='v0.9.3' # 版本号
 EXP_FOLDERS=['_img'] # 排除文件夹规则，以后会加到自定义里面
 ALL_FOLDERS=1 # 是否有“显示所有文件夹”的功能，还没开发完，存在预加载的bug；
 OPTIONS_FILE='options.json'
@@ -476,7 +476,7 @@ def add_tree_item(tree,dT): # 关键函数：增加主框架的内容
         if canadd==1:
             k+=1
             if k%2==1:
-                tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]),tag='line1')
+                tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]),tags=['line1'])
             else:
                 tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
         
@@ -544,7 +544,51 @@ def file_rename(tar=None): # 对文件重命名
                 t=tk.messagebox.showerror(title = 'ERROR',message='重命名失败！')
                 # print(t)
                 pass
-        
+
+def bt_test(event=None):
+    print('进入测试功能')
+    
+    full_path='D:/MaJian/Documents/NutNotes/_MY_NOTES/#Python_GUI/pyinstaller打包exe#@PIN.md'
+    # 
+    tree_find(full_path)
+
+def tree_find(full_path=''): # 用于高亮项目
+    
+    if full_path=='':
+        return(-1)
+        # full_path='D:/MaJian/Documents/NutNotes/_MY_NOTES/#Python_GUI/pyinstaller打包exe#@PIN.md'
+    # 根据完整路径，找到对应的文件并高亮
+    tc=tree.get_children()
+    tc_cnt=len(tc)
+    print('条目数量为：%s' % tc_cnt)
+    n=0
+    print('开始查找')
+    for i in tc:
+        tmp=tree.item(i,"values")
+        # print(tmp[-1])
+        if tmp[-1]==full_path:
+            # tree.focus(i) #这个并不能高亮
+            tree.selection_set(i)
+            print('在第%d处检查到了相应结果' % n)
+            (b1,b2)=bar1.get()
+            b0=b2-b1
+            b1=n/tc_cnt-0.5*b0
+            b2=n/tc_cnt+0.5*b0
+            if b1<0:
+                b1=0
+                b2=b0
+            elif b2>1:
+                b2=1
+                b1=1-b0
+            print((b1,b2))
+            # bar1.set(b1,b2)
+            tree.yview_moveto(b1)
+            return(n)
+            break
+        else:
+            n+=1
+    return(-1)
+    # for i in range()
     
 
 def tree_open_folder(event=None): #打开当前文件所在的目录
@@ -595,15 +639,32 @@ def file_add_tag(filename,tag0):
     path_old = get_file_part(filename)['fpath'] #路径
     [fname,fename]=os.path.splitext(file_old) #文件名前半部分，扩展名
     
-    old_n=path_old+os.sep+fname+fename
+    old_n=path_old+ '/' +fname+fename
+    new_n=old_n
     for i in tag_list:
         if not i in tag_old:
             new_n=path_old+os.sep+fname + V_SEP + i + fename
             print(old_n)
             print(new_n)
-            os.rename(old_n,new_n)
-            old_n=new_n #多标签时避免重命名错误
+            try:
+                os.rename(old_n,new_n)
+                old_n=new_n #多标签时避免重命名错误
+            except:
+                print('为文件添加标签失败')
+                pass
     my_reload(0) # 此处可以优化，避免完全重载
+    try:
+        new_n=new_n.replace('\\','/')
+        print('添加标签完成，正在定位%s' %(new_n))
+        tree_find(new_n) # 为加标签之后的项目高亮
+    except:
+        pass
+
+def file_add_star(event=None): # 加收藏
+    for item in tree.selection():
+        item_text = tree.item(item, "values")
+        tmp_full_name = item_text[-1]
+    file_add_tag(tmp_full_name,'@PIN')
 
 def clear_entry(tar):
     try:
@@ -723,6 +784,10 @@ bt_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) #
 bt_clear=ttk.Button(frame0,text='清空',command=my_reload)
 # bt_search.grid(row=0,column=13,padx=10, pady=5,sticky=tk.EW)
 bt_clear.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+bt_test=ttk.Button(frame0,text='测试功能',command=bt_test)
+# bt_search.grid(row=0,column=13,padx=10, pady=5,sticky=tk.EW)
+# bt_test.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 
 
@@ -964,6 +1029,7 @@ def create_note(event=None):
                 os.startfile(fpth) #打开这个文件
                 #刷新
                 my_reload()
+                tree_find(fpth)
     else:
         pass
     #
@@ -996,6 +1062,7 @@ menu_file = tk.Menu(window,tearoff=0)
 menu_file.add_command(label="打开文件",command=treeOpen)
 menu_file.add_command(label="转到所在文件夹",command=tree_open_folder)
 menu_file.add_command(label="重命名（尚未开发完成）",state=tk.DISABLED,command=file_rename)
+menu_file.add_command(label="添加收藏",command=file_add_star)
 menu_file.add_separator()
 menu_file.add_command(label="刷新",command=my_reload)
 
@@ -1003,6 +1070,7 @@ menu_file_no_selection = tk.Menu(window,tearoff=0)
 menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=treeOpen)
 menu_file_no_selection.add_command(label="转到所在文件夹",state=tk.DISABLED,command=tree_open_folder)
 menu_file_no_selection.add_command(label="重命名",state=tk.DISABLED)#,command=my_folder_add_click)
+menu_file_no_selection.add_command(label="添加收藏",state=tk.DISABLED)#,command=my_folder_add_click)
 menu_file_no_selection.add_separator()
 menu_file_no_selection.add_command(label="刷新",command=my_reload)
 

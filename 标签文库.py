@@ -17,19 +17,23 @@ from os.path import isfile
 import time
 # from docx import Document# 用于创建word文档
 
-#常量
-cALL_FILES='' # 标签为空的表达方式，默认是空字符串
-LARGE_FONT=12 # 表头字号
-MON_FONTSIZE=10 # 正文字号
-ORDER_BY_N=1 # 排序列，1代表标签，后面按顺序对应
-ORDER_DESC=False
-
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.3' # 版本号
-EXP_FOLDERS=['_img'] # 排除文件夹规则，以后会加到自定义里面
-ALL_FOLDERS=1 # 是否有“显示所有文件夹”的功能，还没开发完，存在预加载的bug；
-OPTIONS_FILE='options.json'
+VER='v0.9.3.1' # 版本号
+# v0.9.3.1 增加了切换文件夹之后是否清除筛选的变量；完善了是否保留所有文件夹这个功能；修复bug。
+
+#常量，但以后可以做到设置里面
+cALL_FILES=''                       # 标签为空的表达方式，默认是空字符串
+LARGE_FONT=12                       # 表头字号
+MON_FONTSIZE=10                     # 正文字号
+ORDER_BY_N=1                        # 初始按哪一列排序，1代表标签，后面按顺序对应
+ORDER_DESC=False                    # 是否逆序
+CLEAR_AFTER_CHANGE_FOLDER=0         # 切换文件夹后，是否清除筛选。0 是保留，其他是清除。
+EXP_FOLDERS=['_img']                # 排除文件夹规则，以后会加到自定义里面
+ALL_FOLDERS=2                       # 是否有“所有文件夹”的功能,1 在前面，2在末尾，其余没有
+OPTIONS_FILE='options.json'         # 设置文件的名称
+V_SEP='#'
+V_FOLDERS=2
 OPT_DEFAULT={
 	"options":{
 		"sep":"#",
@@ -47,8 +51,7 @@ lst_my_path0=[] # json里面，要扫描的文件夹列表
 lst_my_path_s=[]
 lst_my_path=[]
 dict_path=dict() # 用于列表简写和实际值
-V_SEP='#'
-V_FOLDERS=2
+
 
 #%%
 # 通用函数
@@ -61,6 +64,23 @@ def tree_clear(tar): # treeview 清除，必须带参数
     x=tar.get_children()
     for item in x:
         tar.delete(item)
+
+# style = ttk.Style()
+    
+# def fixed_map(option):
+#     # Fix for setting text colour for Tkinter 8.6.9
+#     # From: https://core.tcl.tk/tk/info/509cafafae
+#     #
+#     # Returns the style map for 'option' with any styles starting with
+#     # ('!disabled', '!selected', ...) filtered out.
+
+#     # style.map() returns an empty list for missing options, so this
+#     # should be future-safe.
+#     return [elm for elm in ttk.Style.map('Treeview', query_opt=option) if
+#             elm[:2] != ('!disabled', '!selected')]
+
+# style.map('Treeview', foreground2=fixed_map('foreground'), background2=fixed_map('background'))
+
 #%%
 # 加载设置项 json 内容。保存到 opt_data 变量中，这是个 dict。
 
@@ -239,7 +259,14 @@ def get_dt():
     
     return (dT, lst_tags)
 
-lst_file = get_data()
+if ALL_FOLDERS==1: # 对应是否带有“所有文件夹”这个功能的开关
+    lst_file = get_data(lst_my_path0)
+else:
+    try:
+        lst_file = get_data([lst_my_path0[0]])
+    except:
+        lst_file = get_data() # 此处有隐患，还没条件测试
+    
 (dT, lst_tags)=get_dt()
 
 
@@ -286,7 +313,7 @@ def my_input_window(title='未命名',msg='未定义'):
 # my_input_window()
     
 #%%
-# 菜单
+# 顶部菜单
 
 menu1=tk.Menu(window)
 
@@ -310,8 +337,6 @@ mHelp.add_command(label='使用说明',accelerator='Ctrl+N')
 
 # 文件夹区
 frameFolder=ttk.Frame(window,width=int(w_width*0.4))#,width=600)
-# frame0.grid(row=0,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
-# frame0.pack(side=tk.TOP,expand=1,fill=tk.X,padx=10,pady=5)
 frameFolder.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=10,pady=10)
 
 frameFolderCtl=ttk.Frame(frameFolder,height=50,borderwidth=0,relief=tk.FLAT)
@@ -319,20 +344,14 @@ frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=10)
 
 # 上面功能区
 frame0=ttk.LabelFrame(window,text='',height=80)#,width=600)
-# frame0.grid(row=0,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
-# frame0.pack(side=tk.TOP,expand=1,fill=tk.X,padx=10,pady=5)
 frame0.pack(expand=0,fill=tk.X,padx=10,pady=5)
 
 # 主功能区
 frameMain=ttk.Frame(window)#,height=800)
-# frameMain.grid(row=1,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
-# frameMain.pack(side=tk.TOP,expand=1,fill=tk.BOTH,padx=10,pady=5)
 frameMain.pack(expand=1,fill=tk.BOTH,padx=10,pady=0)
 
 # 底部区
 frameBtm=ttk.LabelFrame(window,height=80)
-# frameBtm.grid(row=2,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
-# frameBtm.pack(side=tk.BOTTOM,expand=1,fill=tk.X,padx=10,pady=5)
 frameBtm.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
 
 #%%
@@ -360,14 +379,9 @@ bar_folder.pack(side=tk.RIGHT, expand=0,fill=tk.Y)
 
 tk_lst_folder = ttk.Treeview(frameFolder, show = "headings", columns = ['folders'], 
                              selectmode = tk.BROWSE, 
-                             # rowheight=int(MON_FONTSIZE*3.5),
-                             # font=(None, MON_FONTSIZE),
                              yscrollcommand = bar_folder.set)#, height=18)
 bar_folder.config( command = tk_lst_folder.yview )
-# tk_lst_folder=tk.Listbox(frameFolder,yscrollcommand=bar_folder.set,
-#                          relief=tk.FLAT,
-#                          # rowheight=int(MON_FONTSIZE*3.5),
-#                          font=(None, MON_FONTSIZE))
+
 tk_lst_folder.heading("folders", text = "关注的文件夹",anchor='w')
 tk_lst_folder.column('folders', width=300, anchor='w')
 
@@ -382,11 +396,15 @@ def update_folder_list():
         tmp+=1
         print(i)
         tk_lst_folder.insert('',tmp,values=(str(i))) # 此处有bug，对存在空格的不可用
-    
+    if ALL_FOLDERS==2:
+        tk_lst_folder.insert('',tmp,values=("（全部）"))
         # tk_lst_folder.insert(tk.END,i)
-    tmp=tk_lst_folder.get_children()[0]
-    # tk_lst_folder.focus(tmp)
-    tk_lst_folder.selection_set(tmp)
+    try:
+        tmp=tk_lst_folder.get_children()[0]
+        # tk_lst_folder.focus(tmp)
+        tk_lst_folder.selection_set(tmp)
+    except:
+        pass
 # tk_lst_folder.selection_set()
 
 update_folder_list()
@@ -485,8 +503,6 @@ def add_tree_item(tree,dT): # 关键函数：增加主框架的内容
 
 add_tree_item(tree,dT)
 
-tree.tag_configure('line1', background='#cccccc') # 灰色底纹,然而无效
-
 def get_folder(): # 获取文件夹名称
     # res= v_folders.get()
     # res='（全部）'
@@ -507,11 +523,11 @@ bar1.config( command = tree.yview )
 bar2.config( command = tree.xview )
 # tree.pack(expand = True, fill = tk.BOTH)
 
-style = ttk.Style()
 
+style = ttk.Style()
 # style.configure("Treeview.Heading", font=(None, 12),rowheight=60)
 style.configure("Treeview.Heading", font=(None, LARGE_FONT), \
-                rowheight=int(LARGE_FONT*2.5),height=int(LARGE_FONT*3))
+                rowheight=int(LARGE_FONT*3.5),height=int(LARGE_FONT*4))
 
 style.configure("Treeview", font=(None, MON_FONTSIZE), rowheight=int(MON_FONTSIZE*3.5))
 
@@ -726,7 +742,8 @@ def v_folder_choose(event=None,refresh=1): # 点击新的文件夹之后
         bt_new.configure(state=tk.NORMAL)
         bt_folder_drop.configure(state=tk.NORMAL)
     if refresh==1:
-        my_reload(lst_my_path)
+        # my_reload(lst_my_path)
+        my_reload(CLEAR_AFTER_CHANGE_FOLDER)
     
     
 def v_tag_choose(event=None):
@@ -1091,6 +1108,8 @@ tree.bind("<Button-3>",popup_menu_file) # 绑定文件夹区域的功能
 # tk_lst_folder.bind('<<ListboxSelect>>',v_folder_choose)
 # tk_lst_folder.bind('<Button-1>',v_folder_choose)
 tk_lst_folder.bind('<ButtonRelease-1>',v_folder_choose)
+tree.tag_configure('line1', background='#cccccc') # 灰色底纹,然而无效
+
 window.bind_all('<Control-n>',create_note)
-window.state('zoomed')
+window.state('zoomed') # 最大化
 window.mainloop() 

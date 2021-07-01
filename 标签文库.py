@@ -68,15 +68,23 @@ if True: # 调整清晰度
     #设置程序缩放
     window.tk.call('tk', 'scaling', ScaleFactor/75)
 
-def split_path(inp): # 通用函数：将完整路径拆分
-    test_str=inp.replace('\\', '/',-1)
+def split_path(full_path): 
+    '''
+    通用函数：    
+    将完整路径拆分，得到每个文件夹到文件名的列表。
+    '''
+    test_str=full_path.replace('\\', '/',-1)
     test_str_res=test_str.split('/')
     return(test_str_res)
 
-def tree_clear(tar): # treeview 清除，必须带参数
-    x=tar.get_children()
+def tree_clear(tree_obj): # 
+    '''
+    通用的 treeview 清除函数，因为是通用的，所以必须带参数。
+    参数是 具体的 treeview 对象。
+    '''
+    x=tree_obj.get_children()
     for item in x:
-        tar.delete(item)
+        tree_obj.delete(item)
 
 # style = ttk.Style()
     
@@ -98,11 +106,22 @@ def tree_clear(tar): # treeview 清除，必须带参数
 # 加载设置项 json 内容。保存到 opt_data 变量中，这是个 dict。
 
 json_data = OPT_DEFAULT
-def update_json(tar=OPTIONS_FILE,data=json_data): # 写入 json 文件
+def update_json(tar=OPTIONS_FILE,data=json_data): 
+    '''
+    将 json_data变量的值，写入 json 文件。
+    可以不带参数，随时调用就是写入json。
+    '''
     with open(tar,'w',encoding='utf-8') as f:
         json.dump(data,f,ensure_ascii=False)
         
 def load_json_data():
+    '''
+    读取json文件，获取其中的参数，并存储到相应的变量中。
+
+    如果json文件读取失败，则按照初始化标准重建这个文件。
+
+    依赖函数：update_json。
+    '''
     global json_data
     global V_SEP
     global V_FOLDERS
@@ -167,7 +186,13 @@ load_json_data()
     
 #%%
 
-def get_data(ipath=lst_my_path0): # 返回 lst_file 列表
+def get_data(ipath=lst_my_path0): 
+    '''
+    根据所选中的文件夹，
+    返回 lst_file 列表。
+    这个参数可以在 get_dT 里面调用。
+
+    '''
     lst_file=list() #获取所有文件的完整路径
     for vPath in ipath:
         for root, dirs, files in os.walk(vPath):
@@ -192,7 +217,11 @@ def get_data(ipath=lst_my_path0): # 返回 lst_file 列表
             
     return lst_file
 
-def get_file_part(tar):     # 这里 tar 是完整路径
+def get_file_part(tar):     # 
+    '''
+    这里输入参数 tar 是完整路径。
+    输入完整（文件）路径，以字典的形式，返回对应的所有文件信息。
+    '''
     [fpath,ffname]=os.path.split(tar) # fpath 所在文件夹、ffname 原始文件名
     [fname,fename]=os.path.splitext(ffname) # fname 文件名前半部分，fename 扩展名
     lst_sp=fname.split(V_SEP) #拆分为多个片段
@@ -247,6 +276,12 @@ def sort_by_tag(elem): # 主题表格排序
     return str(elem[ORDER_BY_N])
 
 def get_dt():
+    '''
+    lst_file 来自于 get_data() 函数。
+
+    根据 lst_file 里面的文件列表，返回 (dT, lst_tags) .
+    无需输入参数，自动找变量。
+    '''
     
     dT=list()
     for tar in lst_file:
@@ -302,6 +337,9 @@ window.geometry('%dx%d+%d+%d'%(w_width, w_height, (screenwidth-w_width)/2, (scre
 
 # 自制输入窗体
 def my_input_window(title='未命名',msg='未定义'):
+    '''
+    想要做输入框，替代系统自带的，但是并没有启用。
+    '''
     screenwidth = window.winfo_screenwidth()
     screenheight = window.winfo_screenheight()
     w_width = 500
@@ -400,6 +438,10 @@ tk_lst_folder.column('folders', width=300, anchor='w')
 
 # tk_lst_folder.insert(0,"（全部）")
 def update_folder_list():
+    '''
+    根据 lst_my_path_s，将文件夹列表刷新一次。
+    没有输入输出。
+    '''
     global tk_lst_folder
     tree_clear(tk_lst_folder)
     tmp=0
@@ -424,6 +466,9 @@ update_folder_list()
 tk_lst_folder.pack(side=tk.LEFT,expand=0,fill=tk.BOTH)
 
 def tree_order_base(inp):
+    '''
+    主列表排序的入口程序。
+    '''
     global ORDER_BY_N,ORDER_DESC  
     if ORDER_BY_N==inp:
         ORDER_DESC=not ORDER_DESC
@@ -470,7 +515,12 @@ str_btm=tk.StringVar() #最下面显示状态用的
 str_btm.set("加载中")
 
 
-def get_tag(tar=v_tag): # 获取标签
+def get_tag(tar=v_tag): 
+    '''
+    获取标签下拉框里面的标签。
+    不过，现在也兼职了对输入框的搜索。
+    返回值是列表。
+    '''
     res=[]
     if len(v_tag.get())>0:
         res+=[v_tag.get()]
@@ -478,8 +528,11 @@ def get_tag(tar=v_tag): # 获取标签
         res+=str(v_search.get()).split(' ')
     return res
 
-def add_tree_item(tree,dT): # 关键函数：增加主框架的内容
+def add_tree_item(tree,dT): 
+    '''
+    # 关键函数：增加主框架的内容
     # 先获得搜索项目以及 tag
+    '''
     tmp_search_items=get_tag() # 列表
     k=0
     print(tmp_search_items)
@@ -516,9 +569,14 @@ def add_tree_item(tree,dT): # 关键函数：增加主框架的内容
 
 add_tree_item(tree,dT)
 
-def get_folder(): # 获取文件夹名称
-    # res= v_folders.get()
-    # res='（全部）'
+def get_folder(): 
+    '''
+    获取文件夹名称
+
+    res= v_folders.get()
+    
+    res='（全部）'
+    '''
     for item in tk_lst_folder.selection():
         res = tk_lst_folder.item(item, "values")
 
@@ -549,6 +607,10 @@ style.configure("Treeview", font=(None, MON_FONTSIZE), rowheight=int(MON_FONTSIZ
 
 # 获取当前点击行的值
 def treeOpen(event=None): #单击
+    '''
+    打开列表选中项目。
+
+    '''
     for item in tree.selection():
         item_text = tree.item(item, "values")
         print(item_text[-1])
@@ -574,16 +636,22 @@ def file_rename(tar=None): # 对文件重命名
                 # print(t)
                 pass
 
-def bt_test(event=None): # 用于调试一些测试性的功能，
-    # 为了避免 event 输入，所以套了一层。
+def bt_test(event=None): # 
+    ''' 
+    用于调试一些测试性的功能，
+    为了避免 event 输入，所以套了一层。
+
+    '''
     print('进入测试功能')
     
     full_path='D:/MaJian/Documents/NutNotes/_MY_NOTES/#Python_GUI/pyinstaller打包exe#@PIN.md'
     # 
     tree_find(full_path)
 
-def tree_find(full_path=''): # 用于在 tree 里面找到项目，并加高亮。
-    
+def tree_find(full_path=''): # 
+    '''
+    用于在 tree 里面找到项目，并加高亮。
+    '''
     if full_path=='':
         return(-1)
         # full_path='D:/MaJian/Documents/NutNotes/_MY_NOTES/#Python_GUI/pyinstaller打包exe#@PIN.md'
@@ -621,7 +689,9 @@ def tree_find(full_path=''): # 用于在 tree 里面找到项目，并加高亮�
     # for i in range()
     
 
-def tree_open_folder(event=None): #打开当前文件所在的目录
+def tree_open_folder(event=None): 
+    '''#打开当前文件所在的目录
+    '''
     VMETHOD=1
     for item in tree.selection():
         item_text = tree.item(item, "values")
@@ -661,8 +731,10 @@ def input_new_tag(event=None):
             file_add_tag(tmp_full_name,new_tag)
             print(new_name)
 
-def file_add_tag(filename,tag0):
+def file_add_tag(filename,tag0):    
+    '''
     # 增加标签
+    '''
     tag_list=tag0.split(V_SEP)
     tag_old = get_file_part(filename)['ftags'] #已有标签
     file_old = get_file_part(filename)['ffname'] #原始的文件名
@@ -690,11 +762,17 @@ def file_add_tag(filename,tag0):
     except:
         pass
 
-def file_add_star(event=None): # 加收藏
+def file_add_star(event=None): 
+    '''
+    加收藏。
+    目前是为文件增加 TAG_STAR 对应的值。
+    通常是 @PIN。
+    '''
+    TAG_STAR='@PIN'
     for item in tree.selection():
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
-    file_add_tag(tmp_full_name,'@PIN')
+    file_add_tag(tmp_full_name,TAG_STAR)
 
 def clear_entry(tar):
     try:
@@ -703,7 +781,15 @@ def clear_entry(tar):
         pass
     pass
 
-def my_reload(event=None): # 刷新
+def my_reload(event=None): 
+    '''
+    刷新。
+    
+    输入参数0的话，清空搜索框、标签框。
+
+    如果输入参数为空或者不是0，就保留。
+
+    '''
     global lst_file,dT,lst_tags
     
     if not event==0:
@@ -713,8 +799,7 @@ def my_reload(event=None): # 刷新
     # v_inp.delete(0,len(v_inp.get()))
     
     # v_folder_choose(refresh=0)
-    lst_file = get_data(lst_my_path) # 此处存在bug，导致刷新之后没有数据。尚未修复。
-    # 原因是 lst_my_path 应该是长路径，不是短路径
+    lst_file = get_data(lst_my_path) # 原因是 lst_my_path 应该是长路径，不是短路径
     
     (dT, lst_tags)=get_dt()
     # tree_clear(tree)
@@ -724,6 +809,10 @@ def my_reload(event=None): # 刷新
     v_inp['value']=lst_tags
 
 def my_help(event=None):
+    '''
+    提供帮助文件。
+    目前的方式主要是跳转到在线帮助文件。以后考虑到内网打不开网页，需要增加一个离线的方面。
+    '''
     os.startfile(URL_HELP)
 
 tree.bind('<Double-Button-1>', treeOpen)
@@ -761,6 +850,10 @@ def v_folder_choose(event=None,refresh=1): # 点击新的文件夹之后
     
     
 def v_tag_choose(event=None):
+    '''
+    选择标签之后触发。
+    清空tree，并按照dT为tree增加行。
+    '''
     # tmp_tag=get_tag()
     tree_clear(tree)
     # add_tree_item(tree,dT,tag=tmp_tag)
@@ -868,8 +961,10 @@ lable_tag=tk.Label(frameBtm, text = '添加新标签')
 lable_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 #%% 
 
-def init_form_setting(): # 设置窗口（但是并没有启用）
-        
+def init_form_setting(): # 
+    '''
+    设置窗口（但是并没有启用）
+    ''' 
     form_setting=tk.Toplevel(window)
     v2sep=tk.StringVar(value=V_SEP)
     v2fdepth=tk.StringVar(value=V_FOLDERS)
@@ -920,8 +1015,10 @@ def init_form_setting(): # 设置窗口（但是并没有启用）
     form_setting.title('设置')
     form_setting.resizable(0,0) #限制尺寸
 
-def my_folder_add_click(): # 通过点击的方式，添加新的目录
-    
+def my_folder_add_click(): # 
+    '''
+    通过点击的方式，添加新的目录
+    '''
     res=filedialog.askdirectory()#选择目录，返回目录名
     res=[res]
     print(res)
@@ -931,7 +1028,10 @@ def my_folder_add_click(): # 通过点击的方式，添加新的目录
         my_folder_add(res)
 
 
-def my_folder_add_drag(files): # 通过拖拽的方式，添加目录。
+def my_folder_add_drag(files): # 
+    '''
+    通过拖拽的方式，添加目录。
+    '''
     filenames=list() #可以得到文件路径编码, 可以看到实际上就是个列表。
     folders=list()
     # print(files)
@@ -1124,6 +1224,6 @@ tree.bind("<Button-3>",popup_menu_file) # 绑定文件夹区域的功能
 tk_lst_folder.bind('<ButtonRelease-1>',v_folder_choose)
 tree.tag_configure('line1', background='#cccccc') # 灰色底纹,然而无效
 
-window.bind_all('<Control-n>',create_note)
+window.bind_all('<Control-n>',create_note) # 绑定添加笔记的功能。
 window.state('zoomed') # 最大化
 window.mainloop() 

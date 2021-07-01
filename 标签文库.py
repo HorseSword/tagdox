@@ -16,12 +16,16 @@ from os.path import isdir
 from os.path import isfile
 import time
 # from docx import Document# 用于创建word文档
+# import ctypes # 用于调整分辨率
+from ctypes import windll
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.3.1' # 版本号
+VER='v0.9.3.2' # 版本号
 # v0.9.3.1 增加了切换文件夹之后是否清除筛选的变量；完善了是否保留所有文件夹这个功能；修复bug。
+# v0.9.3.2 增加了对高分屏的适配，现在应该是默认就很清晰，不需要手动设置了。
 
+#%%
 #常量，但以后可以做到设置里面
 cALL_FILES=''                       # 标签为空的表达方式，默认是空字符串
 LARGE_FONT=12                       # 表头字号
@@ -51,10 +55,19 @@ lst_my_path0=[] # json里面，要扫描的文件夹列表
 lst_my_path_s=[]
 lst_my_path=[]
 dict_path=dict() # 用于列表简写和实际值
-
+window = tk.Tk() # 主窗口
 
 #%%
+
 # 通用函数
+if True: # 调整清晰度
+    #告诉操作系统使用程序自身的dpi适配
+    windll.shcore.SetProcessDpiAwareness(1)
+    #获取屏幕的缩放因子
+    ScaleFactor=windll.shcore.GetScaleFactorForDevice(0)
+    #设置程序缩放
+    window.tk.call('tk', 'scaling', ScaleFactor/75)
+
 def split_path(inp): # 通用函数：将完整路径拆分
     test_str=inp.replace('\\', '/',-1)
     test_str_res=test_str.split('/')
@@ -275,7 +288,7 @@ else:
 
 # 窗体设计
 
-window = tk.Tk() # 主窗口
+
 window.title(TAR+' '+VER)
 screenwidth = window.winfo_screenwidth()
 screenheight = window.winfo_screenheight()
@@ -561,14 +574,15 @@ def file_rename(tar=None): # 对文件重命名
                 # print(t)
                 pass
 
-def bt_test(event=None):
+def bt_test(event=None): # 用于调试一些测试性的功能，
+    # 为了避免 event 输入，所以套了一层。
     print('进入测试功能')
     
     full_path='D:/MaJian/Documents/NutNotes/_MY_NOTES/#Python_GUI/pyinstaller打包exe#@PIN.md'
     # 
     tree_find(full_path)
 
-def tree_find(full_path=''): # 用于高亮项目
+def tree_find(full_path=''): # 用于在 tree 里面找到项目，并加高亮。
     
     if full_path=='':
         return(-1)
@@ -854,7 +868,7 @@ lable_tag=tk.Label(frameBtm, text = '添加新标签')
 lable_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 #%% 
 
-def init_form_setting(): # 设置窗口
+def init_form_setting(): # 设置窗口（但是并没有启用）
         
     form_setting=tk.Toplevel(window)
     v2sep=tk.StringVar(value=V_SEP)
@@ -906,7 +920,7 @@ def init_form_setting(): # 设置窗口
     form_setting.title('设置')
     form_setting.resizable(0,0) #限制尺寸
 
-def my_folder_add_click(): # 获取要添加的目录
+def my_folder_add_click(): # 通过点击的方式，添加新的目录
     
     res=filedialog.askdirectory()#选择目录，返回目录名
     res=[res]
@@ -917,7 +931,7 @@ def my_folder_add_click(): # 获取要添加的目录
         my_folder_add(res)
 
 
-def my_folder_add_drag(files):
+def my_folder_add_drag(files): # 通过拖拽的方式，添加目录。
     filenames=list() #可以得到文件路径编码, 可以看到实际上就是个列表。
     folders=list()
     # print(files)
@@ -998,7 +1012,7 @@ bt_setting.configure(command=init_form_setting) # 功能绑定
 bt_folder_add.configure(command=my_folder_add_click) # 功能绑定
 bt_folder_drop.configure(command=my_folder_drop) # 功能绑定
 
-def create_note(event=None):
+def create_note(event=None): # 添加笔记
     global lst_my_path
     NOTE_NAME='未命名'
     NOTE_EXT='.docx'

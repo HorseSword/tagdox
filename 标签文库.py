@@ -21,9 +21,10 @@ from ctypes import windll
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.3.2' # 版本号
+VER='v0.9.3.3' # 版本号
 # v0.9.3.1 增加了切换文件夹之后是否清除筛选的变量；完善了是否保留所有文件夹这个功能；修复bug。
 # v0.9.3.2 增加了对高分屏的适配，现在应该是默认就很清晰，不需要手动设置了。
+# v0.9.3.3 修复了新建笔记定位错位的bug；增加文件列表中「在相同位置创建笔记」的功能。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -308,10 +309,12 @@ def get_dt():
     return (dT, lst_tags)
 
 if ALL_FOLDERS==1: # 对应是否带有“所有文件夹”这个功能的开关
-    lst_file = get_data(lst_my_path0)
+    lst_my_path=lst_my_path0.copy() # 用这个变量修复添加文件夹之后定位不准确的问题。
+    lst_file = get_data(lst_my_path)
 else:
     try:
-        lst_file = get_data([lst_my_path0[0]])
+        lst_my_path=[lst_my_path0[0]]
+        lst_file = get_data(lst_my_path)
     except:
         lst_file = get_data() # 此处有隐患，还没条件测试
     
@@ -670,8 +673,10 @@ def tree_find(full_path=''): #
             print('在第%d处检查到了相应结果' % n)
             (b1,b2)=bar1.get()
             b0=b2-b1
+
             b1=n/tc_cnt-0.5*b0
             b2=n/tc_cnt+0.5*b0
+            print((b0,b1,b2))
             if b1<0:
                 b1=0
                 b2=b0
@@ -685,6 +690,8 @@ def tree_find(full_path=''): #
             break
         else:
             n+=1
+    print('居然没找到：')
+    print(full_path)
     return(-1)
     # for i in range()
     
@@ -1122,7 +1129,6 @@ def create_note(event=None): # 添加笔记
         print('新建功能锁定，暂不可用')
         return
     #
-    print('新建功能跳过')
     res = simpledialog.askstring('新建 Tagdox 笔记',prompt='请输入文件名',initialvalue =NOTE_NAME)
     if res is not None:
         print(res)
@@ -1138,7 +1144,7 @@ def create_note(event=None): # 添加笔记
         if len(lst_my_path)==1:
             pth=lst_my_path[0]
             print(pth)
-            if pth in lst_my_path0:
+            if True:#pth in lst_my_path0: # 后面这个判断有点多余
                 fpth=pth+'/'+ NOTE_NAME + stags + NOTE_EXT 
                 
                 # 检查是否有这个文件
@@ -1148,6 +1154,7 @@ def create_note(event=None): # 添加笔记
                     fpth=pth+'/'+ NOTE_NAME +'('+str(i)+')'+ stags+ NOTE_EXT
                 
                 #创建文件
+                print('创建文件：')
                 print(fpth)
                 if NOTE_EXT in ['.md','.txt','.docx']:
                     with open(fpth,'w') as _:
@@ -1159,12 +1166,37 @@ def create_note(event=None): # 添加笔记
                 # 打开
                 os.startfile(fpth) #打开这个文件
                 #刷新
-                my_reload()
-                tree_find(fpth)
+                if not event=='create_note_here':
+                    my_reload()
+                    tree_find(fpth)
+                else:
+                    return fpth
     else:
         pass
     #
+
+def create_note_here(event=None):
+    '''
+    树状图里面，可以右击直接在选中文件的相同位置新建笔记。
+    '''
+    global lst_my_path
+    for item in tree.selection():
+        item_text = tree.item(item, "values")
+        tmp_full_name = item_text[-1]
+    tmp_path = '/'.join(split_path(tmp_full_name)[0:-1])
+    print('当前路径')
+    print(tmp_path)
+    lst_tmp=lst_my_path.copy()
+    lst_my_path=[tmp_path]
     
+    fpth=create_note('create_note_here')
+    lst_my_path=lst_tmp.copy()
+    
+    if fpth is not None:
+        my_reload()
+        tree_find(fpth)
+    pass
+
             
 bt_new.configure(command=create_note)
 bt_folder_drop.configure(state=tk.DISABLED)
@@ -1191,6 +1223,7 @@ def popup_menu_folder(event):
 
 menu_file = tk.Menu(window,tearoff=0)
 menu_file.add_command(label="打开文件",command=treeOpen)
+menu_file.add_command(label="在相同位置创建笔记",command=create_note_here)
 menu_file.add_command(label="转到所在文件夹",command=tree_open_folder)
 menu_file.add_command(label="重命名（尚未开发完成）",state=tk.DISABLED,command=file_rename)
 menu_file.add_command(label="添加收藏",command=file_add_star)

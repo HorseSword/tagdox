@@ -21,10 +21,13 @@ from ctypes import windll
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.3.3' # 版本号
+VER='v0.9.4.0' # 版本号
 # v0.9.3.1 增加了切换文件夹之后是否清除筛选的变量；完善了是否保留所有文件夹这个功能；修复bug。
 # v0.9.3.2 增加了对高分屏的适配，现在应该是默认就很清晰，不需要手动设置了。
 # v0.9.3.3 修复了新建笔记定位错位的bug；增加文件列表中「在相同位置创建笔记」的功能。
+# v0.9.3.4 切换文件夹之后会将滚动条设置到最顶部。
+# v0.9.3.5 点击文件夹之后，如果并没有切换，就不执行文件夹内容刷新。
+# v0.9.4.0 增加了右键删除标签的功能；增加了右键快速添加标签的功能。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -47,6 +50,7 @@ OPT_DEFAULT={
 		]
 	}
  }
+QUICK_TAGS=['@PIN','@TODO','@toRead','@Done'] #
 
 #变量
 lst_file=[] # 所有文件的完整路径
@@ -87,6 +91,44 @@ def tree_clear(tree_obj): #
     for item in x:
         tree_obj.delete(item)
 
+def safe_rename(old_name,new_name):
+    '''
+    在基础的重命名之外，增加了对文件是否重名的判断；
+    返回值str, 是添加数字之后的最终文件名。
+    '''
+    old_name=old_name.replace('\\','/')
+    new_name=new_name.replace('\\','/')
+    n=1
+    [tmp_path,tmp_new_name]=os.path.split(new_name)
+    # tmp_path=''
+    # tmp_new_name=new_name
+    p=tmp_new_name.find(V_SEP)
+    if p>=0:
+        name_1=tmp_new_name[:p]
+        name_2=tmp_new_name[p:]
+    else:
+        p=tmp_new_name.rfind('.')
+        if p>=0:
+            name_1=tmp_new_name[:p]
+            name_2=tmp_new_name[p:]
+        else: # 连'.'都没有的话
+            name_1=tmp_new_name
+            name_2=''
+    
+    tmp_new_full_name=new_name   
+    while isfile(tmp_new_full_name):
+        tmp_new_name=name_1+'('+ str(n)+')'+name_2
+        tmp_new_full_name=tmp_path+'/'+tmp_new_name
+        n+=1
+    print(tmp_new_full_name)
+    try:
+        os.rename(old_name,tmp_new_full_name)
+        return(tmp_new_full_name)
+    except:
+        print('安全重命名失败！')
+        return(old_name)
+        pass
+    
 # style = ttk.Style()
     
 # def fixed_map(option):
@@ -232,15 +274,6 @@ def get_file_part(tar):     #
     mtime = os.stat(tar).st_mtime
     file_modify_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))
     
-    '''
-    # 增加对文件目录带井号的解析（作废）
-    tmp=fpath.split(V_SEP)
-    if len(tmp)>1:
-        for j in tmp[1:]:
-            if j.find('\\')<0 and j.find('/')<0:
-                ftags.append(j) # 只对最后的文件夹带井号的有反应
-    '''
-    
     # 对文件目录的解析算法2：
     tmp=split_path(fpath)
     tmp2=[]
@@ -264,12 +297,18 @@ def get_file_part(tar):     #
     fpath=fpath.replace('\\','/')
     tar=tar.replace('\\','/')
     
-    return {'fname_0':fname_0,
+    return {'fname_0':fname_0, # 去掉标签之后的文件名
             'ftags':ftags,
-            'ffname':ffname,
+            'ffname':ffname, # 原始文件名，带标签的
+            'filename_origional':ffname, # 原始文件名，带标签、扩展名的
             'fpath':fpath,
-            'fename':fename,
+            'f_path_only':fpath,
+            'fname':fname,
+            'filename_no_ext':fname, #去掉扩展名的文件名
+            'fename':fename, # 扩展名
+            'file_ext':fename, # 扩展名
             'tar':tar,
+            'file_full_path':tar, # 完整路径，和输入参数完全一样
             'file_mdf_time':file_modify_time}
     
 def sort_by_tag(elem): # 主题表格排序
@@ -433,6 +472,7 @@ bar_folder.pack(side=tk.RIGHT, expand=0,fill=tk.Y)
 
 tk_lst_folder = ttk.Treeview(frameFolder, show = "headings", columns = ['folders'], 
                              selectmode = tk.BROWSE, 
+                             # cursor='hand2',
                              yscrollcommand = bar_folder.set)#, height=18)
 bar_folder.config( command = tk_lst_folder.yview )
 
@@ -632,7 +672,8 @@ def file_rename(tar=None): # 对文件重命名
         print(tmp_new_name)
         if res is not None:
             try:
-                os.rename(tmp_full_path,tmp_new_name)
+                # os.rename(tmp_full_path,tmp_new_name)
+                safe_rename(tmp_full_path,tmp_new_name)
                 my_reload(0)
             except:
                 t=tk.messagebox.showerror(title = 'ERROR',message='重命名失败！')
@@ -756,16 +797,17 @@ def file_add_tag(filename,tag0):
             print(old_n)
             print(new_n)
             try:
-                os.rename(old_n,new_n)
+                # os.rename(old_n,new_n)
+                tmp_final_name=safe_rename(old_n,new_n)
                 old_n=new_n #多标签时避免重命名错误
             except:
                 print('为文件添加标签失败')
                 pass
     my_reload(0) # 此处可以优化，避免完全重载
     try:
-        new_n=new_n.replace('\\','/')
-        print('添加标签完成，正在定位%s' %(new_n))
-        tree_find(new_n) # 为加标签之后的项目高亮
+        tmp_final_name=tmp_final_name.replace('\\','/')
+        print('添加标签完成，正在定位%s' %(tmp_final_name))
+        tree_find(tmp_final_name) # 为加标签之后的项目高亮
     except:
         pass
 
@@ -776,6 +818,18 @@ def file_add_star(event=None):
     通常是 @PIN。
     '''
     TAG_STAR='@PIN'
+    for item in tree.selection():
+        item_text = tree.item(item, "values")
+        tmp_full_name = item_text[-1]
+    file_add_tag(tmp_full_name,TAG_STAR)
+    
+def fast_add_tag(tag): 
+    '''
+    加收藏。
+    目前是为文件增加 TAG_STAR 对应的值。
+    通常是 @PIN。
+    '''
+    TAG_STAR=tag
     for item in tree.selection():
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
@@ -802,6 +856,7 @@ def my_reload(event=None):
     if not event==0:
         clear_entry(v_search)
         v_tag.current(0)
+        
         # v_inp.delete(0,len(v_inp.get()))
     # v_inp.delete(0,len(v_inp.get()))
     
@@ -839,6 +894,9 @@ def folder_s2l(inp):
 
 def v_folder_choose(event=None,refresh=1): # 点击新的文件夹之后
     global lst_my_path
+    
+    lst_path_ori=lst_my_path.copy()
+    
     tmp=get_folder()
     if tmp=='':
         lst_my_path=lst_my_path0.copy()
@@ -851,9 +909,12 @@ def v_folder_choose(event=None,refresh=1): # 点击新的文件夹之后
         # 设置按钮有效
         bt_new.configure(state=tk.NORMAL)
         bt_folder_drop.configure(state=tk.NORMAL)
-    if refresh==1:
-        # my_reload(lst_my_path)
-        my_reload(CLEAR_AFTER_CHANGE_FOLDER)
+    
+    if not lst_path_ori==lst_my_path: # 如果前后的选项没有变化的话，就不刷新文件夹列表
+        if refresh==1:
+            # my_reload(lst_my_path)
+            my_reload(CLEAR_AFTER_CHANGE_FOLDER)
+        tree.yview_moveto(0)
     
     
 def v_tag_choose(event=None):
@@ -949,11 +1010,11 @@ bt_clear=ttk.Button(frameBtm,text='刷新',command=my_reload)
 # bt_clear.grid(row=0,column=20,padx=10, pady=5,sticky=tk.EW)
 bt_clear.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
-bt_new=ttk.Button(frameBtm,text='新建笔记(Ctrl+N)',state=tk.DISABLED)#,command=my_reload)
+bt_new=ttk.Button(frameBtm,text='新建笔记')#,state=tk.DISABLED)#,command=my_reload)
 # bt_clear.grid(row=0,column=20,padx=10, pady=5,sticky=tk.EW)
 bt_new.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
-bt_add_tag=ttk.Button(frameBtm,text='点此添加标签',command=input_new_tag)
+bt_add_tag=ttk.Button(frameBtm,text='添加标签',command=input_new_tag)
 # bt_clear.grid(row=2,column=22,padx=10, pady=5,sticky=tk.EW)
 bt_add_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
@@ -1205,30 +1266,40 @@ bt_folder_drop.configure(state=tk.DISABLED)
 # 弹出菜单
 menu_folder = tk.Menu(window,tearoff=0)
 menu_folder.add_command(label="添加文件夹",command=my_folder_add_click)
-menu_folder.add_command(label="转到所选文件夹",command=my_folder_open)
 menu_folder.add_separator()
+menu_folder.add_command(label="打开所选文件夹",command=my_folder_open)
 menu_folder.add_command(label="取消关注所选文件夹",command=my_folder_drop)
 
 menu_folder_no = tk.Menu(window,tearoff=0)
 menu_folder_no.add_command(label="添加文件夹",command=my_folder_add_click)
-menu_folder_no.add_command(label="转到所选文件夹",state=tk.DISABLED,command=my_folder_open)
 menu_folder_no.add_separator()
+menu_folder_no.add_command(label="打开所选文件夹",state=tk.DISABLED,command=my_folder_open)
 menu_folder_no.add_command(label="取消关注所选文件夹",state=tk.DISABLED,command=my_folder_drop)
 
 def popup_menu_folder(event):
-    if len(lst_my_path)!=1:
+    if len(lst_my_path)!=1: # 如果没有选中项目的话
         menu_folder_no.post(event.x_root,event.y_root)
     else:
         menu_folder.post(event.x_root,event.y_root)
+
+menu_tags_to_drop = tk.Menu(window,tearoff=0)
+menu_tags_to_add = tk.Menu(window,tearoff=0)
 
 menu_file = tk.Menu(window,tearoff=0)
 menu_file.add_command(label="打开文件",command=treeOpen)
 menu_file.add_command(label="在相同位置创建笔记",command=create_note_here)
 menu_file.add_command(label="转到所在文件夹",command=tree_open_folder)
 menu_file.add_command(label="重命名（尚未开发完成）",state=tk.DISABLED,command=file_rename)
-menu_file.add_command(label="添加收藏",command=file_add_star)
+menu_file.add_separator()
+# menu_file.add_command(label="添加收藏 @PIN",command=file_add_star)
+menu_file.add_cascade(label="快速添加标签",menu=menu_tags_to_add)#,command=file_add_star)
+menu_file.add_cascade(label="移除标签",menu=menu_tags_to_drop)
 menu_file.add_separator()
 menu_file.add_command(label="刷新",command=my_reload)
+
+if len(QUICK_TAGS)>0:
+    for i in QUICK_TAGS:
+        menu_tags_to_add.add_command(label=i,command=lambda x=i:fast_add_tag(x))
 
 menu_file_no_selection = tk.Menu(window,tearoff=0)
 menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=treeOpen)
@@ -1238,18 +1309,111 @@ menu_file_no_selection.add_command(label="添加收藏",state=tk.DISABLED)#,comm
 menu_file_no_selection.add_separator()
 menu_file_no_selection.add_command(label="刷新",command=my_reload)
 
+def drop_tag(event=None): # 删除标签，以后将#号换成SEP
+    if event is None:
+        return
+    tag_value=event
+    for item in tree.selection():
+        item_text = tree.item(item, "values")
+        tmp_full_name = item_text[-1]
+    #
+    res=get_file_part(tmp_full_name)
+    file_path=res['f_path_only']
+    file_name_ori=res['filename_origional']
+    file_ext=res['fename']
+    if file_ext=='':
+        print(file_name_ori)
+        tmp_rv=list(file_name_ori)
+        tmp_rv.reverse()
+        tmp_rv=''.join(tmp_rv)
+        print(tmp_rv)
+        #
+        tmp_r_tag=list('#'+tag_value)
+        tmp_r_tag.reverse()
+        tmp_r_tag=''.join(tmp_r_tag)
+        print(tmp_r_tag)
+        #
+        tmp_rv=tmp_rv.replace(tmp_r_tag,'',1)
+        #
+        tmp_rv=list(tmp_rv)
+        tmp_rv.reverse()
+        tmp_rv=''.join(tmp_rv)
+        #
+        file_name_ori=tmp_rv
+        print('从右向左替换')
+        print(file_name_ori)
+    new_name=file_name_ori.replace('#'+tag_value+'#',"#")
+    new_name=new_name.replace('#'+tag_value+'.',".")
+
+    new_full_name=file_path+'/'+new_name
+    print('原始文件名：')
+    print(tmp_full_name)
+    print('去掉标签后：')
+    print(new_full_name)
+    print('被去掉的标签：')
+    print(tag_value)
+    # os.rename(tmp_full_name,new_full_name)
+    tmp_final_name=safe_rename(tmp_full_name,new_full_name)
+    my_reload(0) # 此处可以优化，避免完全重载
+    try:
+        tmp_final_name=tmp_final_name.replace('\\','/')
+        print('删除标签完成，正在定位%s' %(tmp_final_name))
+        tree_find(tmp_final_name) # 为加标签之后的项目高亮
+    except:
+        pass
+
 def popup_menu_file(event):
     tmp=0
     for item in tree.selection():
+        item_text = tree.item(item, "values")
+        tmp_full_name = item_text[-1]
         tmp+=1
-    if tmp>0:
+    if tmp>0: # 如果有选中项目的话，
+        # tmp_file_name=split_path(tmp_full_name)[-1]
+        tmp_file_name=get_file_part(tmp_full_name)['fname']
+        tmp_tags_all=get_file_part(tmp_full_name)['ftags']
+        tmp_tags=tmp_file_name.split('#')
+        # print(tmp_res)
+        tmp_tags.pop(0)
+        try:
+            for i in range(10000): #删除已有标签
+                menu_tags_to_drop.delete(0)
+        except:
+            pass
+
+        if len(tmp_tags_all)>0:
+            if len(tmp_tags)==0:
+                pass
+            else:
+                # menu_tags_to_drop.add_separator()
+                for i in tmp_tags:
+                    menu_tags_to_drop.add_command(label=i,command=lambda x=i:drop_tag(x))
+                    
+            if len(tmp_tags_all)>len(tmp_tags):
+                if len(tmp_tags)>0:
+                    menu_tags_to_drop.add_separator()
+                menu_tags_to_drop.add_command(label='以下标签来自文件路径，不可直接删除',state=tk.DISABLED)
+                
+            for i in tmp_tags_all:
+                if not i in tmp_tags:
+                    menu_tags_to_drop.add_command(label=i,state=tk.DISABLED)
+
+        else:    
+            menu_tags_to_drop.add_command(label='无可操作项目',state=tk.DISABLED)
+            pass
+        
         menu_file.post(event.x_root,event.y_root)
     else:
         menu_file_no_selection.post(event.x_root,event.y_root)
 
-tk_lst_folder.bind("<Button-3>",popup_menu_folder) # 绑定文件夹区域的功能
+tk_lst_folder.bind("<Button-3>",popup_menu_folder) # 绑定文件夹区域的右键功能
 tree.bind("<Button-3>",popup_menu_file) # 绑定文件夹区域的功能
 
+def jump_to_search(event=None):
+    v_search.focus()
+    
+def jump_to_tag(event=None):
+    v_inp.focus()
 #%%
 # 运行
 # tk_lst_folder.bind('<<ListboxSelect>>',v_folder_choose)
@@ -1258,5 +1422,7 @@ tk_lst_folder.bind('<ButtonRelease-1>',v_folder_choose)
 tree.tag_configure('line1', background='#cccccc') # 灰色底纹,然而无效
 
 window.bind_all('<Control-n>',create_note) # 绑定添加笔记的功能。
+window.bind_all('<Control-f>',jump_to_search) # 跳转到搜索框。
+window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
 window.state('zoomed') # 最大化
 window.mainloop() 

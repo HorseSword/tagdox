@@ -22,10 +22,8 @@ from ctypes import windll
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.4.2' # 版本号
-# v0.9.4.0 增加了右键删除标签的功能；增加了右键快速添加标签的功能。
-# v0.9.4.1 增加文件加载状态的提示；增加开发和实际数据的区分。
-# v0.9.4.2 增加右键功能（开发中）。
+VER='v0.9.5.0' # 版本号
+# v0.9.5.0 增加进度条显示；优化加载效率；优化排序加载算法，缩短排序时间。
 
 
 #%%
@@ -38,6 +36,8 @@ ORDER_DESC=False                    # 是否逆序
 CLEAR_AFTER_CHANGE_FOLDER=0         # 切换文件夹后，是否清除筛选。0 是保留，其他是清除。
 EXP_FOLDERS=['_img']                # 排除文件夹规则，以后会加到自定义里面
 ALL_FOLDERS=2                       # 是否有“所有文件夹”的功能,1 在前面，2在末尾，其余没有
+PROG_STEP=500                       # 进度条刷新参数
+
 if isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
     print('进入开发模式')
     OPTIONS_FILE='D:/MyPython/开发数据/options_for_tagdox.json'
@@ -238,18 +238,29 @@ load_json_data()
 
 prog=tk.DoubleVar()
 
-class thread_prog (threading.Thread):
-    '''
-    线程处理：
+# class thread_prog (threading.Thread):
+#     '''
+#     线程处理：
     
-    '''
-    def __init__(self):
-        threading.Thread.__init__(self)
+#     '''
+#     def __init__(self,tar):
+#         threading.Thread.__init__(self)
+#         self.tar=tar
         
-    def run(self):
-        str_btm.set("加载中")
-        pass    
+#     def prog_set(self,vnow):
+#         self.tar.set(vnow)
+#         # str_btm.set("加载中")
+#         pass    
+
+
 #%%
+def set_prog_bar(inp,maxv=100):
+    prog.set(inp)
+    # progressbar_file.stop()
+    # progressbar_file.start()
+    # if maxv<=inp:
+    #     progressbar_file.stop()
+    progressbar_file.update()
 
 def get_data(ipath=lst_my_path0): 
     '''
@@ -258,14 +269,25 @@ def get_data(ipath=lst_my_path0):
     这个参数可以在 get_dT 里面调用。
     此过程消耗时间较多。
     '''
-
+    
     if run_flag==1:
+        tree_clear(tree)
+        set_prog_bar(0,30)
         str_btm.set("正在加载基础数据……")
         window.update()
+        
     
     time0=time.time()
     lst_file=list() #获取所有文件的完整路径
+    
+    n=1
+    n_max=len(ipath)
+    
     for vPath in ipath:
+        n+=1
+        if run_flag==1 and n % PROG_STEP == 0:
+            set_prog_bar(30*n/n_max)
+            
         for root, dirs, files in os.walk(vPath):
             
             tmp=[]
@@ -287,6 +309,8 @@ def get_data(ipath=lst_my_path0):
                 lst_file+=tmp 
     print('加载 lst_file 消耗时间：')
     print(time.time()-time0)
+    # if run_flag==1:
+    #     set_prog_bar(30,30)
     return lst_file
 
 def get_file_part(tar):     # 
@@ -353,20 +377,48 @@ def get_dt():
     无需输入参数，自动找变量。
     '''
     if run_flag==1:
-        str_btm.set("正在排序……")
+        str_btm.set("正在解析标签……")
         window.update()
+        set_prog_bar(30)
         
     time0=time.time()
-    dT=list()
+    
+    n=1
+    n_max=len(lst_file)
+    
+    dT=list()    
+    
     for tar in lst_file:
+        
+        # 更新进度条
+        n+=1
+        if run_flag==1 and n % PROG_STEP ==0:
+            set_prog_bar(30+70*n/n_max)
+        
         tmp=get_file_part(tar)
         # dT.append([tmp['fname_0'],tmp['ftags'],tmp['fpath'],tmp['tar']])
         # 增加检查重复项的逻辑：
-        tmp_v=[tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar']]
-        if not tmp_v in dT:
-            dT.append(tmp_v)
+        # tmp_v=[tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar']]
+        tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar'])
+        
+        # if not tmp_v in dT:
+        #     dT.append(tmp_v) # 查重有点费时间
+        dT.append(tmp_v)
     print('加载dT消耗时间：')
     print(time.time()-time0)
+    
+    # 去重
+    dT2=[]
+    for i in dT:
+        if not i in dT2:
+            dT2.append(i)
+    dT=dT2
+    # dT=list(set(dT))
+    
+    
+    if run_flag==1:
+        set_prog_bar(100)
+        
     # 获取所有tag
     tmp=[]
     for i in dT:
@@ -547,7 +599,7 @@ def tree_order_base(inp):
     '''
     主列表排序的入口程序。
     '''
-    global ORDER_BY_N,ORDER_DESC  
+    global ORDER_BY_N,ORDER_DESC,dT,lst_tags  
     if ORDER_BY_N==inp: # 如果同样位置点击，就切换排序方式
         ORDER_DESC=not ORDER_DESC
     else: # 如果不同位置点击，就预置排序方式
@@ -556,7 +608,13 @@ def tree_order_base(inp):
             ORDER_DESC=True 
         else:
             ORDER_DESC=False # 其余排序方法，都是升序。
-    my_reload(0)
+    # my_reload(0) # 这个方法虽然可以排序，但是效率太低
+    
+    # 新的排序方法
+    dT.sort(key=sort_by_tag,reverse=ORDER_DESC)
+    v_tag_choose()
+    v_tag['value']=lst_tags
+    v_inp['value']=lst_tags
     
 def tree_order_filename(inp=None):
     tree_order_base(0)
@@ -613,7 +671,7 @@ def add_tree_item(tree,dT):
     # 关键函数：增加主框架的内容
     # 先获得搜索项目以及 tag
     '''
-    str_btm.set('即将完成')
+    str_btm.set('正在刷新列表……')
     time0=time.time()
     tmp_search_items=get_tag() # 列表
     k=0
@@ -645,7 +703,9 @@ def add_tree_item(tree,dT):
                 tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]),tags=['line1'])
             else:
                 tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
-        
+        if k % 1000==0:
+            tree.update() # 提前刷新，优化用户体验
+            
     str_btm.set("找到 "+str(k)+" 个结果")#"，用时"+str(time.time()-time0)+"秒")
     
     # tree.insert('',i,values=(d[0][i],d[1][i],d[2][i],d[3][i]))
@@ -1039,9 +1099,16 @@ bar1.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=2,pady=1) # 用pack 可以实现�
 
 vPDX=10
 vPDY=5
+
+# 进度条
+progressbar_file=ttk.Progressbar(frameBtm,variable=prog,mode='determinate')
+progressbar_file.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY)
+
 lable_sum=tk.Label(frameBtm, text = str_btm,textvariable=str_btm)
 # lable_sum.grid(row=2,column=0,padx=10, pady=5,sticky=tk.W)
 lable_sum.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+
 
 bt_help=ttk.Button(frameBtm,text='使用说明',command=my_help)
 # bt_help.grid(row=2,column=99,padx=10, pady=5,sticky=tk.EW)
@@ -1484,4 +1551,6 @@ window.bind_all('<Control-f>',jump_to_search) # 跳转到搜索框。
 window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
 window.state('zoomed') # 最大化
 run_flag=1
+set_prog_bar(100)
+# bt_add_tag.pack_forget()
 window.mainloop() 

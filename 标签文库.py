@@ -15,19 +15,18 @@ import windnd
 from os.path import isdir
 from os.path import isfile
 import time
+import threading # 多线程
 # from docx import Document# 用于创建word文档
 # import ctypes # 用于调整分辨率
 from ctypes import windll
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.4.0' # 版本号
-# v0.9.3.1 增加了切换文件夹之后是否清除筛选的变量；完善了是否保留所有文件夹这个功能；修复bug。
-# v0.9.3.2 增加了对高分屏的适配，现在应该是默认就很清晰，不需要手动设置了。
-# v0.9.3.3 修复了新建笔记定位错位的bug；增加文件列表中「在相同位置创建笔记」的功能。
-# v0.9.3.4 切换文件夹之后会将滚动条设置到最顶部。
-# v0.9.3.5 点击文件夹之后，如果并没有切换，就不执行文件夹内容刷新。
+VER='v0.9.4.2' # 版本号
 # v0.9.4.0 增加了右键删除标签的功能；增加了右键快速添加标签的功能。
+# v0.9.4.1 增加文件加载状态的提示；增加开发和实际数据的区分。
+# v0.9.4.2 增加右键功能（开发中）。
+
 
 #%%
 #常量，但以后可以做到设置里面
@@ -39,7 +38,12 @@ ORDER_DESC=False                    # 是否逆序
 CLEAR_AFTER_CHANGE_FOLDER=0         # 切换文件夹后，是否清除筛选。0 是保留，其他是清除。
 EXP_FOLDERS=['_img']                # 排除文件夹规则，以后会加到自定义里面
 ALL_FOLDERS=2                       # 是否有“所有文件夹”的功能,1 在前面，2在末尾，其余没有
-OPTIONS_FILE='options.json'         # 设置文件的名称
+if isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
+    print('进入开发模式')
+    OPTIONS_FILE='D:/MyPython/开发数据/options_for_tagdox.json'
+else:
+    print('正式模式')
+    OPTIONS_FILE='options_for_tagdox.json'         # 配置文件的名称
 V_SEP='#'
 V_FOLDERS=2
 OPT_DEFAULT={
@@ -60,8 +64,11 @@ lst_my_path0=[] # json里面，要扫描的文件夹列表
 lst_my_path_s=[]
 lst_my_path=[]
 dict_path=dict() # 用于列表简写和实际值
-window = tk.Tk() # 主窗口
+run_flag=0
 
+window = tk.Tk() # 主窗口
+str_btm=tk.StringVar() #最下面显示状态用的
+str_btm.set("加载中")
 #%%
 
 # 通用函数
@@ -90,6 +97,8 @@ def tree_clear(tree_obj): #
     x=tree_obj.get_children()
     for item in x:
         tree_obj.delete(item)
+    if run_flag==1:
+        window.update()
 
 def safe_rename(old_name,new_name):
     '''
@@ -225,8 +234,21 @@ def load_json_data():
         
 load_json_data()
 
+#%% 线程处理
 
+prog=tk.DoubleVar()
+
+class thread_prog (threading.Thread):
+    '''
+    线程处理：
     
+    '''
+    def __init__(self):
+        threading.Thread.__init__(self)
+        
+    def run(self):
+        str_btm.set("加载中")
+        pass    
 #%%
 
 def get_data(ipath=lst_my_path0): 
@@ -234,8 +256,14 @@ def get_data(ipath=lst_my_path0):
     根据所选中的文件夹，
     返回 lst_file 列表。
     这个参数可以在 get_dT 里面调用。
-
+    此过程消耗时间较多。
     '''
+
+    if run_flag==1:
+        str_btm.set("正在加载基础数据……")
+        window.update()
+    
+    time0=time.time()
     lst_file=list() #获取所有文件的完整路径
     for vPath in ipath:
         for root, dirs, files in os.walk(vPath):
@@ -257,7 +285,8 @@ def get_data(ipath=lst_my_path0):
                     
             if not vpass==1:
                 lst_file+=tmp 
-            
+    print('加载 lst_file 消耗时间：')
+    print(time.time()-time0)
     return lst_file
 
 def get_file_part(tar):     # 
@@ -317,12 +346,17 @@ def sort_by_tag(elem): # 主题表格排序
 
 def get_dt():
     '''
-    lst_file 来自于 get_data() 函数。
+    是最消耗时间的函数，也是获取数据的核心函数。
+    数据来源的 lst_file 来自于 get_data() 函数，提供了所有文件。
 
     根据 lst_file 里面的文件列表，返回 (dT, lst_tags) .
     无需输入参数，自动找变量。
     '''
-    
+    if run_flag==1:
+        str_btm.set("正在排序……")
+        window.update()
+        
+    time0=time.time()
     dT=list()
     for tar in lst_file:
         tmp=get_file_part(tar)
@@ -331,7 +365,8 @@ def get_dt():
         tmp_v=[tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar']]
         if not tmp_v in dT:
             dT.append(tmp_v)
-    
+    print('加载dT消耗时间：')
+    print(time.time()-time0)
     # 获取所有tag
     tmp=[]
     for i in dT:
@@ -513,11 +548,14 @@ def tree_order_base(inp):
     主列表排序的入口程序。
     '''
     global ORDER_BY_N,ORDER_DESC  
-    if ORDER_BY_N==inp:
+    if ORDER_BY_N==inp: # 如果同样位置点击，就切换排序方式
         ORDER_DESC=not ORDER_DESC
-    else:
+    else: # 如果不同位置点击，就预置排序方式
         ORDER_BY_N=inp
-        ORDER_DESC=False
+        if ORDER_BY_N==2: # 按修改时间排序的，第一次是最新的在前面。
+            ORDER_DESC=True 
+        else:
+            ORDER_DESC=False # 其余排序方法，都是升序。
     my_reload(0)
     
 def tree_order_filename(inp=None):
@@ -554,8 +592,7 @@ tree.heading("tags", text = "标签",anchor='w',command=tree_order_tag)
 tree.heading("modify_time", text = "修改时间",anchor='w',command=tree_order_modi_time)
 tree.heading("file0", text = "完整路径",anchor='w',command=tree_order_path)
 
-str_btm=tk.StringVar() #最下面显示状态用的
-str_btm.set("加载中")
+
 
 
 def get_tag(tar=v_tag): 
@@ -576,6 +613,8 @@ def add_tree_item(tree,dT):
     # 关键函数：增加主框架的内容
     # 先获得搜索项目以及 tag
     '''
+    str_btm.set('即将完成')
+    time0=time.time()
     tmp_search_items=get_tag() # 列表
     k=0
     print(tmp_search_items)
@@ -607,7 +646,8 @@ def add_tree_item(tree,dT):
             else:
                 tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
         
-    str_btm.set("找到 "+str(k)+" 个结果")
+    str_btm.set("找到 "+str(k)+" 个结果")#"，用时"+str(time.time()-time0)+"秒")
+    
     # tree.insert('',i,values=(d[0][i],d[1][i],d[2][i],d[3][i]))
 
 add_tree_item(tree,dT)
@@ -845,6 +885,7 @@ def clear_entry(tar):
 def my_reload(event=None): 
     '''
     刷新。
+    切换目录之后自动执行此功能。
     
     输入参数0的话，清空搜索框、标签框。
 
@@ -1263,7 +1304,18 @@ bt_new.configure(command=create_note)
 bt_folder_drop.configure(state=tk.DISABLED)
 
 #%%
+def jump_to_search(event=None):
+    v_search.focus()
+    
+def jump_to_tag(event=None):
+    v_inp.focus()
+
+#%%
 # 弹出菜单
+
+'''
+文件夹区域的右键菜单
+'''
 menu_folder = tk.Menu(window,tearoff=0)
 menu_folder.add_command(label="添加文件夹",command=my_folder_add_click)
 menu_folder.add_separator()
@@ -1285,21 +1337,31 @@ def popup_menu_folder(event):
 menu_tags_to_drop = tk.Menu(window,tearoff=0)
 menu_tags_to_add = tk.Menu(window,tearoff=0)
 
+'''
+文件区域的右键菜单
+'''
 menu_file = tk.Menu(window,tearoff=0)
 menu_file.add_command(label="打开文件",command=treeOpen)
 menu_file.add_command(label="在相同位置创建笔记",command=create_note_here)
-menu_file.add_command(label="转到所在文件夹",command=tree_open_folder)
-menu_file.add_command(label="重命名（尚未开发完成）",state=tk.DISABLED,command=file_rename)
+menu_file.add_command(label="打开所在文件夹",command=tree_open_folder)
 menu_file.add_separator()
 # menu_file.add_command(label="添加收藏 @PIN",command=file_add_star)
 menu_file.add_cascade(label="快速添加标签",menu=menu_tags_to_add)#,command=file_add_star)
 menu_file.add_cascade(label="移除标签",menu=menu_tags_to_drop)
+menu_file.add_separator()
+menu_file.add_command(label="发送无标签副本到桌面（开发中）",state=tk.DISABLED)#,command=file_rename)
+menu_file.add_command(label="复制到剪切板（开发中）",state=tk.DISABLED)#,command=file_rename)
+menu_file.add_command(label="移动到文件夹（开发中）",state=tk.DISABLED)#,command=file_rename)
+menu_file.add_command(label="粘贴（开发中）",state=tk.DISABLED)#,command=file_rename)
+menu_file.add_command(label="删除（开发中）",state=tk.DISABLED)#,command=file_rename)
+menu_file.add_command(label="重命名（开发中）",state=tk.DISABLED,command=file_rename)
 menu_file.add_separator()
 menu_file.add_command(label="刷新",command=my_reload)
 
 if len(QUICK_TAGS)>0:
     for i in QUICK_TAGS:
         menu_tags_to_add.add_command(label=i,command=lambda x=i:fast_add_tag(x))
+menu_tags_to_add.add_command(label='自定义标签',command=jump_to_tag)
 
 menu_file_no_selection = tk.Menu(window,tearoff=0)
 menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=treeOpen)
@@ -1409,11 +1471,7 @@ def popup_menu_file(event):
 tk_lst_folder.bind("<Button-3>",popup_menu_folder) # 绑定文件夹区域的右键功能
 tree.bind("<Button-3>",popup_menu_file) # 绑定文件夹区域的功能
 
-def jump_to_search(event=None):
-    v_search.focus()
-    
-def jump_to_tag(event=None):
-    v_inp.focus()
+
 #%%
 # 运行
 # tk_lst_folder.bind('<<ListboxSelect>>',v_folder_choose)
@@ -1425,4 +1483,5 @@ window.bind_all('<Control-n>',create_note) # 绑定添加笔记的功能。
 window.bind_all('<Control-f>',jump_to_search) # 跳转到搜索框。
 window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
 window.state('zoomed') # 最大化
+run_flag=1
 window.mainloop() 

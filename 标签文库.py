@@ -19,11 +19,13 @@ import threading # 多线程
 # from docx import Document# 用于创建word文档
 # import ctypes # 用于调整分辨率
 from ctypes import windll
+import shutil
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.5.0' # 版本号
+VER='v0.9.5.2' # 版本号
 # v0.9.5.0 增加进度条显示；优化加载效率；优化排序加载算法，缩短排序时间。
+# v0.9.5.1 增加拖拽文件直接复制到文件夹内的功能，便于处理微信文件或其他需要复制的业务。
 
 
 #%%
@@ -100,6 +102,37 @@ def tree_clear(tree_obj): #
     if run_flag==1:
         window.update()
 
+def safe_get_name(new_name):
+    '''
+
+    输入目标全路径，返回安全的新路径（可用于重命名、新建等）
+
+
+    '''
+    n=1
+    [tmp_path,tmp_new_name]=os.path.split(new_name)
+
+    p=tmp_new_name.find(V_SEP)
+    if p>=0:
+        name_1=tmp_new_name[:p]
+        name_2=tmp_new_name[p:]
+    else:
+        p=tmp_new_name.rfind('.')
+        if p>=0:
+            name_1=tmp_new_name[:p]
+            name_2=tmp_new_name[p:]
+        else: # 连'.'都没有的话
+            name_1=tmp_new_name
+            name_2=''
+    
+    tmp_new_full_name=new_name   
+    while isfile(tmp_new_full_name):
+        tmp_new_name=name_1+'('+ str(n)+')'+name_2
+        tmp_new_full_name=tmp_path+'/'+tmp_new_name
+        n+=1
+    # print(tmp_new_full_name)
+    return(tmp_new_full_name)
+
 def safe_rename(old_name,new_name):
     '''
     在基础的重命名之外，增加了对文件是否重名的判断；
@@ -107,6 +140,7 @@ def safe_rename(old_name,new_name):
     '''
     old_name=old_name.replace('\\','/')
     new_name=new_name.replace('\\','/')
+    '''
     n=1
     [tmp_path,tmp_new_name]=os.path.split(new_name)
     # tmp_path=''
@@ -130,11 +164,35 @@ def safe_rename(old_name,new_name):
         tmp_new_full_name=tmp_path+'/'+tmp_new_name
         n+=1
     print(tmp_new_full_name)
+    '''
+    tmp_new_full_name=safe_get_name(new_name)
     try:
         os.rename(old_name,tmp_new_full_name)
         return(tmp_new_full_name)
     except:
         print('安全重命名失败！')
+        return(old_name)
+        pass
+
+def safe_copy(old_name,new_name):
+    '''
+    安全复制
+    '''
+    old_name=old_name.replace('\\','/')
+    new_name=new_name.replace('\\','/')
+    tmp_new_full_name=safe_get_name(new_name)
+    print('开始安全复制')
+    print(old_name)
+    print(tmp_new_full_name)
+    try:
+        shutil.copy(old_name, tmp_new_full_name)
+        # os.popen('copy '+ old_name +' '+ tmp_new_full_name) 
+        print('安全复制成功')
+        # os.rename(old_name,tmp_new_full_name)
+        return(tmp_new_full_name)
+    except:
+        print('对以下文件复制失败！')
+        print(old_name)
         return(old_name)
         pass
     
@@ -1222,6 +1280,50 @@ def my_folder_add_drag(files): #
 
 # 设置拖拽反映函数
 windnd.hook_dropfiles(tk_lst_folder, func=my_folder_add_drag)
+
+def tree_drag_enter(files):
+    '''
+    以拖拽的方式将文件拖动到tree范围内，将执行复制命令
+
+    '''
+    short_name=get_folder()
+    print(short_name)
+    if short_name=='':
+        print('未指定目标目录，取消复制')
+        return
+    else:
+        long_name=folder_s2l(short_name) #将显示值转换为实际值
+        print(long_name)
+    
+    tc=tree.get_children()
+    k=len(tc)
+    
+    for item in files:
+        item=item.decode('gbk')
+        if not isfile(item):
+            continue
+        
+        print(item)    
+        # 先安全复制
+        old_name = item
+        [fpath,ffname]=os.path.split(old_name) # fpath 所在文件夹、ffname 原始文件名
+        new_name = long_name + '/' + ffname
+        res=safe_copy(old_name, new_name)
+        print('res=')
+        print(res)
+        
+        #再显示到列表中
+        k+=1
+        tmp=get_file_part(res)
+        tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar'])
+        tmp=tmp_v
+        tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
+        
+    # 高亮文件
+    tree_find(res)
+    tree.yview_moveto(1)
+    
+windnd.hook_dropfiles(tree, func=tree_drag_enter)
 
 def my_folder_refresh(): # 刷新左侧的文件夹列表
     # 更新json文件

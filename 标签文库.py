@@ -7,15 +7,16 @@ Created on Thu Jun 17 09:28:24 2021
 
 import os
 import tkinter as tk
-from tkinter import ttk
+from tkinter import Text, ttk
 import json
 from tkinter import filedialog
 from tkinter import simpledialog
+from tkinter.constants import INSERT
 import windnd
 from os.path import isdir
 from os.path import isfile
 import time
-import threading # 多线程
+# import threading # 多线程
 # from docx import Document# 用于创建word文档
 # import ctypes # 用于调整分辨率
 from ctypes import windll
@@ -24,12 +25,12 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.5.3' # 版本号
+VER='v0.9.5.4' # 版本号
 # v0.9.5.0 增加进度条显示；优化加载效率；优化排序加载算法，缩短排序时间。
 # v0.9.5.1 增加拖拽文件直接复制到文件夹内的功能，便于处理微信文件或其他需要复制的业务。
 # v0.9.5.2 增加主菜单功能。
 # v0.9.5.3 增加关于功能。
-
+# v0.9.5.4 增加设置菜单；调整分隔符的潜在兼容性错误。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -44,7 +45,7 @@ ALL_FOLDERS=2                       # 是否有“所有文件夹”的功能,1 
 PROG_STEP=500                       # 进度条刷新参数
 NOTE_NAME='未命名'                  # 新建笔记的名称
 NOTE_EXT='.docx'                    # 新建笔记的类型
-
+NOTE_EXT_LIST=['.md','.txt','.docx','.rtf']
 if isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
     print('进入开发模式')
     OPTIONS_FILE='D:/MyPython/开发数据/options_for_tagdox.json'
@@ -57,10 +58,12 @@ OPT_DEFAULT={
 	"options":{
 		"sep":"#",
 		"vfolders":"2",
+		"note_ext":".docx",
 		"tar":[
 		]
 	}
  }
+json_data = OPT_DEFAULT # 用于后面处理的变量。
 QUICK_TAGS=['@PIN','@TODO','@toRead','@Done'] #
 
 #变量
@@ -220,7 +223,7 @@ def safe_copy(old_name,new_name):
 #%%
 # 加载设置项 json 内容。保存到 opt_data 变量中，这是个 dict。
 
-json_data = OPT_DEFAULT
+
 def update_json(tar=OPTIONS_FILE,data=json_data): 
     '''
     将 json_data变量的值，写入 json 文件。
@@ -228,7 +231,15 @@ def update_json(tar=OPTIONS_FILE,data=json_data):
     '''
     with open(tar,'w',encoding='utf-8') as f:
         json.dump(data,f,ensure_ascii=False)
-        
+
+def set_json_options(key1,value1):
+    global json_data
+    opt_data=json_data['options']   #设置
+    opt_data[key1]=value1
+    update_json(data=json_data)
+    # load_json_data()
+    pass
+
 def load_json_data():
     '''
     读取json文件，获取其中的参数，并存储到相应的变量中。
@@ -240,6 +251,7 @@ def load_json_data():
     global json_data
     global V_SEP
     global V_FOLDERS
+    global NOTE_EXT
     global lst_my_path0
     global lst_my_path_s
     global lst_my_path
@@ -248,58 +260,60 @@ def load_json_data():
     try:
         with open(OPTIONS_FILE,'r',encoding='utf8')as fp:
             json_data = json.load(fp)
+            
+        opt_data=json_data['options']   #设置
+        V_SEP=opt_data['sep'] # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
+        V_FOLDERS=int(opt_data['vfolders']) # 目录最末层数名称检查，作为标签的检查层数
+        NOTE_EXT=opt_data['note_ext'] # 默认笔记类型
+            
+        # lst_my_path=lst_my_path0.copy() #按文件夹筛选用
+        lst_my_path0=[]
+        lst_my_path_s=[]
+        
+        print('加载基本参数成功')
+
+        for i in opt_data['tar']: 
+            # lst_my_path0.append(i)
+            tmp_L=i['pth']
+            tmp_L=tmp_L.strip()
+            try:
+                tmp_S=i['short']
+            except:
+                tmp_S=split_path(i['pth'])[-1]
+            tmp_S=tmp_S.replace(' ','_') # 修复路径空格bug的权宜之计，以后应该可以优化
+            
+            # 增加逻辑：避免短路径重名：
+            j=1
+            tmp_2=tmp_S
+            while tmp_2 in lst_my_path_s:
+                j+=1
+                tmp_2=tmp_S+"("+str(j)+")"
+                print(tmp_2)
+            tmp_S=tmp_2
+            tmp_S=tmp_S.strip()
+            
+            if tmp_S=='' or tmp_L=='': # 出现空白文件夹
+                for j in range(len(opt_data['tar'])-1,-1,-1):
+                    if opt_data['tar'][j]['pth'].strip()=='':    
+                        opt_data['tar'].pop(j)
+            else:
+                lst_my_path0.append(tmp_L)
+                lst_my_path_s.append(tmp_S)
+                tmp={tmp_S:tmp_L}
+                dict_path.update(tmp)
+        
+        lst_my_path=lst_my_path0.copy() # 此处有大量的可优化空间。
     except:
-        need_init_json=1
+        print('加载json异常，正在重置json文件')
+        # need_init_json=1
         json_data = OPT_DEFAULT
-       
-    opt_data=json_data['options']   #设置
-    V_SEP=opt_data['sep'] # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
-    V_FOLDERS=int(opt_data['vfolders']) # 目录最末层数名称检查，作为标签的检查层数
-    
-    # lst_my_path=lst_my_path0.copy() #按文件夹筛选用
-    lst_my_path0=[]
-    lst_my_path_s=[]
-    
-    for i in opt_data['tar']: 
-        # lst_my_path0.append(i)
-        tmp_L=i['pth']
-        tmp_L=tmp_L.strip()
-        try:
-            tmp_S=i['short']
-        except:
-            tmp_S=split_path(i['pth'])[-1]
-        tmp_S=tmp_S.replace(' ','_') # 修复路径空格bug的权宜之计，以后应该可以优化
-        
-        # 增加逻辑：避免短路径重名：
-        j=1
-        tmp_2=tmp_S
-        while tmp_2 in lst_my_path_s:
-            j+=1
-            tmp_2=tmp_S+"("+str(j)+")"
-            print(tmp_2)
-        tmp_S=tmp_2
-        tmp_S=tmp_S.strip()
-        
-        if tmp_S=='' or tmp_L=='': # 出现空白文件夹
-            for j in range(len(opt_data['tar'])-1,-1,-1):
-                if opt_data['tar'][j]['pth'].strip()=='':    
-                    opt_data['tar'].pop(j)
-        else:
-            lst_my_path0.append(tmp_L)
-            lst_my_path_s.append(tmp_S)
-            tmp={tmp_S:tmp_L}
-            dict_path.update(tmp)
-    
-    lst_my_path=lst_my_path0.copy() # 此处有大量的可优化空间。
-    
-    if need_init_json==1: # 如果没能正常读取 json 的话
         update_json()
         
 load_json_data()
 
 #%% 线程处理
 
-prog=tk.DoubleVar()
+
 
 # class thread_prog (threading.Thread):
 #     '''
@@ -317,6 +331,7 @@ prog=tk.DoubleVar()
 
 
 #%%
+prog=tk.DoubleVar() # 进度
 def set_prog_bar(inp,maxv=100):
     prog.set(inp)
     # progressbar_file.stop()
@@ -510,23 +525,22 @@ else:
 (dT, lst_tags)=get_dt()
 
 
-
 #%%
 
 # 窗体设计
-
 
 window.title(TAR+' '+VER)
 screenwidth = window.winfo_screenwidth()
 screenheight = window.winfo_screenheight()
 w_width = int(screenwidth*0.8)
 w_height = int(screenheight*0.8)
-window.geometry('%dx%d+%d+%d'%(w_width, w_height, (screenwidth-w_width)/2, (screenheight-w_height)/2))
-
+x_pos=(screenwidth-w_width)/2
+y_pos=(screenheight-w_height)/2
+window.geometry('%dx%d+%d+%d'%(w_width, w_height, x_pos, y_pos))
 # window.resizable(0,0) #限制尺寸
 
 #%%
-def my_info_window():
+def show_info_window():
     '''
     关于窗口
     '''
@@ -595,21 +609,21 @@ def my_input_window(title='未命名',msg='未定义'):
 #%%
 # 顶部菜单
 
-menu1=tk.Menu(window)
+if False:
+    menu1=tk.Menu(window)
+    mFile=tk.Menu(menu1,tearoff=False)
+    menu1.add_cascade(label='文件', menu=mFile)
 
-mFile=tk.Menu(menu1,tearoff=False)
-menu1.add_cascade(label='文件', menu=mFile)
+    mFile.add_command(label='新建',accelerator='Ctrl+N')
+    mFile.add_command(label='打开', accelerator='Ctrl+O')
+    mFile.add_command(label='保存', accelerator='Ctrl+S')
 
-mFile.add_command(label='新建',accelerator='Ctrl+N')
-mFile.add_command(label='打开', accelerator='Ctrl+O')
-mFile.add_command(label='保存', accelerator='Ctrl+S')
+    mHelp=tk.Menu(menu1,tearoff=False)
+    menu1.add_cascade(label='帮助', menu=mHelp)
 
-mHelp=tk.Menu(menu1,tearoff=False)
-menu1.add_cascade(label='帮助', menu=mHelp)
+    mHelp.add_command(label='使用说明',accelerator='Ctrl+H')
 
-mHelp.add_command(label='使用说明',accelerator='Ctrl+H')
-
-# window.configure(menu=menu1) # 菜单生效
+    # window.configure(menu=menu1) # 菜单生效
 
 #%%
 
@@ -645,7 +659,7 @@ bar2=tk.Scrollbar(frameMain,orient=tk.HORIZONTAL)#,width=20) #底部滚动条
 vPDX=10
 vPDY=5
 
-bt_setting=ttk.Button(frameFolderCtl,text='设置') #state=tk.DISABLED,,command=setting_fun
+# bt_setting=ttk.Button(frameBtm,text='设置')#,command=show_form_setting)
 # bt_setting.pack(side=tk.LEFT,expand=0,padx=5,pady=10)#,fill=tk.X) # 
 
 bt_folder_add=ttk.Button(frameFolderCtl,text='添加文件夹') #state=tk.DISABLED,,command=setting_fun
@@ -814,11 +828,11 @@ add_tree_item(tree,dT)
 
 def get_folder(): 
     '''
-    获取文件夹名称
+    获取文件夹名称 (简称)，需要用 folder_s2l(tmp) 转化为长路径。
 
     res= v_folders.get()
-    
     res='（全部）'
+
     '''
     for item in tree_lst_folder.selection():
         res = tree_lst_folder.item(item, "values")
@@ -833,14 +847,22 @@ def get_folder():
     # print(res)
     return res
 
-bar1.config( command = tree.yview )
-bar2.config( command = tree.xview )
-# tree.pack(expand = True, fill = tk.BOTH)
+def get_folder_long():
+    '''
+    合并获取短路径和长路径的逻辑。返回值是代表长路径的字符串。
+    '''
+    short_folder=get_folder()
+    if short_folder =='':
+        return short_folder
+    else:
+        res=folder_s2l(short_folder)
+        res=str(res).replace('\\','/')
+        return res
 
 
 style = ttk.Style()
 # style.configure("Treeview.Heading", font=(None, 12),rowheight=60)
-style.configure("Treeview.Heading", font=(None, LARGE_FONT), \
+style.configure("Treeview.Heading", font=('微软雅黑', LARGE_FONT), \
                 rowheight=int(LARGE_FONT*3.5),height=int(LARGE_FONT*4))
 
 style.configure("Treeview", font=(None, MON_FONTSIZE), rowheight=int(MON_FONTSIZE*3.5))
@@ -880,17 +902,20 @@ def file_rename(tar=None): # 对文件重命名
                 # print(t)
                 pass
 
-def bt_test(event=None): # 
+def fun_test(event=None): # 
     ''' 
     用于调试一些测试性的功能，
     为了避免 event 输入，所以套了一层。
 
     '''
-    print('进入测试功能')
+    show_form_setting()
+    # print('进入测试功能')
     
-    full_path='D:/MaJian/Documents/NutNotes/_MY_NOTES/#Python_GUI/pyinstaller打包exe#@PIN.md'
-    # 
-    tree_find(full_path)
+    # full_path='D:/MaJian/Documents/NutNotes/_MY_NOTES/#Python_GUI/pyinstaller打包exe#@PIN.md'
+    # # 
+    # tree_find(full_path)
+
+    pass
 
 def tree_find(full_path=''): # 
     '''
@@ -1036,6 +1061,10 @@ def fast_add_tag(tag):
     file_add_tag(tmp_full_name,TAG_STAR)
 
 def clear_entry(tar):
+    '''
+    将输入框清空。
+    必须要指定要清空的输入框对象。
+    '''
     try:
         tar.delete(0,len(tar.get()))
     except:
@@ -1138,58 +1167,41 @@ def v_tag_choose(event=None):
     # add_tree_item(tree,dT,tag=tmp_tag)
     add_tree_item(tree,dT)
 
-
-
 vPDX=10
 vPDY=5
-# lable_folders=tk.Label(frameFolder, text = '文件夹')
-# lable_tag.grid(row=0,column=1,padx=10, pady=5,sticky=tk.W)
+# lable_folders=tk.Label(frameFolder, text = '子文件夹')
 # lable_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
-v_folders['value']=['']+lst_my_path
-v_folders['state'] = 'readonly'
-# v_folders.grid(row=0,column=2, padx=10, pady=5,sticky=tk.W)
-# v_folders.pack(expand=0,padx=vPDX,pady=vPDY) # 
-v_folders.bind('<<ComboboxSelected>>', v_folder_choose)
-v_folders.bind('<Return>',v_folder_choose) #绑定回车键
-
-# bt_folders=ttk.Button(frame0,text='跳转',command=v_folder_choose)
-# bt_folders.grid(row=0,column=3,padx=10, pady=5,sticky=tk.EW)
-# bt_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+# v_sub_folders['value']=['']+lst_my_path
+# v_sub_folders['state'] = 'readonly'
+# v_sub_folders.grid(row=0,column=2, padx=10, pady=5,sticky=tk.W)
+# v_sub_folders.pack(expand=0,padx=vPDX,pady=vPDY) # 
+# v_sub_folders.bind('<<ComboboxSelected>>', v_folder_choose)
+# v_sub_folders.bind('<Return>',v_folder_choose) #绑定回车键
 
 lable_tag=tk.Label(frame0, text = '标签筛选')
-# lable_tag.grid(row=0,column=11,padx=10, pady=5,sticky=tk.W)
 lable_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 v_tag['value']=lst_tags
 v_tag['state'] = 'readonly' # 只读
-# v_tag.grid(row=0,column=12,padx=10, pady=5,sticky=tk.W)
 v_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 v_tag.bind('<<ComboboxSelected>>', v_tag_choose)
 v_tag.bind('<Return>',v_tag_choose) #绑定回车键
 
 
 lable_search=tk.Label(frame0, text = '按名称')
-# lable_tag.grid(row=0,column=11,padx=10, pady=5,sticky=tk.W)
 lable_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
-# v_tag['value']=lst_tags
-# v_tag['state'] = 'readonly' # 只读
-# v_tag.grid(row=0,column=12,padx=10, pady=5,sticky=tk.W)
 v_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-# v_search.bind('<<ComboboxSelected>>', v_tag_choose)
 v_search.bind('<Return>',v_tag_choose) #绑定回车键
 
 bt_search=ttk.Button(frame0,text='搜索',command=v_tag_choose)
-# bt_search.grid(row=0,column=13,padx=10, pady=5,sticky=tk.EW)
 bt_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 bt_clear=ttk.Button(frame0,text='清空',command=my_reload)
-# bt_search.grid(row=0,column=13,padx=10, pady=5,sticky=tk.EW)
 bt_clear.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
-bt_test=ttk.Button(frame0,text='测试功能',command=bt_test)
-# bt_search.grid(row=0,column=13,padx=10, pady=5,sticky=tk.EW)
+bt_test=ttk.Button(frame0,text='测试功能',command=fun_test)
 # bt_test.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 
@@ -1215,91 +1227,128 @@ progressbar_file=ttk.Progressbar(frameBtm,variable=prog,mode='determinate')
 progressbar_file.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY)
 
 lable_sum=tk.Label(frameBtm, text = str_btm,textvariable=str_btm)
-# lable_sum.grid(row=2,column=0,padx=10, pady=5,sticky=tk.W)
 lable_sum.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 
 
 bt_settings=ttk.Button(frameBtm,text='菜单')#,command=my_help)
-# bt_help.grid(row=2,column=99,padx=10, pady=5,sticky=tk.EW)
 bt_settings.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 bt_clear=ttk.Button(frameBtm,text='刷新',command=my_reload)
-# bt_clear.grid(row=0,column=20,padx=10, pady=5,sticky=tk.EW)
 bt_clear.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 bt_new=ttk.Button(frameBtm,text='新建笔记')#,state=tk.DISABLED)#,command=my_reload)
-# bt_clear.grid(row=0,column=20,padx=10, pady=5,sticky=tk.EW)
 bt_new.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 bt_add_tag=ttk.Button(frameBtm,text='添加标签',command=input_new_tag)
-# bt_clear.grid(row=2,column=22,padx=10, pady=5,sticky=tk.EW)
 bt_add_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 v_inp=ttk.Combobox(frameBtm,width=16) # 新标签的输入框
-# v_inp.grid(row=2,column=21 ,padx=10, pady=5)
 v_inp.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 v_inp.bind('<Return>',input_new_tag)
 v_inp['value']=lst_tags
 
 lable_tag=tk.Label(frameBtm, text = '添加新标签')
-# lable_tag.grid(row=2,column=20,padx=10, pady=5,sticky=tk.W)
 lable_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+
 #%% 
 
-def init_form_setting(): # 
+
+def show_form_setting(): # 
     '''
-    设置窗口（但是并没有启用）
+    设置窗口
+    （但是并没有启用）
     ''' 
+    global V_SEP,V_FOLDERS,NOTE_EXT
+    global json_data
+
+    def setting_yes(event=None):
+        '''
+        还没有功能
+        '''
+        # 获得新参数
+        global V_SEP,V_FOLDERS,NOTE_EXT
+        NOTE_EXT=v_inp_note_type.get()
+        V_FOLDERS=v_inp_folder_depth.get()
+        V_SEP=v_inp_sep.get()
+        # 保存到设置文件中
+        set_json_options('sep',V_SEP)
+        set_json_options('vfolders',V_FOLDERS)
+        set_json_options('note_ext',NOTE_EXT)
+        # 关闭窗口
+        form_setting.destroy()
+        # 然后刷新文件列表
+        my_reload()
+        pass
+
     form_setting=tk.Toplevel(window)
-    v2sep=tk.StringVar(value=V_SEP)
-    v2fdepth=tk.StringVar(value=V_FOLDERS)
-    v2mypath=list()
-    for i in range(5):
-        if i<len(lst_my_path):
-            v2mypath.append(tk.StringVar(value=lst_my_path[i]))
-        else:
-            v2mypath.append(tk.StringVar(value=''))
+    form_setting.title('设置')
+    form_setting.resizable(0,0) #限制尺寸
+    screenwidth = window.winfo_screenwidth()
+    screenheight = window.winfo_screenheight()
+    w_width = 400#int(screenwidth*0.8)
+    w_height = 200#int(screenheight*0.8)
+    x_pos=(screenwidth-w_width)/2
+    y_pos=(screenheight-w_height)/2
+    form_setting.geometry('%dx%d+%d+%d'%(w_width, w_height, x_pos, y_pos))
+
+    # v2sep=tk.StringVar()
+    # v2sep.set(V_SEP)
+
     # v2sep=V_SEP
-    frame_setting1=ttk.LabelFrame(form_setting,text='参数设置',height=80,width=800)
-    frame_setting1.grid(row=0,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
-    frame_setting1.columnconfigure(1, weight=1)
+    frame_setting2=ttk.Frame(form_setting,width=800)
+    frame_setting2.pack(side=tk.BOTTOM,expand=0,fill=tk.X)
+    frame_setting2.columnconfigure(0,weight=1)
+    frame_setting2.columnconfigure(1,weight=1)
+
+    frame_setting1=ttk.Frame(form_setting,height=800,width=800)
+    frame_setting1.pack(expand=0,fill=tk.BOTH)
     
-    frame_setting2=ttk.LabelFrame(form_setting,text='待扫描文件夹',width=800)
-    frame_setting2.grid(row=1,column=0,columnspan=2,padx=10, pady=5,sticky=tk.NSEW)
-    frame_setting2.columnconfigure(1, weight=1)
+    
+    # frame_setting2.grid_configure()
     
     lable_set_sep=tk.Label(frame_setting1, text = '标签分隔符')
     lable_set_sep.grid(row=0,column=0,padx=10, pady=5,sticky=tk.W)
     
-    v_inp_sep=ttk.Entry(frame_setting1,width=16,textvariable=v2sep)
-    v_inp_sep.grid(row=0,column=1 ,padx=10, pady=5)
-    # v_inp_sep.set(V_SEP)
-    # v_inp.bind('<Return>',input_new_tag)
+    v_inp_sep=ttk.Entry(frame_setting1,width=16,text=V_SEP)
+    clear_entry(v_inp_sep)
+    v_inp_sep.insert(0, V_SEP)
+    v_inp_sep.grid(row=0,column=1 ,padx=10, pady=5,sticky=tk.EW)
     
     lable_set_folder_depth=tk.Label(frame_setting1, text = '识别为标签的文件夹层数')
     lable_set_folder_depth.grid(row=1,column=0,padx=10, pady=5,sticky=tk.W)
     
-    v_inp_folder_depth=ttk.Entry(frame_setting1,width=16,textvariable=v2fdepth)
-    v_inp_folder_depth.grid(row=1,column=1 ,padx=10, pady=5)
+    v_inp_folder_depth=ttk.Combobox(frame_setting1,width=16)#,textvariable=v2fdepth)
+    lst_folder_depth=['0','1','2','3','4','5']
+    v_inp_folder_depth['values']=lst_folder_depth
+    v_inp_folder_depth['state']='readonly'
+    tmp_n=lst_folder_depth.index(str(V_FOLDERS))
+    v_inp_folder_depth.current(tmp_n)
+    v_inp_folder_depth.grid(row=1,column=1 ,padx=10, pady=5,sticky=tk.EW)
+
+    # 笔记类型
+    lable_set_note_type=tk.Label(frame_setting1, text = '笔记类型')
+    lable_set_note_type.grid(row=2,column=0,padx=10, pady=5,sticky=tk.W)
+
+    v_inp_note_type=ttk.Combobox(frame_setting1,width=16)#,textvariable=v2fdepth)
+    v_inp_note_type['values']=NOTE_EXT_LIST
+    v_inp_note_type['state']='readonly'
+    v_inp_note_type.current(0)
+    tmp_n=NOTE_EXT_LIST.index(NOTE_EXT)
+    v_inp_note_type.current(tmp_n)
+    v_inp_note_type.grid(row=2,column=1 ,padx=10, pady=5,sticky=tk.EW)
     # v_inp.bind('<Return>',input_new_tag)
-    
-    lst_folder_togo_label=[]
-    lst_folder_togo_value=[]
-    for i in range(5):
-        lst_folder_togo_label.append(tk.Label(frame_setting2, text = '文件夹'+str(i+1)))
-        lst_folder_togo_label[-1].grid(row=i+2,column=0,padx=10, pady=5,sticky=tk.W)
-        
-        lst_folder_togo_value.append(ttk.Entry(frame_setting2,width=16,textvariable=v2mypath[i]))
-        lst_folder_togo_value[-1].grid(row=i+2,column=1 ,padx=10, pady=5,sticky=tk.EW)
-    bt_setting_yes=ttk.Button(form_setting,text='确定',command=setting_yes)
+
+    # 下面的设置区域
+    bt_setting_yes=ttk.Button(frame_setting2,text='确定',command=setting_yes)
     bt_setting_yes.grid(row=10,column=0,padx=10, pady=5,sticky=tk.EW)
+    # bt_setting_yes.pack(side=tk.LEFT,expand=0,fill=tk.X)
     
-    bt_setting_cancel=ttk.Button(form_setting,text='取消',command=form_setting.destroy)
+    bt_setting_cancel=ttk.Button(frame_setting2,text='取消',command=form_setting.destroy)
     bt_setting_cancel.grid(row=10,column=1,padx=10, pady=5,sticky=tk.EW)
+    # bt_setting_cancel.pack(side=tk.LEFT,expand=0,fill=tk.X)
     
-    form_setting.title('设置')
-    form_setting.resizable(0,0) #限制尺寸
+
 
 def my_folder_add_click(): # 
     '''
@@ -1434,14 +1483,8 @@ def my_folder_open(tar=None): # 打开目录
 def set_local_data(): # 修改 json
     pass
 
-def setting_yes(event=None):
-    # 获得新参数
-    
-    pass
 
-bt_setting.configure(command=init_form_setting) # 功能绑定
-bt_folder_add.configure(command=my_folder_add_click) # 功能绑定
-bt_folder_drop.configure(command=my_folder_drop) # 功能绑定
+
 
 def create_note(event=None): # 添加笔记
     global lst_my_path,NOTE_NAME,NOTE_EXT
@@ -1456,7 +1499,7 @@ def create_note(event=None): # 添加笔记
         print(res)
         NOTE_NAME=res
         if len(tags)>0:
-            stags='#'+'#'.join(tags)
+            stags=V_SEP+V_SEP.join(tags)
         else:
             stags=''
             
@@ -1478,7 +1521,7 @@ def create_note(event=None): # 添加笔记
                 #创建文件
                 print('创建文件：')
                 print(fpth)
-                if NOTE_EXT in ['.md','.txt','.docx']:
+                if NOTE_EXT in NOTE_EXT_LIST:
                     with open(fpth,'w') as _:
                         pass
                 elif NOTE_EXT in ['.docxXXXXX']:
@@ -1536,16 +1579,19 @@ def jump_to_tag(event=None):
 主菜单，点击设置按钮可以弹出
 '''
 menu_main = tk.Menu(window,tearoff=0)
-menu_main.add_command(label='参数设置（开发中）',state=tk.DISABLED)
+menu_main.add_command(label='参数设置',command=show_form_setting)
 menu_main.add_separator()
 # menu_main.add_command(label='使用说明')#,command=my_help)
 menu_main.add_command(label='在线帮助',command=my_help)
 menu_main.add_command(label='建议和反馈',command=my_advice)
-menu_main.add_command(label='关于',command=my_info_window)
+menu_main.add_command(label='关于',command=show_info_window)
 menu_main.add_separator()
 menu_main.add_command(label='退出',command=my_closing)
 
 def popup_menu_main(event):
+    '''
+    程序核心设置菜单的弹出
+    '''
     menu_main.post(event.x_root,event.y_root)
 
 '''
@@ -1629,7 +1675,7 @@ def drop_tag(event=None): # 删除标签，以后将#号换成SEP
         tmp_rv=''.join(tmp_rv)
         print(tmp_rv)
         #
-        tmp_r_tag=list('#'+tag_value)
+        tmp_r_tag=list(V_SEP + tag_value)
         tmp_r_tag.reverse()
         tmp_r_tag=''.join(tmp_r_tag)
         print(tmp_r_tag)
@@ -1643,8 +1689,8 @@ def drop_tag(event=None): # 删除标签，以后将#号换成SEP
         file_name_ori=tmp_rv
         print('从右向左替换')
         print(file_name_ori)
-    new_name=file_name_ori.replace('#'+tag_value+'#',"#")
-    new_name=new_name.replace('#'+tag_value+'.',".")
+    new_name=file_name_ori.replace(V_SEP + tag_value + V_SEP,V_SEP)
+    new_name=new_name.replace(V_SEP + tag_value+'.',".")
 
     new_full_name=file_path+'/'+new_name
     print('原始文件名：')
@@ -1673,7 +1719,7 @@ def popup_menu_file(event):
         # tmp_file_name=split_path(tmp_full_name)[-1]
         tmp_file_name=get_file_part(tmp_full_name)['fname']
         tmp_tags_all=get_file_part(tmp_full_name)['ftags']
-        tmp_tags=tmp_file_name.split('#')
+        tmp_tags=tmp_file_name.split(V_SEP)
         # print(tmp_res)
         tmp_tags.pop(0)
         try:
@@ -1707,21 +1753,30 @@ def popup_menu_file(event):
     else:
         menu_file_no_selection.post(event.x_root,event.y_root)
 
-tree_lst_folder.bind("<Button-3>",popup_menu_folder) # 绑定文件夹区域的右键功能
-bt_settings.bind("<Button-1>",popup_menu_main) # 菜单按钮
-tree.bind("<Button-3>",popup_menu_file) # 绑定文件夹区域的功能
-
-
 #%%
-# 运行
+# 各种功能的绑定
 # tree_lst_folder.bind('<<ListboxSelect>>',v_folder_choose)
 # tree_lst_folder.bind('<Button-1>',v_folder_choose)
 tree_lst_folder.bind('<ButtonRelease-1>',v_folder_choose)
 tree.tag_configure('line1', background='#cccccc') # 灰色底纹,然而无效
 
+tree_lst_folder.bind("<Button-3>",popup_menu_folder) # 绑定文件夹区域的右键功能
+bt_settings.bind("<Button-1>",popup_menu_main) # 菜单按钮
+tree.bind("<Button-3>",popup_menu_file) # 绑定文件夹区域的功能
+
+# bt_setting.configure(command=show_form_setting) # 功能绑定
+bt_folder_add.configure(command=my_folder_add_click) # 功能绑定
+bt_folder_drop.configure(command=my_folder_drop) # 功能绑定
+
+bar1.config( command = tree.yview )
+bar2.config( command = tree.xview )
+# tree.pack(expand = True, fill = tk.BOTH)
 window.bind_all('<Control-n>',create_note) # 绑定添加笔记的功能。
 window.bind_all('<Control-f>',jump_to_search) # 跳转到搜索框。
 window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
+
+#%%
+# 运行
 window.state('zoomed') # 最大化
 run_flag=1
 set_prog_bar(0)

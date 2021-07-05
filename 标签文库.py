@@ -22,10 +22,13 @@ from ctypes import windll
 import shutil
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
+URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.5.2' # 版本号
+VER='v0.9.5.3' # 版本号
 # v0.9.5.0 增加进度条显示；优化加载效率；优化排序加载算法，缩短排序时间。
 # v0.9.5.1 增加拖拽文件直接复制到文件夹内的功能，便于处理微信文件或其他需要复制的业务。
+# v0.9.5.2 增加主菜单功能。
+# v0.9.5.3 增加关于功能。
 
 
 #%%
@@ -39,6 +42,8 @@ CLEAR_AFTER_CHANGE_FOLDER=0         # 切换文件夹后，是否清除筛选。
 EXP_FOLDERS=['_img']                # 排除文件夹规则，以后会加到自定义里面
 ALL_FOLDERS=2                       # 是否有“所有文件夹”的功能,1 在前面，2在末尾，其余没有
 PROG_STEP=500                       # 进度条刷新参数
+NOTE_NAME='未命名'                  # 新建笔记的名称
+NOTE_EXT='.docx'                    # 新建笔记的类型
 
 if isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
     print('进入开发模式')
@@ -66,7 +71,7 @@ lst_my_path0=[] # json里面，要扫描的文件夹列表
 lst_my_path_s=[]
 lst_my_path=[]
 dict_path=dict() # 用于列表简写和实际值
-run_flag=0
+run_flag=0 # 
 
 window = tk.Tk() # 主窗口
 str_btm=tk.StringVar() #最下面显示状态用的
@@ -475,7 +480,7 @@ def get_dt():
     
     
     if run_flag==1:
-        set_prog_bar(100)
+        set_prog_bar(0)
         
     # 获取所有tag
     tmp=[]
@@ -521,6 +526,43 @@ window.geometry('%dx%d+%d+%d'%(w_width, w_height, (screenwidth-w_width)/2, (scre
 # window.resizable(0,0) #限制尺寸
 
 #%%
+def my_info_window():
+    '''
+    关于窗口
+    '''
+    screenwidth = window.winfo_screenwidth()
+    screenheight = window.winfo_screenheight()
+    w_width = 600
+    w_height = 500
+    info_window=tk.Toplevel(window)
+    info_window.geometry('%dx%d+%d+%d'%(w_width, w_height, (screenwidth-w_width)/2, (screenheight-w_height)/2))
+    info_window.title('关于标签文库')
+    info_window.deiconify()
+    info_window.lift()
+    info_window.focus_force()
+
+    info_frame=tk.Frame(info_window,padx=5,pady=5)
+    info_frame.pack(expand=0,fill=tk.BOTH)
+    
+
+    tmp=tk.Label(info_frame,text='\n')
+    tmp.pack()
+    tmp=tk.Label(info_frame,text='标签文库 / Tagdox',fg='#2d7d9a',font=('微软雅黑',16))
+    tmp.pack()
+    tmp=tk.Label(info_frame,text='\n马剑 个人开发')
+    tmp.pack()
+    tmp=tk.Label(info_frame,text='版本：'+VER+'\n')
+    tmp.pack()
+
+    global p_logo
+    p_logo = tk.PhotoImage(file='./src/在线帮助.png')
+    logolbl= tk.Label(info_frame, text='A',image = p_logo)
+    logolbl.pack()
+
+    tmp=tk.Label(info_frame,text='（欢迎扫码访问产品动态）')
+    tmp.pack()
+
+
 
 # 自制输入窗体
 def my_input_window(title='未命名',msg='未定义'):
@@ -565,7 +607,7 @@ mFile.add_command(label='保存', accelerator='Ctrl+S')
 mHelp=tk.Menu(menu1,tearoff=False)
 menu1.add_cascade(label='帮助', menu=mHelp)
 
-mHelp.add_command(label='使用说明',accelerator='Ctrl+N')
+mHelp.add_command(label='使用说明',accelerator='Ctrl+H')
 
 # window.configure(menu=menu1) # 菜单生效
 
@@ -615,43 +657,43 @@ bt_folder_drop.pack(side=tk.RIGHT,expand=0,padx=20,pady=10,fill=tk.X) #
 bar_folder=tk.Scrollbar(frameFolder,width=20)
 bar_folder.pack(side=tk.RIGHT, expand=0,fill=tk.Y)
 
-tk_lst_folder = ttk.Treeview(frameFolder, show = "headings", columns = ['folders'], 
+tree_lst_folder = ttk.Treeview(frameFolder, show = "headings", columns = ['folders'], 
                              selectmode = tk.BROWSE, 
                              # cursor='hand2',
                              yscrollcommand = bar_folder.set)#, height=18)
-bar_folder.config( command = tk_lst_folder.yview )
+bar_folder.config( command = tree_lst_folder.yview )
 
-tk_lst_folder.heading("folders", text = "关注的文件夹",anchor='w')
-tk_lst_folder.column('folders', width=300, anchor='w')
+tree_lst_folder.heading("folders", text = "关注的文件夹",anchor='w')
+tree_lst_folder.column('folders', width=300, anchor='w')
 
-# tk_lst_folder.insert(0,"（全部）")
+# tree_lst_folder.insert(0,"（全部）")
 def update_folder_list():
     '''
     根据 lst_my_path_s，将文件夹列表刷新一次。
     没有输入输出。
     '''
-    global tk_lst_folder
-    tree_clear(tk_lst_folder)
+    global tree_lst_folder
+    tree_clear(tree_lst_folder)
     tmp=0
     if ALL_FOLDERS==1:
-        tk_lst_folder.insert('',tmp,values=("（全部）"))
+        tree_lst_folder.insert('',tmp,values=("（全部）"))
     for i in lst_my_path_s:
         tmp+=1
         print(i)
-        tk_lst_folder.insert('',tmp,values=(str(i))) # 此处有bug，对存在空格的不可用
+        tree_lst_folder.insert('',tmp,values=(str(i))) # 此处有bug，对存在空格的不可用
     if ALL_FOLDERS==2:
-        tk_lst_folder.insert('',tmp,values=("（全部）"))
-        # tk_lst_folder.insert(tk.END,i)
+        tree_lst_folder.insert('',tmp,values=("（全部）"))
+        # tree_lst_folder.insert(tk.END,i)
     try:
-        tmp=tk_lst_folder.get_children()[0]
-        # tk_lst_folder.focus(tmp)
-        tk_lst_folder.selection_set(tmp)
+        tmp=tree_lst_folder.get_children()[0]
+        # tree_lst_folder.focus(tmp)
+        tree_lst_folder.selection_set(tmp)
     except:
         pass
-# tk_lst_folder.selection_set()
+# tree_lst_folder.selection_set()
 
 update_folder_list()
-tk_lst_folder.pack(side=tk.LEFT,expand=0,fill=tk.BOTH)
+tree_lst_folder.pack(side=tk.LEFT,expand=0,fill=tk.BOTH)
 
 def tree_order_base(inp):
     '''
@@ -778,10 +820,10 @@ def get_folder():
     
     res='（全部）'
     '''
-    for item in tk_lst_folder.selection():
-        res = tk_lst_folder.item(item, "values")
+    for item in tree_lst_folder.selection():
+        res = tree_lst_folder.item(item, "values")
 
-    # res=tk_lst_folder.get(tk_lst_folder.curselection())
+    # res=tree_lst_folder.get(tree_lst_folder.curselection())
     try:
         res=res[0]
         if res=='（全部）':
@@ -1035,7 +1077,17 @@ def my_help(event=None):
     目前的方式主要是跳转到在线帮助文件。以后考虑到内网打不开网页，需要增加一个离线的方面。
     '''
     os.startfile(URL_HELP)
-
+    
+def my_advice(event=None):
+    '''
+    在线反馈
+    '''
+    os.startfile(URL_ADV)
+    
+def my_closing():
+    if tk.messagebox.askokcancel("退出", "真的要退出吗"):
+        window.destroy()
+        
 tree.bind('<Double-Button-1>', treeOpen)
 tree.bind('<Return>', treeOpen)
 # tree.bind('<ButtonPress-3>', input_newname) # 右键，此功能作废
@@ -1168,9 +1220,9 @@ lable_sum.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) #
 
 
 
-bt_help=ttk.Button(frameBtm,text='使用说明',command=my_help)
+bt_settings=ttk.Button(frameBtm,text='菜单')#,command=my_help)
 # bt_help.grid(row=2,column=99,padx=10, pady=5,sticky=tk.EW)
-bt_help.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+bt_settings.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 bt_clear=ttk.Button(frameBtm,text='刷新',command=my_reload)
 # bt_clear.grid(row=0,column=20,padx=10, pady=5,sticky=tk.EW)
@@ -1279,7 +1331,7 @@ def my_folder_add_drag(files): #
         my_folder_add(folders)
 
 # 设置拖拽反映函数
-windnd.hook_dropfiles(tk_lst_folder, func=my_folder_add_drag)
+windnd.hook_dropfiles(tree_lst_folder, func=my_folder_add_drag)
 
 def tree_drag_enter(files):
     '''
@@ -1289,7 +1341,8 @@ def tree_drag_enter(files):
     short_name=get_folder()
     print(short_name)
     if short_name=='':
-        print('未指定目标目录，取消复制')
+        # print('未指定目标目录，取消复制')
+        str_btm.set('未指定目标目录，取消复制')
         return
     else:
         long_name=folder_s2l(short_name) #将显示值转换为实际值
@@ -1391,9 +1444,7 @@ bt_folder_add.configure(command=my_folder_add_click) # 功能绑定
 bt_folder_drop.configure(command=my_folder_drop) # 功能绑定
 
 def create_note(event=None): # 添加笔记
-    global lst_my_path
-    NOTE_NAME='未命名'
-    NOTE_EXT='.docx'
+    global lst_my_path,NOTE_NAME,NOTE_EXT
     tags=['Tagdox笔记']
     
     if len(lst_my_path)!=1:
@@ -1481,12 +1532,30 @@ def jump_to_tag(event=None):
 
 #%%
 # 弹出菜单
+'''
+主菜单，点击设置按钮可以弹出
+'''
+menu_main = tk.Menu(window,tearoff=0)
+menu_main.add_command(label='参数设置（开发中）',state=tk.DISABLED)
+menu_main.add_separator()
+# menu_main.add_command(label='使用说明')#,command=my_help)
+menu_main.add_command(label='在线帮助',command=my_help)
+menu_main.add_command(label='建议和反馈',command=my_advice)
+menu_main.add_command(label='关于',command=my_info_window)
+menu_main.add_separator()
+menu_main.add_command(label='退出',command=my_closing)
+
+def popup_menu_main(event):
+    menu_main.post(event.x_root,event.y_root)
 
 '''
 文件夹区域的右键菜单
 '''
 menu_folder = tk.Menu(window,tearoff=0)
 menu_folder.add_command(label="添加文件夹",command=my_folder_add_click)
+menu_folder.add_separator()
+menu_folder.add_command(label="向上移动（开发中）",state=tk.DISABLED,command=my_folder_open)
+menu_folder.add_command(label="向下移动（开发中）",state=tk.DISABLED,command=my_folder_open)
 menu_folder.add_separator()
 menu_folder.add_command(label="打开所选文件夹",command=my_folder_open)
 menu_folder.add_command(label="取消关注所选文件夹",command=my_folder_drop)
@@ -1530,7 +1599,8 @@ menu_file.add_command(label="刷新",command=my_reload)
 if len(QUICK_TAGS)>0:
     for i in QUICK_TAGS:
         menu_tags_to_add.add_command(label=i,command=lambda x=i:fast_add_tag(x))
-menu_tags_to_add.add_command(label='自定义标签',command=jump_to_tag)
+    menu_tags_to_add.add_separator()
+menu_tags_to_add.add_command(label='自定义标签…',command=jump_to_tag)
 
 menu_file_no_selection = tk.Menu(window,tearoff=0)
 menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=treeOpen)
@@ -1637,15 +1707,16 @@ def popup_menu_file(event):
     else:
         menu_file_no_selection.post(event.x_root,event.y_root)
 
-tk_lst_folder.bind("<Button-3>",popup_menu_folder) # 绑定文件夹区域的右键功能
+tree_lst_folder.bind("<Button-3>",popup_menu_folder) # 绑定文件夹区域的右键功能
+bt_settings.bind("<Button-1>",popup_menu_main) # 菜单按钮
 tree.bind("<Button-3>",popup_menu_file) # 绑定文件夹区域的功能
 
 
 #%%
 # 运行
-# tk_lst_folder.bind('<<ListboxSelect>>',v_folder_choose)
-# tk_lst_folder.bind('<Button-1>',v_folder_choose)
-tk_lst_folder.bind('<ButtonRelease-1>',v_folder_choose)
+# tree_lst_folder.bind('<<ListboxSelect>>',v_folder_choose)
+# tree_lst_folder.bind('<Button-1>',v_folder_choose)
+tree_lst_folder.bind('<ButtonRelease-1>',v_folder_choose)
 tree.tag_configure('line1', background='#cccccc') # 灰色底纹,然而无效
 
 window.bind_all('<Control-n>',create_note) # 绑定添加笔记的功能。
@@ -1653,6 +1724,6 @@ window.bind_all('<Control-f>',jump_to_search) # 跳转到搜索框。
 window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
 window.state('zoomed') # 最大化
 run_flag=1
-set_prog_bar(100)
+set_prog_bar(0)
 # bt_add_tag.pack_forget()
 window.mainloop() 

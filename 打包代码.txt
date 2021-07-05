@@ -1,0 +1,3 @@
+cd d:/mypython/我的文库
+
+pyinstaller -D 标签文库.py -i icon.ico -w --noconfirm --add-data "src;src"

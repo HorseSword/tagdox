@@ -25,10 +25,11 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.10.0.2' # 版本号
+VER='v0.10.0.3' # 版本号
 # v0.10.0.0 增加了子文件夹的筛选功能，进一步提高管理效率。
 # v0.10.0.1 优化设置弹窗显示。
 # v0.10.0.2 修复列表文件定位错误的bug。
+# v0.10.0.3 修复列表的中文排序；优化列表文件定位逻辑。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -464,7 +465,7 @@ def get_file_part(tar):     #
     
 def sort_by_tag(elem): # 主题表格排序
     global ORDER_BY_N
-    return str(elem[ORDER_BY_N])
+    return str(elem[ORDER_BY_N]).encode('gbk') # 加入后面gbk之后就是中文正确排序了
 
 def get_dt(lst_file0=None):
     '''
@@ -992,6 +993,7 @@ def tree_find(full_path=''): #
         return(-1)
         # full_path='D:/MaJian/Documents/NutNotes/_MY_NOTES/#Python_GUI/pyinstaller打包exe#@PIN.md'
     # 根据完整路径，找到对应的文件并高亮
+    tree.update() # 必须在定位之前刷新列表，否则定位会错误
     tc=tree.get_children()
     tc_cnt=len(tc)
     print('条目数量为：%s' % tc_cnt)

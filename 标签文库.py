@@ -25,12 +25,10 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.9.5.4' # 版本号
-# v0.9.5.0 增加进度条显示；优化加载效率；优化排序加载算法，缩短排序时间。
-# v0.9.5.1 增加拖拽文件直接复制到文件夹内的功能，便于处理微信文件或其他需要复制的业务。
-# v0.9.5.2 增加主菜单功能。
-# v0.9.5.3 增加关于功能。
-# v0.9.5.4 增加设置菜单；调整分隔符的潜在兼容性错误。
+VER='v0.10.0.2' # 版本号
+# v0.10.0.0 增加了子文件夹的筛选功能，进一步提高管理效率。
+# v0.10.0.1 优化设置弹窗显示。
+# v0.10.0.2 修复列表文件定位错误的bug。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -73,6 +71,7 @@ lst_tags=[] # 全部标签
 lst_my_path0=[] # json里面，要扫描的文件夹列表
 lst_my_path_s=[]
 lst_my_path=[]
+lst_sub_path=[]
 dict_path=dict() # 用于列表简写和实际值
 run_flag=0 # 
 
@@ -340,16 +339,20 @@ def set_prog_bar(inp,maxv=100):
     #     progressbar_file.stop()
     progressbar_file.update()
 
-def get_data(ipath=lst_my_path0): 
+def get_data(ipath=lst_my_path0,update_sub_path=1): 
     '''
-    根据所选中的文件夹，
+    根据所选中的文件夹(列表)，
     返回 lst_file 列表。
     这个参数可以在 get_dT 里面调用。
     此过程消耗时间较多。
+    参数 ipath=lst_my_path0
     '''
-    
+    print('调用 get_data 函数')
+
+    global lst_sub_path # 必须要有这句话，否则不能修改公共变量
+    lst_sub_path_copy=lst_sub_path.copy()
     if run_flag==1:
-        tree_clear(tree)
+        tree_clear(tree) # 
         set_prog_bar(0,30)
         str_btm.set("正在加载基础数据……")
         window.update()
@@ -360,6 +363,7 @@ def get_data(ipath=lst_my_path0):
     
     n=1
     n_max=len(ipath)
+    lst_sub_path=[]
     
     for vPath in ipath:
         n+=1
@@ -370,7 +374,13 @@ def get_data(ipath=lst_my_path0):
             
             tmp=[]
             vpass=0
-            
+            new_sub_path=root.replace('\\','/')
+            new_sub_path=new_sub_path.replace(vPath+'/','')
+            if (not new_sub_path in lst_sub_path) \
+                and (str(new_sub_path).find('/')<0)  \
+                and (str(new_sub_path) not in EXP_FOLDERS):
+                lst_sub_path.append(new_sub_path)
+
             tmp_path=split_path(root)
             for tmp2 in tmp_path:
                 if tmp2 in EXP_FOLDERS:
@@ -387,6 +397,16 @@ def get_data(ipath=lst_my_path0):
                 lst_file+=tmp 
     print('加载 lst_file 消耗时间：')
     print(time.time()-time0)
+    
+    if update_sub_path:
+        try:
+            lst_sub_path.sort()
+            v_sub_folders['value']=['']+lst_sub_path # 强制修改子文件夹列表，但这样写不太好
+            v_sub_folders.current(0)
+        except:
+            pass
+    else:
+        lst_sub_path = lst_sub_path_copy
     # if run_flag==1:
     #     set_prog_bar(30,30)
     return lst_file
@@ -446,14 +466,17 @@ def sort_by_tag(elem): # 主题表格排序
     global ORDER_BY_N
     return str(elem[ORDER_BY_N])
 
-def get_dt():
+def get_dt(lst_file0=None):
     '''
     是最消耗时间的函数，也是获取数据的核心函数。
-    数据来源的 lst_file 来自于 get_data() 函数，提供了所有文件。
+    输入参数是文件列表，缺省值是来自于 get_data() 函数的 lst_file ，提供了所有文件。
 
     根据 lst_file 里面的文件列表，返回 (dT, lst_tags) .
     无需输入参数，自动找变量。
     '''
+    if lst_file0 is None:
+        lst_file0=lst_file.copy()
+
     if run_flag==1:
         str_btm.set("正在解析标签……")
         window.update()
@@ -462,11 +485,11 @@ def get_dt():
     time0=time.time()
     
     n=1
-    n_max=len(lst_file)
+    n_max=len(lst_file0)
     
     dT=list()    
     
-    for tar in lst_file:
+    for tar in lst_file0:
         
         # 更新进度条
         n+=1
@@ -649,8 +672,9 @@ frameBtm=ttk.LabelFrame(window,height=80)
 frameBtm.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
 
 #%%
+v_sub_folders=ttk.Combobox(frame0) # 子文件夹选择框
 v_tag=ttk.Combobox(frame0) # 标签选择框
-v_search=ttk.Entry(frame0) # 标签选择框
+v_search=ttk.Entry(frame0) # 搜索框
 v_folders=ttk.Combobox(frameFolder) # 文件夹选择框
 bar1=tk.Scrollbar(frameMain,width=20) #右侧滚动条
 bar2=tk.Scrollbar(frameMain,orient=tk.HORIZONTAL)#,width=20) #底部滚动条
@@ -767,7 +791,7 @@ tree.heading("file0", text = "完整路径",anchor='w',command=tree_order_path)
 
 
 
-def get_tag(tar=v_tag): 
+def get_search_items(event=None): 
     '''
     获取标签下拉框里面的标签。
     不过，现在也兼职了对输入框的搜索。
@@ -778,6 +802,48 @@ def get_tag(tar=v_tag):
         res+=[v_tag.get()]
     if len(v_search.get())>0:
         res+=str(v_search.get()).split(' ')
+    if len(v_sub_folders.get())>0:
+        tmp_path=lst_my_path[0]+'/'+v_sub_folders.get()
+        print('进入子文件夹：')
+        print(tmp_path)
+        res+=[tmp_path]
+        '''
+        # 还要刷新子文件夹的标签
+        tmp_tag=v_tag.get() # 获取当前标签
+        #刷新标签列表
+        new_files = get_data(res,update_sub_path=0)
+        (dt2,tags2)=get_dt(new_files)
+        print(tags2)
+        v_tag['value']=['']+tags2
+        if len(tmp_tag)>0:
+            # 恢复标签
+            v_tag.current(tags2.index(tmp_tag)+1)
+            pass
+        '''
+    return res
+
+def get_search_items_sub_folder(event=None): 
+    if len(v_sub_folders.get())>0:
+        tmp_path=lst_my_path[0]+'/'+v_sub_folders.get()
+        print('进入子文件夹：')
+        print(tmp_path)
+        # 还要刷新子文件夹的标签
+        tmp_tag=v_tag.get() # 获取当前标签
+        #刷新标签列表
+        new_files = get_data([tmp_path],update_sub_path=0)
+        (dt2,tags2)=get_dt(new_files)
+        print(tags2)
+        v_tag['value']=tags2
+        if len(tmp_tag)>0:
+            # 恢复标签
+            try:
+                v_tag.current(tags2.index(tmp_tag))
+            except:
+                v_tag.current(0)
+        else:
+            v_tag.current(0)
+            pass
+    res=get_search_items()
     return res
 
 def add_tree_item(tree,dT): 
@@ -787,7 +853,8 @@ def add_tree_item(tree,dT):
     '''
     str_btm.set('正在刷新列表……')
     time0=time.time()
-    tmp_search_items=get_tag() # 列表
+    # tmp_search_items=get_search_items() # 列表
+    tmp_search_items=get_search_items_sub_folder() # 列表
     k=0
     print(tmp_search_items)
     for i in range(len(dT)):
@@ -828,7 +895,7 @@ add_tree_item(tree,dT)
 
 def get_folder(): 
     '''
-    获取文件夹名称 (简称)，需要用 folder_s2l(tmp) 转化为长路径。
+    返回文件夹名称 (简称)，需要用 folder_s2l(tmp) 转化为长路径。
 
     res= v_folders.get()
     res='（全部）'
@@ -930,6 +997,11 @@ def tree_find(full_path=''): #
     print('条目数量为：%s' % tc_cnt)
     n=0
     print('开始查找')
+    (b1,b2)=bar1.get()
+    b0=b2-b1
+    # b0=0
+    print('b0=')
+    print(b0)
     for i in tc:
         tmp=tree.item(i,"values")
         # print(tmp[-1])
@@ -937,8 +1009,6 @@ def tree_find(full_path=''): #
             # tree.focus(i) #这个并不能高亮
             tree.selection_set(i)
             print('在第%d处检查到了相应结果' % n)
-            (b1,b2)=bar1.get()
-            b0=b2-b1
 
             b1=n/tc_cnt-0.5*b0
             b2=n/tc_cnt+0.5*b0
@@ -985,6 +1055,15 @@ def tree_open_folder(event=None):
         
     pass
 
+def tree_open_current_folder(event=None):
+    '''
+    没有选中文件的时候，打开当前文件夹
+    '''
+    if len(v_sub_folders.get())>0:
+        tmp_path=lst_my_path[0]+'/'+v_sub_folders.get()
+    else:
+        tmp_path=lst_my_path[0]
+    os.startfile(tmp_path)
 
 def input_new_tag(event=None):
     new_name=''
@@ -1076,14 +1155,19 @@ def my_reload(event=None):
     刷新。
     切换目录之后自动执行此功能。
     
-    输入参数0的话，清空搜索框、标签框。
-
-    如果输入参数为空或者不是0，就保留。
+    输入参数0的话，保留搜索框、标签框。
+    输入参数1，保留标签框；
+    其余参数，清空搜索。
 
     '''
-    global lst_file,dT,lst_tags
+    global lst_file,dT,lst_tags,lst_sub_path
     
-    if not event==0:
+    if event==0:
+        pass
+    elif event==1:
+        tmp_sub_folder=v_sub_folders.get()
+        clear_entry(v_search)
+    else:
         clear_entry(v_search)
         v_tag.current(0)
         
@@ -1091,10 +1175,14 @@ def my_reload(event=None):
     # v_inp.delete(0,len(v_inp.get()))
     
     # v_folder_choose(refresh=0)
-    lst_file = get_data(lst_my_path) # 原因是 lst_my_path 应该是长路径，不是短路径
+    lst_file = get_data(lst_my_path) # 原因是 lst_my_path 应该是长路径，不是短路径 #这里错误地清空了列表
     
     (dT, lst_tags)=get_dt()
     # tree_clear(tree)
+    if event==1:
+        if len(tmp_sub_folder)>0:
+            tmp_n=lst_sub_path.index(tmp_sub_folder)
+            v_sub_folders.current(tmp_n+1)
 
     v_tag_choose()
     v_tag['value']=lst_tags
@@ -1132,10 +1220,13 @@ def folder_s2l(inp):
 
 
 
-def v_folder_choose(event=None,refresh=1): # 点击新的文件夹之后
+def v_folder_choose(event=None,refresh=1,sub_folder=None): # 点击新的文件夹之后
     global lst_my_path
     
-    lst_path_ori=lst_my_path.copy()
+    if sub_folder is None:
+        lst_path_ori=lst_my_path.copy()
+    else:
+        lst_path_ori=[]
     
     tmp=get_folder()
     if tmp=='':
@@ -1143,43 +1234,84 @@ def v_folder_choose(event=None,refresh=1): # 点击新的文件夹之后
         # 设置按钮为无效
         bt_new.configure(state=tk.DISABLED)
         bt_folder_drop.configure(state=tk.DISABLED)
+        v_sub_folders.configure(state=tk.DISABLED)
+    elif sub_folder is not None:
+        tmp=sub_folder
+        lst_my_path=[tmp]
+        # 设置按钮有效
+        bt_new.configure(state=tk.NORMAL)
+        bt_folder_drop.configure(state=tk.NORMAL)
+        v_sub_folders.configure(state='readonly')
+        pass
     else:
         tmp=folder_s2l(tmp) #将显示值转换为实际值
         lst_my_path=[tmp]
         # 设置按钮有效
         bt_new.configure(state=tk.NORMAL)
         bt_folder_drop.configure(state=tk.NORMAL)
+        v_sub_folders.configure(state='readonly')
     
     if not lst_path_ori==lst_my_path: # 如果前后的选项没有变化的话，就不刷新文件夹列表
         if refresh==1:
             # my_reload(lst_my_path)
             my_reload(CLEAR_AFTER_CHANGE_FOLDER)
         tree.yview_moveto(0)
+
+def v_sub_folder_choose(event=None):
+    '''
+    还没弄完
+    '''
+    global lst_sub_path,lst_my_path
+    if v_sub_folders.get()=='':
+        v_folder_choose()
+
+    print('sub处理前')
+    print(lst_sub_path)
+    print(lst_my_path)
+    tmp_lst_sub_path=lst_sub_path.copy()
+    tmp_lst_my_path=lst_my_path.copy()
+
+    tmp_path=lst_my_path[0]+'/'+v_sub_folders.get()
+    tmp_folder=tmp_path
     
+    v_folder_choose(sub_folder=tmp_folder)
+    lst_my_path=tmp_lst_my_path.copy()
+    tmp_lst_sub_path.sort()
+    v_sub_folders['value']=['']+tmp_lst_sub_path # 强制修改子文件夹列表，但这样写不太好
+    lst_sub_path=tmp_lst_sub_path.copy()
+    print('sub处理后')
+    print(lst_sub_path)
+    print(lst_my_path)
+    # v_sub_folders.current(0)
     
 def v_tag_choose(event=None):
     '''
     选择标签之后触发。
     清空tree，并按照dT为tree增加行。
     '''
-    # tmp_tag=get_tag()
+    # tmp_tag=get_search_items()
     tree_clear(tree)
     # add_tree_item(tree,dT,tag=tmp_tag)
     add_tree_item(tree,dT)
+    tree.update()
 
 vPDX=10
 vPDY=5
-# lable_folders=tk.Label(frameFolder, text = '子文件夹')
-# lable_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
-# v_sub_folders['value']=['']+lst_my_path
-# v_sub_folders['state'] = 'readonly'
-# v_sub_folders.grid(row=0,column=2, padx=10, pady=5,sticky=tk.W)
-# v_sub_folders.pack(expand=0,padx=vPDX,pady=vPDY) # 
-# v_sub_folders.bind('<<ComboboxSelected>>', v_folder_choose)
-# v_sub_folders.bind('<Return>',v_folder_choose) #绑定回车键
+if True: # 子文件夹搜索
+    lable_sub_folders=tk.Label(frame0, text = '子文件夹')
+    lable_sub_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
-lable_tag=tk.Label(frame0, text = '标签筛选')
+    v_sub_folders['value']=['']+lst_sub_path
+    v_sub_folders['state'] = 'readonly'
+    # v_sub_folders.grid(row=0,column=2, padx=10, pady=5,sticky=tk.W)
+    v_sub_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+    # v_sub_folders.configure(postoffset=(0,0,1000,0))
+    v_sub_folders.bind('<<ComboboxSelected>>', v_tag_choose)
+    # v_sub_folders.bind('<<ComboboxSelected>>', v_sub_folder_choose)
+    # v_sub_folders.bind('<Return>',v_folder_choose) #绑定回车键
+
+lable_tag=tk.Label(frame0, text = '标签')
 lable_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 v_tag['value']=lst_tags
@@ -1189,7 +1321,7 @@ v_tag.bind('<<ComboboxSelected>>', v_tag_choose)
 v_tag.bind('<Return>',v_tag_choose) #绑定回车键
 
 
-lable_search=tk.Label(frame0, text = '按名称')
+lable_search=tk.Label(frame0, text = '文件名(Ctrl+F)')
 lable_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 v_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
@@ -1237,7 +1369,7 @@ bt_settings.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) #
 bt_clear=ttk.Button(frameBtm,text='刷新',command=my_reload)
 bt_clear.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
-bt_new=ttk.Button(frameBtm,text='新建笔记')#,state=tk.DISABLED)#,command=my_reload)
+bt_new=ttk.Button(frameBtm,text='新建笔记 Ctrl+N')#,state=tk.DISABLED)#,command=my_reload)
 bt_new.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 bt_add_tag=ttk.Button(frameBtm,text='添加标签',command=input_new_tag)
@@ -1248,7 +1380,7 @@ v_inp.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) #
 v_inp.bind('<Return>',input_new_tag)
 v_inp['value']=lst_tags
 
-lable_tag=tk.Label(frameBtm, text = '添加新标签')
+lable_tag=tk.Label(frameBtm, text = '添加新标签(Ctrl+T)')
 lable_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 #%% 
@@ -1291,7 +1423,9 @@ def show_form_setting(): #
     x_pos=(screenwidth-w_width)/2
     y_pos=(screenheight-w_height)/2
     form_setting.geometry('%dx%d+%d+%d'%(w_width, w_height, x_pos, y_pos))
-
+    form_setting.deiconify()
+    form_setting.lift()
+    form_setting.focus_force()
     # v2sep=tk.StringVar()
     # v2sep.set(V_SEP)
 
@@ -1319,7 +1453,7 @@ def show_form_setting(): #
     lable_set_folder_depth.grid(row=1,column=0,padx=10, pady=5,sticky=tk.W)
     
     v_inp_folder_depth=ttk.Combobox(frame_setting1,width=16)#,textvariable=v2fdepth)
-    lst_folder_depth=['0','1','2','3','4','5']
+    lst_folder_depth=['0','1','2','3','4','5','6','7','8']
     v_inp_folder_depth['values']=lst_folder_depth
     v_inp_folder_depth['state']='readonly'
     tmp_n=lst_folder_depth.index(str(V_FOLDERS))
@@ -1384,8 +1518,8 @@ windnd.hook_dropfiles(tree_lst_folder, func=my_folder_add_drag)
 
 def tree_drag_enter(files):
     '''
-    以拖拽的方式将文件拖动到tree范围内，将执行复制命令
-
+    以拖拽的方式将文件拖动到tree范围内，将执行复制命令。
+    注意，不是移动，只是复制。
     '''
     short_name=get_folder()
     print(short_name)
@@ -1394,7 +1528,12 @@ def tree_drag_enter(files):
         str_btm.set('未指定目标目录，取消复制')
         return
     else:
-        long_name=folder_s2l(short_name) #将显示值转换为实际值
+        if len(v_sub_folders.get())>0:
+            long_name=lst_my_path[0]+'/'+v_sub_folders.get()
+        else:
+            long_name=lst_my_path[0]
+        # long_name=folder_s2l(short_name) #将文件夹的显示值转换为实际值
+        print('long_name=')
         print(long_name)
     
     tc=tree.get_children()
@@ -1421,9 +1560,14 @@ def tree_drag_enter(files):
         tmp=tmp_v
         tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
         
+    str_btm.set('成功复制文件到当前目录')
     # 高亮文件
-    tree_find(res)
-    tree.yview_moveto(1)
+    try:
+        tree_find(res)
+        tree.yview_moveto(1)
+    except:
+        pass
+    
     
 windnd.hook_dropfiles(tree, func=tree_drag_enter)
 
@@ -1508,6 +1652,15 @@ def create_note(event=None): # 添加笔记
         
         if len(lst_my_path)==1:
             pth=lst_my_path[0]
+
+            if not event=='create_note_here':
+                # 增加对子文件夹的判断逻辑。
+                # 新建的位置正确，但是刷新之后找不到新笔记，而且子文件夹自动消失，体验不好。
+                psub=v_sub_folders.get()
+                if len(psub)>0:
+                    pth=pth+'/'+psub
+
+            print('即将在此新建笔记：')
             print(pth)
             if True:#pth in lst_my_path0: # 后面这个判断有点多余
                 fpth=pth+'/'+ NOTE_NAME + stags + NOTE_EXT 
@@ -1531,11 +1684,15 @@ def create_note(event=None): # 添加笔记
                 # 打开
                 os.startfile(fpth) #打开这个文件
                 #刷新
-                if not event=='create_note_here':
-                    my_reload()
+                if event=='create_note_here': #【这里有bug，刷新之后不能显示内容】
+                    my_reload(1)
                     tree_find(fpth)
+                    # return fpth
                 else:
-                    return fpth
+                    my_reload(1) # 没有这句话会搜不到
+                    tree_find(fpth)
+                # else:
+                #     return fpth
     else:
         pass
     #
@@ -1626,8 +1783,11 @@ menu_tags_to_add = tk.Menu(window,tearoff=0)
 '''
 menu_file = tk.Menu(window,tearoff=0)
 menu_file.add_command(label="打开文件",command=treeOpen)
-menu_file.add_command(label="在相同位置创建笔记",command=create_note_here)
-menu_file.add_command(label="打开所在文件夹",command=tree_open_folder)
+# menu_file.add_command(label="在相同位置创建笔记",command=create_note_here)
+# menu_file.add_command(label="创建笔记",command=create_note)
+menu_file.add_separator()
+menu_file.add_command(label="打开选中项所在文件夹",command=tree_open_folder)
+menu_file.add_command(label="打开当前文件夹",command=tree_open_current_folder)
 menu_file.add_separator()
 # menu_file.add_command(label="添加收藏 @PIN",command=file_add_star)
 menu_file.add_cascade(label="快速添加标签",menu=menu_tags_to_add)#,command=file_add_star)
@@ -1649,10 +1809,10 @@ if len(QUICK_TAGS)>0:
 menu_tags_to_add.add_command(label='自定义标签…',command=jump_to_tag)
 
 menu_file_no_selection = tk.Menu(window,tearoff=0)
-menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=treeOpen)
-menu_file_no_selection.add_command(label="转到所在文件夹",state=tk.DISABLED,command=tree_open_folder)
-menu_file_no_selection.add_command(label="重命名",state=tk.DISABLED)#,command=my_folder_add_click)
-menu_file_no_selection.add_command(label="添加收藏",state=tk.DISABLED)#,command=my_folder_add_click)
+# menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=treeOpen)
+menu_file_no_selection.add_command(label="打开当前文件夹",command=tree_open_current_folder)
+# menu_file_no_selection.add_command(label="重命名",state=tk.DISABLED)#,command=my_folder_add_click)
+# menu_file_no_selection.add_command(label="添加收藏",state=tk.DISABLED)#,command=my_folder_add_click)
 menu_file_no_selection.add_separator()
 menu_file_no_selection.add_command(label="刷新",command=my_reload)
 

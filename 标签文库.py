@@ -25,12 +25,14 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.10.0.3' # 版本号
+VER='v0.10.2.0' # 版本号
 # v0.10.0.0 增加了子文件夹的筛选功能，进一步提高管理效率。
 # v0.10.0.1 优化设置弹窗显示。
 # v0.10.0.2 修复列表文件定位错误的bug。
 # v0.10.0.3 修复列表的中文排序；优化列表文件定位逻辑。
-# v0.10.0.4 增加了文件列表可以复制也可以移动的逻辑基础，最好做到设置里面。//
+# v0.10.0.4 修复了子文件夹内添加或删除标签的定位逻辑；优化通过菜单添加标签的交互。
+# v0.10.1.0 实现文件列表的重命名和删除功能。
+# v0.10.2.0 实现文件列表上下移动功能。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -41,7 +43,7 @@ ORDER_BY_N=1                        # 初始按哪一列排序，1代表标签�
 ORDER_DESC=False                    # 是否逆序
 CLEAR_AFTER_CHANGE_FOLDER=0         # 切换文件夹后，是否清除筛选。0 是保留，其他是清除。
 EXP_FOLDERS=['_img']                # 排除文件夹规则，以后会加到自定义里面
-ALL_FOLDERS=2                       # 是否有“所有文件夹”的功能,1 在前面，2在末尾，其余没有
+ALL_FOLDERS=3                       # 是否有“所有文件夹”的功能,1 在前面，2在末尾，其余没有
 PROG_STEP=500                       # 进度条刷新参数
 NOTE_NAME='未命名'                  # 新建笔记的名称
 NOTE_EXT='.docx'                    # 新建笔记的类型
@@ -115,7 +117,7 @@ def safe_get_name(new_name):
     '''
 
     输入目标全路径，返回安全的新路径（可用于重命名、新建等）
-
+    输入和输出都是字符串。
 
     '''
     n=1
@@ -145,7 +147,8 @@ def safe_get_name(new_name):
 def safe_rename(old_name,new_name):
     '''
     在基础的重命名之外，增加了对文件是否重名的判断；
-    返回值str, 是添加数字之后的最终文件名。
+    返回值str, 如果重命名成功，返回添加数字之后的最终文件名；
+    如果重命名失败，返回原始文件名。
     '''
     old_name=old_name.replace('\\','/')
     new_name=new_name.replace('\\','/')
@@ -426,7 +429,7 @@ def get_data(ipath=lst_my_path0,update_sub_path=1):
     #     set_prog_bar(30,30)
     return lst_file
 
-def get_file_part(tar):     # 
+def get_file_part(tar):     # 【疑似bug】对带有空格的路径解析异常
     '''
     这里输入参数 tar 是完整路径。
     输入完整（文件）路径，以字典的形式，返回对应的所有文件信息。
@@ -643,7 +646,31 @@ def my_input_window(title='未命名',msg='未定义'):
     et.pack(expand=0,fill=tk.X)
     
 # my_input_window()
-    
+
+def show_input_window(title_value,body_value='',init_value='',is_file_name=True):
+    '''
+    接管输入框的过程，以后可以将自定义输入框替换到这里。
+    目前的用法：输入参数 1 标题，2 正文，3 默认值；
+    返回输入框的结果。
+    参数 is_file_name 为 True 的时候，将文件名不能带的特殊字符自动去掉。
+    '''
+    # 获得输入值
+    res = simpledialog.askstring(title_value,prompt=body_value,initialvalue=init_value)
+
+    # 特殊处理
+    if is_file_name:
+        res=res.replace('\\','')
+        res=res.replace('/','')
+        res=res.replace('?','')
+        res=res.replace('|','')
+        res=res.replace('*','')
+        res=res.replace('"','')
+        res=res.replace('<','')
+        res=res.replace('>','')
+        res=res.replace(':','')
+    return res
+    pass
+
 #%%
 # 顶部菜单
 
@@ -910,8 +937,8 @@ add_tree_item(tree,dT)
 
 def get_folder(): 
     '''
-    返回文件夹名称 (简称)，需要用 folder_s2l(tmp) 转化为长路径。
-
+    返回左侧列表文件夹名称 (简称)，需要用 folder_s2l(tmp) 转化为长路径。
+    不考虑子文件夹。
     res= v_folders.get()
     res='（全部）'
 
@@ -953,7 +980,7 @@ style.configure("Treeview", font=(None, MON_FONTSIZE), rowheight=int(MON_FONTSIZ
 # style.configure("Treeview.Heading", font=(None, 12))
 
 # 获取当前点击行的值
-def treeOpen(event=None): #单击
+def tree_file_open(event=None): #单击
     '''
     打开列表选中项目。
 
@@ -964,25 +991,59 @@ def treeOpen(event=None): #单击
         os.startfile(item_text[-1]) #打开这个文件
 
 def file_rename(tar=None): # 对文件重命名
+    '''
+    重命名文件
+    需要有tree的选中项目。
+
+    '''
     for item in tree.selection():
+        # 获得目标文件
         item_text = tree.item(item, "values")
         tmp_full_path = item_text[-1]
         tmp_file_name = split_path(tmp_full_path)[-1]
+        #
+        #
         print('正在重命名：')
         print(tmp_full_path)
         print(tmp_file_name)
-        res = simpledialog.askstring('文件重命名',prompt='请输入新的文件名',initialvalue =tmp_file_name) # 有bug，不能输入#号
-        tmp_new_name='/'.join(split_path(tmp_full_path)[0:-1]+[res])
-        print(tmp_new_name)
+        # res = simpledialog.askstring('文件重命名',prompt='请输入新的文件名',initialvalue =tmp_file_name) # 有bug，不能输入#号
+        res = show_input_window('文件重命名',body_value='请输入新的文件名',init_value=tmp_file_name) # 有bug，不能输入#号
+        #
         if res is not None:
             try:
+                tmp_new_name='/'.join(split_path(tmp_full_path)[0:-1]+[res])
+                print('tmp_new_name=')
+                print(tmp_new_name)
                 # os.rename(tmp_full_path,tmp_new_name)
-                safe_rename(tmp_full_path,tmp_new_name)
-                my_reload(0)
+                final_name = safe_rename(tmp_full_path,tmp_new_name)
+                my_reload(1)
+                tree_find(final_name)
             except:
-                t=tk.messagebox.showerror(title = 'ERROR',message='重命名失败！')
+                t=tk.messagebox.showerror(title = 'ERROR',message='重命名失败！文件可能被占用，或者您没有操作权限。')
                 # print(t)
                 pass
+def file_delete(tar=None):
+    '''
+    删除tree选中项对应的文件。
+    目前只能删除一个文件。
+    '''
+    for item in tree.selection():
+        # 获取文件全路径
+        item_text = tree.item(item, "values")
+        tmp_full_path = item_text[-1]
+        # 再次确认
+        if not isfile(tmp_full_path):
+            print('并不存在文件：'+str(tmp_full_path))  
+        elif tk.messagebox.askokcancel("退出", "真的要删除以下文件吗？"+str(tmp_full_path)):
+            try:
+                os.remove(tmp_full_path)
+                my_reload(1)
+            except:
+                t=tk.messagebox.showerror(title = 'ERROR',message='删除失败，文件可能被占用！')
+                print('删除失败，文件可能被占用')
+            # 刷新
+    
+    pass
 
 def fun_test(event=None): # 
     ''' 
@@ -1081,23 +1142,47 @@ def tree_open_current_folder(event=None):
         tmp_path=lst_my_path[0]
     os.startfile(tmp_path)
 
-def input_new_tag(event=None):
-    new_name=''
+def input_new_tag(event=None,tag_name=None):
+    '''
+    输入新的标签
+    '''
+    # new_name=''
+    if tag_name is None:
+        new_tag=v_inp.get()
+        new_tag=str(new_tag).strip()
+    else:
+        new_tag=tag_name
+
+    if new_tag is None or new_tag == '':
+        print("取消新标签")
+        return
+
     for item in tree.selection():
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
         # tmp_file_name = get_file_part(tmp_full_name)['ffname'] # 没有用到
         
         # new_tag = tk.simpledialog.askstring(title="添加标签", prompt="请输入新的标签")#, initialvalue=tmp)
-        new_tag=v_inp.get()
-        new_tag=str(new_tag).strip()
         
         if new_tag == None or new_tag == '':
-            pass
-            print("取消")
+            print("取消新标签")
         else:
             file_add_tag(tmp_full_name,new_tag)
-            print(new_name)
+            # print(new_name)
+
+def input_new_tag_via_dialog(event=None):
+    '''
+    以输入框的方式添加标签。
+
+    '''
+    new_tag=show_input_window('添加标签','请输入标签','')
+    if new_tag is None:
+        return
+    try:
+        new_tag=str(new_tag).strip()
+    except:
+        pass
+    input_new_tag(tag_name=new_tag)
 
 def file_add_tag(filename,tag0):    
     '''
@@ -1121,9 +1206,10 @@ def file_add_tag(filename,tag0):
                 tmp_final_name=safe_rename(old_n,new_n)
                 old_n=new_n #多标签时避免重命名错误
             except:
+                t=tk.messagebox.showerror(title = 'ERROR',message='为文件添加标签失败！')
                 print('为文件添加标签失败')
                 pass
-    my_reload(0) # 此处可以优化，避免完全重载
+    my_reload(1) # 此处可以优化，避免完全重载
     try:
         tmp_final_name=tmp_final_name.replace('\\','/')
         print('添加标签完成，正在定位%s' %(tmp_final_name))
@@ -1136,6 +1222,7 @@ def file_add_star(event=None):
     加收藏。
     目前是为文件增加 TAG_STAR 对应的值。
     通常是 @PIN。
+    本函数目前作废，没有启用。
     '''
     TAG_STAR='@PIN'
     for item in tree.selection():
@@ -1171,19 +1258,29 @@ def my_reload(event=None):
     刷新。
     切换目录之后自动执行此功能。
     
-    输入参数0的话，保留搜索框、标签框。
-    输入参数1，保留标签框；
+    输入参数0的话，保留子文件夹、搜索框、标签框。
+    输入参数1，保留子文件夹，保留标签框，清除搜索框。推荐使用参数1；
     其余参数，清空搜索。
 
     '''
     global lst_file,dT,lst_tags,lst_sub_path
-    
+    tmp_sub_folder=v_sub_folders.get()
+
     if event==0:
         pass
     elif event==1:
-        tmp_sub_folder=v_sub_folders.get()
+        '''
+        保留子文件夹；
+        保留标签；
+        清空搜索框
+        '''
+        # tmp_sub_folder=v_sub_folders.get()
         clear_entry(v_search)
     else:
+        '''
+        清空搜索框；
+        标签留空；
+        '''
         clear_entry(v_search)
         v_tag.current(0)
         
@@ -1195,7 +1292,7 @@ def my_reload(event=None):
     
     (dT, lst_tags)=get_dt()
     # tree_clear(tree)
-    if event==1:
+    if event==0 or event==1:
         if len(tmp_sub_folder)>0:
             tmp_n=lst_sub_path.index(tmp_sub_folder)
             v_sub_folders.current(tmp_n+1)
@@ -1221,8 +1318,8 @@ def my_closing():
     if tk.messagebox.askokcancel("退出", "真的要退出吗"):
         window.destroy()
         
-tree.bind('<Double-Button-1>', treeOpen)
-tree.bind('<Return>', treeOpen)
+tree.bind('<Double-Button-1>', tree_file_open)
+tree.bind('<Return>', tree_file_open)
 # tree.bind('<ButtonPress-3>', input_newname) # 右键，此功能作废
 
 
@@ -1487,7 +1584,6 @@ def show_form_setting(): #
     tmp_n=NOTE_EXT_LIST.index(NOTE_EXT)
     v_inp_note_type.current(tmp_n)
     v_inp_note_type.grid(row=2,column=1 ,padx=10, pady=5,sticky=tk.EW)
-    # v_inp.bind('<Return>',input_new_tag)
 
     # 下面的设置区域
     bt_setting_yes=ttk.Button(frame_setting2,text='确定',command=setting_yes)
@@ -1500,17 +1596,17 @@ def show_form_setting(): #
     
 
 
-def my_folder_add_click(): # 
+def my_folder_add_click(event=None): # 
     '''
     通过点击的方式，添加新的目录
     '''
     res=filedialog.askdirectory()#选择目录，返回目录名
-    res=[res]
+    res_lst=[res]
     print(res)
     if res=='':
         print('取消添加文件夹')
     else:
-        my_folder_add(res)
+        my_folder_add(res_lst)
 
 
 def my_folder_add_drag(files): # 
@@ -1589,12 +1685,19 @@ def tree_drag_enter(files):
     
 windnd.hook_dropfiles(tree, func=tree_drag_enter)
 
-def my_folder_refresh(): # 刷新左侧的文件夹列表
+def my_folder_refresh(ind=None): # 刷新左侧的文件夹列表
     # 更新json文件
     update_json(data=json_data)
     load_json_data()
     # 更新左侧列表
     update_folder_list()
+    # 选中指定的文件夹
+    tree_lst_folder.update()
+    if ind is not None:
+        # tree_lst_folder.selection_set(ind)
+        tmp_lst_folder = tree_lst_folder.get_children()
+        tree_lst_folder.selection_set(tmp_lst_folder[ind])
+        pass
     # 更新正文
     v_folder_choose()
 
@@ -1611,6 +1714,10 @@ def my_folder_add(tar_list): # 添加关注的目录
     
 
 def my_folder_drop(): # 删除关注的目录
+    '''
+    取消关注选中的文件夹。
+    没有输入输出。
+    '''
     global json_data
     # 获取当前选中的文件夹
     short_name=get_folder()
@@ -1620,7 +1727,11 @@ def my_folder_drop(): # 删除关注的目录
     else:
         long_name=folder_s2l(short_name) #将显示值转换为实际值
         print(long_name)
-    
+    # 增加确认
+    if tk.messagebox.askokcancel("操作确认", "真的要取消关注选中的文件夹吗？\n该文件夹将从关注列表中移除，但其本身数据并不会受到影响。"):
+        pass
+    else:
+        return
     # 在 json 里面找到对应项目并删除
     n=0
     for i in json_data['options']['tar']:
@@ -1630,8 +1741,58 @@ def my_folder_drop(): # 删除关注的目录
         n+=1
     # 刷新目录
     my_folder_refresh()
-    
-    
+
+def my_folder_up(event=None,d='up'):
+    '''
+    文件夹列表上下移动，默认上移，参数可以为 'up' 或者 'down'。
+    json_data['options']['tar']是列表，
+    每一项的'pth'是长路径。
+    '''
+    # 
+    global json_data
+    # 获取当前选中的文件夹
+    short_name=get_folder()
+    print(short_name)
+    if short_name=='':
+        pass
+    else:
+        long_name=folder_s2l(short_name) #将显示值转换为实际值
+        print(long_name)
+    # 在 json 里面找到对应项目，并交换顺序
+    tar_lst=json_data['options']['tar'] # 这个列表只包括文件夹，不包括“所有”。
+    n=0
+    min_pos=0 
+    max_pos=len(tar_lst)-1
+    #
+    for i in tar_lst:
+        n2=n-1 if d=='up' else n+1
+
+        if i['pth']==long_name:
+            # print('文件夹位置参数=')
+            # print((n,n2,min_pos,max_pos))
+            if n2<min_pos or n2>max_pos: # 目标序号超出
+                print('不能按要求交换顺序')
+                # t=tk.messagebox.showerror(title = 'ERROR',message='不能按要求交换顺序。')
+                return
+            else:
+                tar_lst[n],tar_lst[n2]=tar_lst[n2],tar_lst[n]
+                print('文件夹交换顺序成功')
+                break
+        n+=1
+    # 刷新目录，测试逻辑正确
+    if ALL_FOLDERS==1: # “所有文件夹” 在最前
+        n2+=1
+    else:
+        pass
+    my_folder_refresh(n2) # 还需要选中目标文件夹
+    pass
+
+def my_folder_down(event=None):
+    '''
+    向下移动
+    '''
+    my_folder_up(d='down')
+
 def my_folder_open(tar=None): # 打开目录
     # 获得当前选中的长目录
     if len(lst_my_path)!=1:
@@ -1656,8 +1817,10 @@ def create_note(event=None): # 添加笔记
         print('新建功能锁定，暂不可用')
         return
     #
-    res = simpledialog.askstring('新建 Tagdox 笔记',prompt='请输入文件名',initialvalue =NOTE_NAME)
+    # res = simpledialog.askstring('新建 Tagdox 笔记',prompt='请输入文件名',initialvalue =NOTE_NAME)
+    res = show_input_window('新建 Tagdox 笔记',body_value='请输入文件名',init_value=NOTE_NAME)
     if res is not None:
+        print('获得新笔记标题：')
         print(res)
         NOTE_NAME=res
         if len(tags)>0:
@@ -1733,7 +1896,7 @@ def create_note_here(event=None):
     lst_my_path=lst_tmp.copy()
     
     if fpth is not None:
-        my_reload()
+        my_reload(1)
         tree_find(fpth)
     pass
 
@@ -1773,16 +1936,16 @@ def popup_menu_main(event):
 文件夹区域的右键菜单
 '''
 menu_folder = tk.Menu(window,tearoff=0)
-menu_folder.add_command(label="添加文件夹",command=my_folder_add_click)
+menu_folder.add_command(label="添加关注文件夹…",command=my_folder_add_click)
 menu_folder.add_separator()
-menu_folder.add_command(label="向上移动（开发中）",state=tk.DISABLED,command=my_folder_open)
-menu_folder.add_command(label="向下移动（开发中）",state=tk.DISABLED,command=my_folder_open)
+menu_folder.add_command(label="向上移动",command=my_folder_up)
+menu_folder.add_command(label="向下移动",command=my_folder_down)
 menu_folder.add_separator()
 menu_folder.add_command(label="打开所选文件夹",command=my_folder_open)
 menu_folder.add_command(label="取消关注所选文件夹",command=my_folder_drop)
 
 menu_folder_no = tk.Menu(window,tearoff=0)
-menu_folder_no.add_command(label="添加文件夹",command=my_folder_add_click)
+menu_folder_no.add_command(label="添加关注文件夹…",command=my_folder_add_click)
 menu_folder_no.add_separator()
 menu_folder_no.add_command(label="打开所选文件夹",state=tk.DISABLED,command=my_folder_open)
 menu_folder_no.add_command(label="取消关注所选文件夹",state=tk.DISABLED,command=my_folder_drop)
@@ -1800,7 +1963,7 @@ menu_tags_to_add = tk.Menu(window,tearoff=0)
 文件区域的右键菜单
 '''
 menu_file = tk.Menu(window,tearoff=0)
-menu_file.add_command(label="打开文件",command=treeOpen)
+menu_file.add_command(label="打开文件",command=tree_file_open)
 # menu_file.add_command(label="在相同位置创建笔记",command=create_note_here)
 # menu_file.add_command(label="创建笔记",command=create_note)
 menu_file.add_separator()
@@ -1815,8 +1978,8 @@ menu_file.add_separator()
 # menu_file.add_command(label="复制到剪切板（开发中）",state=tk.DISABLED)#,command=file_rename)
 # menu_file.add_command(label="移动到文件夹（开发中）",state=tk.DISABLED)#,command=file_rename)
 # menu_file.add_command(label="粘贴（开发中）",state=tk.DISABLED)#,command=file_rename)
-menu_file.add_command(label="删除（开发中）",state=tk.DISABLED)#,command=file_rename)
-menu_file.add_command(label="重命名（开发中）",state=tk.DISABLED,command=file_rename)
+menu_file.add_command(label="重命名",command=file_rename)
+menu_file.add_command(label="删除",command=file_delete)
 menu_file.add_separator()
 menu_file.add_command(label="刷新",command=my_reload)
 
@@ -1824,10 +1987,10 @@ if len(QUICK_TAGS)>0:
     for i in QUICK_TAGS:
         menu_tags_to_add.add_command(label=i,command=lambda x=i:fast_add_tag(x))
     menu_tags_to_add.add_separator()
-menu_tags_to_add.add_command(label='自定义标签…',command=jump_to_tag)
+menu_tags_to_add.add_command(label='自定义标签…',command=input_new_tag_via_dialog)
 
 menu_file_no_selection = tk.Menu(window,tearoff=0)
-# menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=treeOpen)
+# menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=tree_file_open)
 menu_file_no_selection.add_command(label="打开当前文件夹",command=tree_open_current_folder)
 # menu_file_no_selection.add_command(label="重命名",state=tk.DISABLED)#,command=my_folder_add_click)
 # menu_file_no_selection.add_command(label="添加收藏",state=tk.DISABLED)#,command=my_folder_add_click)
@@ -1879,7 +2042,7 @@ def drop_tag(event=None): # 删除标签，以后将#号换成SEP
     print(tag_value)
     # os.rename(tmp_full_name,new_full_name)
     tmp_final_name=safe_rename(tmp_full_name,new_full_name)
-    my_reload(0) # 此处可以优化，避免完全重载
+    my_reload(1) # 此处可以优化，避免完全重载
     try:
         tmp_final_name=tmp_final_name.replace('\\','/')
         print('删除标签完成，正在定位%s' %(tmp_final_name))
@@ -1949,9 +2112,12 @@ bt_folder_drop.configure(command=my_folder_drop) # 功能绑定
 bar1.config( command = tree.yview )
 bar2.config( command = tree.xview )
 # tree.pack(expand = True, fill = tk.BOTH)
+
+# 程序内快捷键
 window.bind_all('<Control-n>',create_note) # 绑定添加笔记的功能。
 window.bind_all('<Control-f>',jump_to_search) # 跳转到搜索框。
-window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
+# window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
+window.bind_all('<Control-t>',input_new_tag_via_dialog) # 快速输入标签。
 
 #%%
 # 运行

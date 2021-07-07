@@ -25,14 +25,9 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.10.2.0' # 版本号
-# v0.10.0.0 增加了子文件夹的筛选功能，进一步提高管理效率。
-# v0.10.0.1 优化设置弹窗显示。
-# v0.10.0.2 修复列表文件定位错误的bug。
-# v0.10.0.3 修复列表的中文排序；优化列表文件定位逻辑。
-# v0.10.0.4 修复了子文件夹内添加或删除标签的定位逻辑；优化通过菜单添加标签的交互。
-# v0.10.1.0 实现文件列表的重命名和删除功能。
+VER='v0.10.2.1' # 版本号
 # v0.10.2.0 实现文件列表上下移动功能。
+# v0.10.2.1 修复了切换文件夹时候的bug。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -1293,9 +1288,13 @@ def my_reload(event=None):
     (dT, lst_tags)=get_dt()
     # tree_clear(tree)
     if event==0 or event==1:
-        if len(tmp_sub_folder)>0:
-            tmp_n=lst_sub_path.index(tmp_sub_folder)
-            v_sub_folders.current(tmp_n+1)
+        try: # 用一种不太优雅，但是有效的方法修复了bug……
+            if len(tmp_sub_folder)>0:
+                tmp_n=lst_sub_path.index(tmp_sub_folder)
+                v_sub_folders.current(tmp_n+1)
+        except:
+            print('进入这个分支')
+            v_sub_folders.current(0)
 
     v_tag_choose()
     v_tag['value']=lst_tags

@@ -30,6 +30,7 @@ VER='v0.10.0.3' # 版本号
 # v0.10.0.1 优化设置弹窗显示。
 # v0.10.0.2 修复列表文件定位错误的bug。
 # v0.10.0.3 修复列表的中文排序；优化列表文件定位逻辑。
+# v0.10.0.4 增加了文件列表可以复制也可以移动的逻辑基础，最好做到设置里面。//
 
 #%%
 #常量，但以后可以做到设置里面
@@ -182,7 +183,7 @@ def safe_rename(old_name,new_name):
         return(old_name)
         pass
 
-def safe_copy(old_name,new_name):
+def safe_copy(old_name,new_name,opt_type='copy'):
     '''
     安全复制
     '''
@@ -192,17 +193,30 @@ def safe_copy(old_name,new_name):
     print('开始安全复制')
     print(old_name)
     print(tmp_new_full_name)
-    try:
-        shutil.copy(old_name, tmp_new_full_name)
-        # os.popen('copy '+ old_name +' '+ tmp_new_full_name) 
-        print('安全复制成功')
-        # os.rename(old_name,tmp_new_full_name)
-        return(tmp_new_full_name)
-    except:
-        print('对以下文件复制失败！')
-        print(old_name)
-        return(old_name)
-        pass
+    if opt_type=='copy':
+        try:
+            shutil.copy(old_name, tmp_new_full_name)
+            # os.popen('copy '+ old_name +' '+ tmp_new_full_name) 
+            print('安全复制成功')
+            # os.rename(old_name,tmp_new_full_name)
+            return(tmp_new_full_name)
+        except:
+            print('对以下文件复制失败！')
+            print(old_name)
+            return(old_name)
+            pass
+    elif opt_type=='move':
+        try:
+            shutil.move(old_name, tmp_new_full_name)
+            # os.popen('copy '+ old_name +' '+ tmp_new_full_name) 
+            print('安全复制成功')
+            # os.rename(old_name,tmp_new_full_name)
+            return(tmp_new_full_name)
+        except:
+            print('对以下文件移动失败！')
+            print(old_name)
+            return(old_name)
+            pass
     
 # style = ttk.Style()
     
@@ -1522,6 +1536,7 @@ def tree_drag_enter(files):
     '''
     以拖拽的方式将文件拖动到tree范围内，将执行复制命令。
     注意，不是移动，只是复制。
+    safe_copy 的参数 opt_type = copy 是复制， = move 是移动。
     '''
     short_name=get_folder()
     print(short_name)
@@ -1551,7 +1566,8 @@ def tree_drag_enter(files):
         old_name = item
         [fpath,ffname]=os.path.split(old_name) # fpath 所在文件夹、ffname 原始文件名
         new_name = long_name + '/' + ffname
-        res=safe_copy(old_name, new_name)
+        res=safe_copy(old_name, new_name, opt_type='copy')
+        str_btm.set('文件拖拽成功')
         print('res=')
         print(res)
         
@@ -1562,7 +1578,7 @@ def tree_drag_enter(files):
         tmp=tmp_v
         tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
         
-    str_btm.set('成功复制文件到当前目录')
+    
     # 高亮文件
     try:
         tree_find(res)

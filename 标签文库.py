@@ -25,9 +25,10 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.10.2.1' # 版本号
+VER='v0.10.2.2' # 版本号
 # v0.10.2.0 实现文件列表上下移动功能。
 # v0.10.2.1 修复了切换文件夹时候的bug。
+# v0.10.2.2 将设置窗口和关于窗口调整为模态。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -587,6 +588,10 @@ def show_info_window():
     info_window=tk.Toplevel(window)
     info_window.geometry('%dx%d+%d+%d'%(w_width, w_height, (screenwidth-w_width)/2, (screenheight-w_height)/2))
     info_window.title('关于标签文库')
+
+    info_window.transient(window) # 避免在任务栏出现第二个窗口，而且可以实现置顶
+    info_window.grab_set() # 模态
+
     info_window.deiconify()
     info_window.lift()
     info_window.focus_force()
@@ -1528,6 +1533,8 @@ def show_form_setting(): #
     form_setting=tk.Toplevel(window)
     form_setting.title('设置')
     form_setting.resizable(0,0) #限制尺寸
+    form_setting.transient(window) # 避免在任务栏出现第二个窗口，而且可以实现置顶
+    form_setting.grab_set()
     screenwidth = window.winfo_screenwidth()
     screenheight = window.winfo_screenheight()
     w_width = 400#int(screenwidth*0.8)
@@ -1593,6 +1600,7 @@ def show_form_setting(): #
     bt_setting_cancel.grid(row=10,column=1,padx=10, pady=5,sticky=tk.EW)
     # bt_setting_cancel.pack(side=tk.LEFT,expand=0,fill=tk.X)
     
+    # window.wait_window(form_setting)
 
 
 def my_folder_add_click(event=None): # 

@@ -25,13 +25,12 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.10.2.2' # 版本号
-# v0.10.2.0 实现文件列表上下移动功能。
-# v0.10.2.1 修复了切换文件夹时候的bug。
-# v0.10.2.2 将设置窗口和关于窗口调整为模态。
+VER='v0.11.0.0' # 版本号
+# v0.11.0.0 完成了自制的居中输入窗体，并优化了界面。
 
 #%%
 #常量，但以后可以做到设置里面
+DEVELOP_MODE=0 # 开启调试模式
 cALL_FILES=''                       # 标签为空的表达方式，默认是空字符串
 LARGE_FONT=12                       # 表头字号
 MON_FONTSIZE=10                     # 正文字号
@@ -39,7 +38,7 @@ ORDER_BY_N=1                        # 初始按哪一列排序，1代表标签�
 ORDER_DESC=False                    # 是否逆序
 CLEAR_AFTER_CHANGE_FOLDER=0         # 切换文件夹后，是否清除筛选。0 是保留，其他是清除。
 EXP_FOLDERS=['_img']                # 排除文件夹规则，以后会加到自定义里面
-ALL_FOLDERS=3                       # 是否有“所有文件夹”的功能,1 在前面，2在末尾，其余没有
+ALL_FOLDERS=2                       # 是否有“所有文件夹”的功能,1 在前面，2在末尾，其余没有
 PROG_STEP=500                       # 进度条刷新参数
 NOTE_NAME='未命名'                  # 新建笔记的名称
 NOTE_EXT='.docx'                    # 新建笔记的类型
@@ -85,9 +84,12 @@ if True: # 调整清晰度
     #告诉操作系统使用程序自身的dpi适配
     windll.shcore.SetProcessDpiAwareness(1)
     #获取屏幕的缩放因子
-    ScaleFactor=windll.shcore.GetScaleFactorForDevice(0)
+    ScaleFactor=windll.shcore.GetScaleFactorForDevice(0) # 当前屏幕放大百分数（125）
     #设置程序缩放
     window.tk.call('tk', 'scaling', ScaleFactor/75)
+    #
+    SCREEN_WIDTH=window.winfo_screenwidth()*ScaleFactor/100 # 必须考虑分辨率导致的偏移
+    SCREEN_HEIGHT=window.winfo_screenheight()*ScaleFactor/100 #
 
 def split_path(full_path): 
     '''
@@ -399,13 +401,15 @@ def get_data(ipath=lst_my_path0,update_sub_path=1):
             for tmp2 in tmp_path:
                 if tmp2 in EXP_FOLDERS:
                     vpass=1
+                    break
                 elif tmp2[0]=='.': # 排除.开头的文件夹内容
                     vpass=1
-                
+                    break
             for name in files:
                 tmp.append(os.path.join(root, name))
                 if name=='_nomedia':
                     vpass=1
+                    break # 之前居然没写break，难怪那么慢
                     
             if not vpass==1:
                 lst_file+=tmp 
@@ -478,7 +482,9 @@ def get_file_part(tar):     # 【疑似bug】对带有空格的路径解析异�
     
 def sort_by_tag(elem): # 主题表格排序
     global ORDER_BY_N
-    return str(elem[ORDER_BY_N]).encode('gbk') # 加入后面gbk之后就是中文正确排序了
+    tmp=str(elem[ORDER_BY_N])
+    tmp=tmp.replace('\xa0',' ') # GBK 不支持 'xa0' 的解码。这个是特殊空格。
+    return tmp.encode('gbk') # 需要gbk才能中文正确排序
 
 def get_dt(lst_file0=None):
     '''
@@ -514,7 +520,8 @@ def get_dt(lst_file0=None):
         # dT.append([tmp['fname_0'],tmp['ftags'],tmp['fpath'],tmp['tar']])
         # 增加检查重复项的逻辑：
         # tmp_v=[tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar']]
-        tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar'])
+        # tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar'])
+        tmp_v=(str(tmp['fname_0']),tmp['ftags'],str(tmp['file_mdf_time']),str(tmp['tar']))
         
         # if not tmp_v in dT:
         #     dT.append(tmp_v) # 查重有点费时间
@@ -540,12 +547,14 @@ def get_dt(lst_file0=None):
         tmp+=i[1]
     
     lst_tags=list(set(tmp))
-    lst_tags=sorted(lst_tags, key=lambda x: x.encode('gbk'))
+    lst_tags=sorted(lst_tags, key=lambda x: x.replace('\xa0',' ').encode('gbk'))
     lst_tags=[cALL_FILES]+lst_tags
     # lst_tags.sort()
     
-    
-    dT.sort(key=sort_by_tag,reverse=ORDER_DESC)
+    try:
+        dT.sort(key=sort_by_tag,reverse=ORDER_DESC)
+    except:
+        print('dT排序出现错误！') 
     
     return (dT, lst_tags)
 
@@ -565,10 +574,9 @@ else:
 #%%
 
 # 窗体设计
-
 window.title(TAR+' '+VER)
-screenwidth = window.winfo_screenwidth()
-screenheight = window.winfo_screenheight()
+screenwidth = SCREEN_WIDTH
+screenheight = SCREEN_HEIGHT
 w_width = int(screenwidth*0.8)
 w_height = int(screenheight*0.8)
 x_pos=(screenwidth-w_width)/2
@@ -581,8 +589,8 @@ def show_info_window():
     '''
     关于窗口
     '''
-    screenwidth = window.winfo_screenwidth()
-    screenheight = window.winfo_screenheight()
+    screenwidth = SCREEN_WIDTH
+    screenheight = SCREEN_HEIGHT
     w_width = 600
     w_height = 500
     info_window=tk.Toplevel(window)
@@ -620,23 +628,108 @@ def show_info_window():
 
 
 # 自制输入窗体
-def my_input_window(title='未命名',msg='未定义'):
+class my_input_window:
     '''
-    想要做输入框，替代系统自带的，但是并没有启用。
+    输入窗体类
+    '''
+    input_value=''
+
+    def __init__(self,title='未命名',msg='未定义',default_value='') -> None:
+        self.input_value=''
+        self.title=title
+        self.msg=msg
+        self.default_value=default_value
+
+        self.input_window=tk.Toplevel(window)
+        
+        self.screenwidth = SCREEN_WIDTH
+        self.screenheight = SCREEN_HEIGHT
+        self.w_width = 800
+        self.w_height = 160
+        self.x_pos= (self.screenwidth-self.w_width)/2
+        self.y_pos= (self.screenheight-self.w_height)/2
+        self.input_window.geometry('%dx%d+%d+%d'%(self.w_width, self.w_height,self.x_pos,self.y_pos))
+        self.input_window.title(self.title)
+
+        self.input_window.deiconify()
+        self.input_window.lift()
+        self.input_window.focus_force()
+        self.input_window.transient(window) # 避免在任务栏出现第二个窗口，而且可以实现置顶
+        self.input_window.grab_set() #模态
+
+        self.iframe=tk.Frame(self.input_window,padx=20,pady=10)
+        self.iframe.pack(expand=0,fill=tk.BOTH)
+        
+        # 文本框
+        self.lb=tk.Label(self.iframe,text=self.msg,font="微软雅黑 "+str(MON_FONTSIZE))
+        self.lb.pack(anchor='sw',pady=5)
+        
+        # 输入框
+        self.et=tk.Entry(self.iframe,font="微软雅黑 "+str(MON_FONTSIZE))
+        self.et.insert(0,self.default_value)
+        self.et.pack(expand=0,fill=tk.X,pady=5)
+        self.et.focus()
+        self.et.selection_range(0, len(self.et.get()))
+        # self.et.focus()
+        self.input_window.bind_all('<Return>',self.bt_yes_click)
+        self.input_window.bind_all('<Escape>',self.bt_cancel_click)
+
+        self.iframe_bt=tk.Frame(self.input_window,padx=10,pady=10)
+        self.iframe_bt.pack()
+        # self.iframe_bt.pack(expand=0,fill=tk.BOTH)
+        # 按钮
+        self.bty=ttk.Button(self.iframe_bt,text='确定',command=self.bt_yes_click)
+        self.bty.pack(side=tk.LEFT,padx=20)
+        self.btc=ttk.Button(self.iframe_bt,text='取消',command=self.bt_cancel_click)
+        self.btc.pack(side=tk.LEFT,padx=20)
+
+
+        window.wait_window(self.input_window) # 要用这句话拦截主窗体的代码运行
+        
+        
+
+    def bt_cancel_click(self,event=None):
+        self.input_window.destroy()
+    
+    def bt_yes_click(self,event=None) -> str:
+        self.input_value=self.et.get()
+        # print(self.input_value)
+        self.input_window.destroy()
+        return self.input_value
+
+    def __str__(self) -> str:
+        return self.input_value
+
+    def __del__(self) -> str:
+        self.input_value=''
+        return ''
+    
+
+def fun_my_input_window(title='未命名',msg='未定义',default_value=''):
+    '''
+    想要做输入框，替代 tkinter 自带的，
+    但是并没有启用。
     '''
     screenwidth = window.winfo_screenwidth()
     screenheight = window.winfo_screenheight()
     w_width = 500
-    w_height = 100
+    w_height = 200
+    x_pos= (screenwidth-w_width)/2
+    y_pos= (screenheight-w_height)/2
     input_window=tk.Toplevel(window)
-    input_window.geometry('%dx%d+%d+%d'%(w_width, w_height, (screenwidth-w_width)/2, (screenheight-w_height)/2))
+    input_window.geometry('%dx%d+%d+%d'%(w_width, w_height,x_pos,y_pos))
     input_window.title(title)
+    #
+    input_value=''
+    #
     # input_window.withdraw()
     input_window.deiconify()
     input_window.lift()
     input_window.focus_force()
+    input_window.transient(window) # 避免在任务栏出现第二个窗口，而且可以实现置顶
+    input_window.grab_set() #模态
 
-    iframe=tk.Frame(input_window,padx=5,pady=5)
+    iframe=tk.Frame(input_window,padx=10,pady=10)
     iframe.pack(expand=0,fill=tk.BOTH)
     
     lb=tk.Label(iframe,text=msg)
@@ -644,6 +737,19 @@ def my_input_window(title='未命名',msg='未定义'):
     
     et=tk.Entry(iframe)
     et.pack(expand=0,fill=tk.X)
+
+    def bt_cancel_click(event=None):
+        input_window.destroy()
+    
+    def bt_yes_click(event=None):
+        global input_value
+        input_value=et.get()
+        input_window.destroy()
+
+    btc=ttk.Button(input_window,text='yes',command=bt_yes_click)
+    btc.pack()
+
+    return(input_value)
     
 # my_input_window()
 
@@ -651,11 +757,15 @@ def show_input_window(title_value,body_value='',init_value='',is_file_name=True)
     '''
     接管输入框的过程，以后可以将自定义输入框替换到这里。
     目前的用法：输入参数 1 标题，2 正文，3 默认值；
-    返回输入框的结果。
+    返回输入框的结果。如果输入内容为空，返回 None。
     参数 is_file_name 为 True 的时候，将文件名不能带的特殊字符自动去掉。
     '''
     # 获得输入值
-    res = simpledialog.askstring(title_value,prompt=body_value,initialvalue=init_value)
+    # res = simpledialog.askstring(title_value,prompt=body_value,initialvalue=init_value)
+    res = str(my_input_window(title_value,body_value,init_value)).strip()
+    if len(res)==0:
+        print('没有得到输入内容')
+        return None
 
     # 特殊处理
     if is_file_name:
@@ -1051,7 +1161,9 @@ def fun_test(event=None): #
     为了避免 event 输入，所以套了一层。
 
     '''
-    show_form_setting()
+    res=my_input_window('输入框','aaaa','外部输入')
+    print('自制输入框的返回值：')
+    print(res)
     # print('进入测试功能')
     
     # full_path='D:/MaJian/Documents/NutNotes/_MY_NOTES/#Python_GUI/pyinstaller打包exe#@PIN.md'
@@ -1451,7 +1563,8 @@ bt_clear=ttk.Button(frame0,text='清空',command=my_reload)
 bt_clear.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 bt_test=ttk.Button(frame0,text='测试功能',command=fun_test)
-# bt_test.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+if DEVELOP_MODE:
+    bt_test.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 
 
@@ -1535,10 +1648,10 @@ def show_form_setting(): #
     form_setting.resizable(0,0) #限制尺寸
     form_setting.transient(window) # 避免在任务栏出现第二个窗口，而且可以实现置顶
     form_setting.grab_set()
-    screenwidth = window.winfo_screenwidth()
-    screenheight = window.winfo_screenheight()
-    w_width = 400#int(screenwidth*0.8)
-    w_height = 200#int(screenheight*0.8)
+    screenwidth = SCREEN_WIDTH
+    screenheight = SCREEN_HEIGHT
+    w_width = 400 #int(screenwidth*0.8)
+    w_height = 200 #int(screenheight*0.8)
     x_pos=(screenwidth-w_width)/2
     y_pos=(screenheight-w_height)/2
     form_setting.geometry('%dx%d+%d+%d'%(w_width, w_height, x_pos, y_pos))
@@ -1624,7 +1737,8 @@ def my_folder_add_drag(files): #
     folders=list()
     # print(files)
     for item in files:
-        item=item.decode('gbk')
+        item=item.decode('gbk') # 此处可能存在编码错误，而且，为啥要编码？？
+        # item=item.replace('\xa0',' ').decode('gbk')
         if isdir(item):
             folders.append(item)
         elif isfile(item):

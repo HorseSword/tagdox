@@ -26,12 +26,14 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.11.2.1' # 版本号
+VER='v0.11.2.3' # 版本号
 # v0.11.0.0 完成了自制的居中输入窗体，并优化了界面。
 # v0.11.1.0 优化了窗口的左上角图标。
 # v0.11.2.0 增加列排序的可视化提示效果；优化标签的添加逻辑。
 # v0.11.2.1 优化弹窗代码逻辑；修复 ALL_FOLDERS=2 的时候取消关注文件夹的按钮失效的bug；
-# 尝试修复子文件夹手动留空时候，标签列表错误的bug（开发中）。
+# v0.11.2.2 修复子文件夹手动留空时候，标签列表错误的bug。
+# v0.11.2.3 逻辑优化。
+#
 # 发现bug：文件列表刷新期间，点击其他文件夹的时候，会导致刷新结果出错。
 # 这个的解决方法应该是加一个代表“是否继续执行”的变量，如果更新文件夹，就中断现有的循环。
 # 或者用居中的进度条遮挡。
@@ -85,7 +87,10 @@ lst_my_path_s=[]
 lst_my_path=[]
 lst_sub_path=[]
 dict_path=dict() # 用于列表简写和实际值
-run_flag=0 # 
+flag_inited=0 # 代表是否已经加载完成
+flag_break=0 # 代表是否中断查询
+flag_running=0 # 代表是否有正在运行的查询
+flag_root_folder=0
 
 window = tk.Tk() # 主窗口
 
@@ -122,7 +127,7 @@ def tree_clear(tree_obj): #
     x=tree_obj.get_children()
     for item in x:
         tree_obj.delete(item)
-    if run_flag==1:
+    if flag_inited==1:
         window.update()
 
 def safe_get_name(new_name):
@@ -379,9 +384,12 @@ def get_data(ipath=lst_my_path0,update_sub_path=1):
     '''
     print('调用 get_data 函数')
 
-    global lst_sub_path # 必须要有这句话，否则不能修改公共变量
+    global lst_sub_path,flag_running # 必须要有这句话，否则不能修改公共变量
+
+    flag_running=1 # 标记为运行中。
+
     lst_sub_path_copy=lst_sub_path.copy()
-    if run_flag==1:
+    if flag_inited==1:
         tree_clear(tree) # 
         set_prog_bar(0,30)
         str_btm.set("正在加载基础数据……")
@@ -397,7 +405,7 @@ def get_data(ipath=lst_my_path0,update_sub_path=1):
     
     for vPath in ipath:
         n+=1
-        if run_flag==1 and n % PROG_STEP == 0:
+        if flag_inited==1 and n % PROG_STEP == 0:
             set_prog_bar(30*n/n_max)
             
         for root, dirs, files in os.walk(vPath):
@@ -427,6 +435,12 @@ def get_data(ipath=lst_my_path0,update_sub_path=1):
                     
             if not vpass==1:
                 lst_file+=tmp 
+            
+            if flag_break: # 强行中断
+                break
+        if flag_break:
+            break
+
     print('加载 lst_file 消耗时间：')
     print(time.time()-time0)
     
@@ -439,7 +453,7 @@ def get_data(ipath=lst_my_path0,update_sub_path=1):
             pass
     else:
         lst_sub_path = lst_sub_path_copy
-    # if run_flag==1:
+    # if flag_inited==1:
     #     set_prog_bar(30,30)
     return lst_file
 
@@ -508,10 +522,15 @@ def get_dt(lst_file0=None):
     根据 lst_file 里面的文件列表，返回 (dT, lst_tags) .
     无需输入参数，自动找变量。
     '''
+    print('进入 get_dt 函数')
+
+    if flag_break:
+        return (None,None)
+
     if lst_file0 is None:
         lst_file0=lst_file.copy()
 
-    if run_flag==1:
+    if flag_inited==1:
         str_btm.set("正在解析标签……")
         window.update()
         set_prog_bar(30)
@@ -527,8 +546,8 @@ def get_dt(lst_file0=None):
         
         # 更新进度条
         n+=1
-        if run_flag==1 and n % PROG_STEP ==0:
-            set_prog_bar(30+70*n/n_max)
+        if flag_inited==1 and n % PROG_STEP ==0:
+            set_prog_bar(30+60*n/n_max)
         
         tmp=get_file_part(tar)
         # dT.append([tmp['fname_0'],tmp['ftags'],tmp['fpath'],tmp['tar']])
@@ -540,6 +559,10 @@ def get_dt(lst_file0=None):
         # if not tmp_v in dT:
         #     dT.append(tmp_v) # 查重有点费时间
         dT.append(tmp_v)
+        #
+        if flag_break: # 如果被中断的话
+            break
+
     print('加载dT消耗时间：')
     print(time.time()-time0)
     
@@ -552,8 +575,8 @@ def get_dt(lst_file0=None):
     # dT=list(set(dT))
     
     
-    if run_flag==1:
-        set_prog_bar(0)
+    if flag_inited==1:
+        set_prog_bar(90)
         
     # 获取所有tag
     tmp=[]
@@ -597,7 +620,7 @@ x_pos=(screenwidth-w_width)/2
 y_pos=(screenheight-w_height)/2
 window.geometry('%dx%d+%d+%d'%(w_width, w_height, x_pos, y_pos))
 # window.resizable(0,0) #限制尺寸
-
+window.state('zoomed') # 最大化
 #%%
 def show_info_window():
     '''
@@ -1012,17 +1035,32 @@ def get_search_items(event=None):
     return res
 
 def get_search_items_sub_folder(event=None): 
+    '''
+    获取子文件夹内的文件.
+    在函数中，包括了对标签的刷新。
+    '''
     if len(v_sub_folders.get())>0:
         tmp_path=lst_my_path[0]+'/'+v_sub_folders.get()
         print('进入子文件夹：')
         print(tmp_path)
-        # 还要刷新子文件夹的标签
+    else:
+        tmp_path=lst_my_path[0]
+    tmp_path=str(tmp_path).replace('\\','/')
+
+    # 这里，如果是子文件夹留空，还要刷新文件夹的标签
+    #
+    if flag_root_folder:
+        pass
+    else:
+        # 加载新标签列表
         tmp_tag=v_tag.get() # 获取当前标签
-        #刷新标签列表
+        # 刷新标签列表
         new_files = get_data([tmp_path],update_sub_path=0)
         (dt2,tags2)=get_dt(new_files)
-        print(tags2)
+        # print(tags2)
         v_tag['value']=tags2
+        if flag_inited:
+            v_inp['value']=tags2
         if len(tmp_tag)>0:
             # 恢复标签
             try:
@@ -1044,9 +1082,15 @@ def add_tree_item(tree,dT):
     time0=time.time()
     # tmp_search_items=get_search_items() # 列表
     tmp_search_items=get_search_items_sub_folder() # 列表
+    
     k=0
     print(tmp_search_items)
+    n=0
+    n_max=len(dT)
+    refresh_unit=5
     for i in range(len(dT)):
+        n+=1
+
         tmp=dT[i]
         try:
             if tmp[0][0:2]=='~$': # 排除word临时文件
@@ -1073,9 +1117,16 @@ def add_tree_item(tree,dT):
                 tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]),tags=['line1'])
             else:
                 tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
-        if k % 1000==0:
+        if k % refresh_unit==0:
+            refresh_unit=refresh_unit*refresh_unit
+            if flag_inited:
+                set_prog_bar(90+10*n/n_max)
             tree.update() # 提前刷新，优化用户体验
-            
+            # str_btm.set('即将完成……')
+    print('添加列表项消耗时间：')
+    print(time.time()-time0)    
+    if flag_inited:    
+        set_prog_bar(0)
     str_btm.set("找到 "+str(k)+" 个结果")#"，用时"+str(time.time()-time0)+"秒")
     
     # tree.insert('',i,values=(d[0][i],d[1][i],d[2][i],d[3][i]))
@@ -1421,6 +1472,7 @@ def my_reload(event=None):
 
     '''
     global lst_file,dT,lst_tags,lst_sub_path
+
     tmp_sub_folder=v_sub_folders.get()
 
     if event==0:
@@ -1445,20 +1497,27 @@ def my_reload(event=None):
     # v_inp.delete(0,len(v_inp.get()))
     
     # v_folder_choose(refresh=0)
+    print('—— 刷新核心过程 start ———')
+    #
     lst_file = get_data(lst_my_path) 
-
     (dT, lst_tags)=get_dt()
+    #
+    print('—— 刷新核心过程 end ———')
     # tree_clear(tree)
+    #
+    # 恢复子文件夹选项
     if event==0 or event==1:
         try: # 用一种不太优雅，但是有效的方法修复了bug……
             if len(tmp_sub_folder)>0:
                 tmp_n=lst_sub_path.index(tmp_sub_folder)
                 v_sub_folders.current(tmp_n+1)
+                print('子文件夹修复完毕')
         except:
             print('进入这个分支')
             v_sub_folders.current(0)
-
-    v_tag_choose()
+    
+    v_tag_choose() # 目的是？
+    #
     v_tag['value']=lst_tags
     v_inp['value']=lst_tags
 
@@ -1499,8 +1558,11 @@ def v_folder_choose(event=None,refresh=1,sub_folder=None): # 点击新的文件�
     '''
     选择左侧文件夹后启动。
     '''
-    global lst_my_path
-    
+    global lst_my_path,flag_running,flag_root_folder
+    flag_root_folder=1
+    # if flag_running: # 如果正在查，就先不启动新任务。这样处理还不理想。
+    #     return
+    print('调用 v_folder_choose 函数')
     if sub_folder is None:
         lst_path_ori=lst_my_path.copy()
     else:
@@ -1534,6 +1596,10 @@ def v_folder_choose(event=None,refresh=1,sub_folder=None): # 点击新的文件�
             # my_reload(lst_my_path)
             my_reload(CLEAR_AFTER_CHANGE_FOLDER)
         tree.yview_moveto(0)
+    
+    flag_running=0 # 标记为没有任务
+    flag_root_folder=0
+    print('v_folder_choose 函数结束')
 
 def v_sub_folder_choose(event=None):
     '''
@@ -1564,7 +1630,7 @@ def v_sub_folder_choose(event=None):
     
 def v_tag_choose(event=None):
     '''
-    选择标签之后、选择子文件夹后、输入搜索词按回车后触发
+    选择标签之后、选择子文件夹后、输入搜索词按回车后触发。
     清空tree，并按照dT为tree增加行。
     '''
     # tmp_tag=get_search_items()
@@ -1658,7 +1724,9 @@ lable_tag=tk.Label(frameBtm, text = '添加新标签')
 lable_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 #%% 
-
+def show_from_progres():
+    #
+    pass
 
 def show_form_setting(): # 
     '''
@@ -2299,9 +2367,9 @@ window.bind_all('<Control-t>',input_new_tag_via_dialog) # 快速输入标签。
 
 #%%
 # 运行
-window.state('zoomed') # 最大化
+
 window.iconbitmap(LOGO_PATH) # 左上角图标
-run_flag=1 # 代表前面的部分已经运行过一次了
+flag_inited=1 # 代表前面的部分已经运行过一次了
 set_prog_bar(0)
 # bt_add_tag.pack_forget()
 window.mainloop() 

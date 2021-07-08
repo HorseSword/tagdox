@@ -11,6 +11,7 @@ from tkinter import Text, ttk
 import json
 from tkinter import filedialog
 from tkinter import simpledialog
+from tkinter import font
 from tkinter.constants import INSERT
 import windnd
 from os.path import isdir
@@ -25,12 +26,15 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.11.0.0' # 版本号
+VER='v0.11.2.0' # 版本号
 # v0.11.0.0 完成了自制的居中输入窗体，并优化了界面。
+# v0.11.1.0 优化了窗口的左上角图标。
+# v0.11.2.0 增加列排序的可视化提示效果；优化标签的添加逻辑。
 
 #%%
 #常量，但以后可以做到设置里面
 DEVELOP_MODE=0 # 开启调试模式
+LOGO_PATH='./src/LOGO.ico'
 cALL_FILES=''                       # 标签为空的表达方式，默认是空字符串
 LARGE_FONT=12                       # 表头字号
 MON_FONTSIZE=10                     # 正文字号
@@ -62,6 +66,9 @@ OPT_DEFAULT={
  }
 json_data = OPT_DEFAULT # 用于后面处理的变量。
 QUICK_TAGS=['@PIN','@TODO','@toRead','@Done'] #
+DIR_LST=['▲','▼'] # 列排序标题行
+HEADING_LST=['file','tags','modify_time','file0']
+HEADING_LST_TXT=['文件名','标签','修改时间','完整路径']
 
 #变量
 lst_file=[] # 所有文件的完整路径
@@ -75,6 +82,7 @@ dict_path=dict() # 用于列表简写和实际值
 run_flag=0 # 
 
 window = tk.Tk() # 主窗口
+
 str_btm=tk.StringVar() #最下面显示状态用的
 str_btm.set("加载中")
 #%%
@@ -603,6 +611,7 @@ def show_info_window():
     info_window.deiconify()
     info_window.lift()
     info_window.focus_force()
+    info_window.iconbitmap(LOGO_PATH) # 左上角图标
 
     info_frame=tk.Frame(info_window,padx=5,pady=5)
     info_frame.pack(expand=0,fill=tk.BOTH)
@@ -656,6 +665,7 @@ class my_input_window:
         self.input_window.focus_force()
         self.input_window.transient(window) # 避免在任务栏出现第二个窗口，而且可以实现置顶
         self.input_window.grab_set() #模态
+        self.input_window.iconbitmap(LOGO_PATH) # 左上角图标
 
         self.iframe=tk.Frame(self.input_window,padx=20,pady=10)
         self.iframe.pack(expand=0,fill=tk.BOTH)
@@ -885,11 +895,20 @@ def update_folder_list():
 update_folder_list()
 tree_lst_folder.pack(side=tk.LEFT,expand=0,fill=tk.BOTH)
 
+def tree_order_show():
+    global ORDER_BY_N,ORDER_DESC
+    DIR_VALUE=DIR_LST[1] if ORDER_DESC else DIR_LST[0]
+    tree.heading(HEADING_LST[ORDER_BY_N], text=HEADING_LST_TXT[ORDER_BY_N]+DIR_VALUE)
+
 def tree_order_base(inp):
     '''
     主列表排序的入口程序。
     '''
+
     global ORDER_BY_N,ORDER_DESC,dT,lst_tags  
+    # 恢复标题
+    tree.heading(HEADING_LST[ORDER_BY_N], text=HEADING_LST_TXT[ORDER_BY_N])
+    #
     if ORDER_BY_N==inp: # 如果同样位置点击，就切换排序方式
         ORDER_DESC=not ORDER_DESC
     else: # 如果不同位置点击，就预置排序方式
@@ -899,7 +918,10 @@ def tree_order_base(inp):
         else:
             ORDER_DESC=False # 其余排序方法，都是升序。
     # my_reload(0) # 这个方法虽然可以排序，但是效率太低
-    
+    #
+    # 可视化
+    tree_order_show()
+
     # 新的排序方法
     dT.sort(key=sort_by_tag,reverse=ORDER_DESC)
     v_tag_choose()
@@ -939,8 +961,8 @@ tree.heading("file", text = "文件名",anchor='w',command=tree_order_filename)
 tree.heading("tags", text = "标签",anchor='w',command=tree_order_tag)
 tree.heading("modify_time", text = "修改时间",anchor='w',command=tree_order_modi_time)
 tree.heading("file0", text = "完整路径",anchor='w',command=tree_order_path)
-
-
+# 增加排序方向的可视化
+tree_order_show()
 
 
 def get_search_items(event=None): 
@@ -1081,8 +1103,8 @@ def get_folder_long():
 
 style = ttk.Style()
 # style.configure("Treeview.Heading", font=(None, 12),rowheight=60)
-style.configure("Treeview.Heading", font=('微软雅黑', LARGE_FONT), \
-                rowheight=int(LARGE_FONT*3.5),height=int(LARGE_FONT*4))
+style.configure("Treeview.Heading", font=('微软雅黑', MON_FONTSIZE), \
+                rowheight=int(MON_FONTSIZE*4),height=int(MON_FONTSIZE*4))
 
 style.configure("Treeview", font=(None, MON_FONTSIZE), rowheight=int(MON_FONTSIZE*3.5))
 
@@ -1287,6 +1309,10 @@ def input_new_tag_via_dialog(event=None):
     以输入框的方式添加标签。
 
     '''
+    # 没有选中项的时候，直接跳过
+    if len(tree.selection())!=1:
+        return
+
     new_tag=show_input_window('添加标签','请输入标签','')
     if new_tag is None:
         return
@@ -1550,7 +1576,7 @@ v_tag.bind('<<ComboboxSelected>>', v_tag_choose)
 v_tag.bind('<Return>',v_tag_choose) #绑定回车键
 
 
-lable_search=tk.Label(frame0, text = '文件名(Ctrl+F)')
+lable_search=tk.Label(frame0, text = '文件名')
 lable_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
 
 v_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
@@ -1599,7 +1625,7 @@ bt_settings.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) #
 bt_clear=ttk.Button(frameBtm,text='刷新',command=my_reload)
 bt_clear.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
-bt_new=ttk.Button(frameBtm,text='新建笔记 Ctrl+N')#,state=tk.DISABLED)#,command=my_reload)
+bt_new=ttk.Button(frameBtm,text='新建笔记')#,state=tk.DISABLED)#,command=my_reload)
 bt_new.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 bt_add_tag=ttk.Button(frameBtm,text='添加标签',command=input_new_tag)
@@ -1610,7 +1636,7 @@ v_inp.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) #
 v_inp.bind('<Return>',input_new_tag)
 v_inp['value']=lst_tags
 
-lable_tag=tk.Label(frameBtm, text = '添加新标签(Ctrl+T)')
+lable_tag=tk.Label(frameBtm, text = '添加新标签')
 lable_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 #%% 
@@ -1658,6 +1684,7 @@ def show_form_setting(): #
     form_setting.deiconify()
     form_setting.lift()
     form_setting.focus_force()
+    form_setting.iconbitmap(LOGO_PATH) # 左上角图标
     # v2sep=tk.StringVar()
     # v2sep.set(V_SEP)
 
@@ -2243,6 +2270,7 @@ window.bind_all('<Control-t>',input_new_tag_via_dialog) # 快速输入标签。
 #%%
 # 运行
 window.state('zoomed') # 最大化
+window.iconbitmap(LOGO_PATH) # 左上角图标
 run_flag=1
 set_prog_bar(0)
 # bt_add_tag.pack_forget()

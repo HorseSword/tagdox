@@ -33,7 +33,7 @@ VER='v0.11.2.4' # 版本号
 # v0.11.2.1 优化弹窗代码逻辑；修复 ALL_FOLDERS=2 的时候取消关注文件夹的按钮失效的bug；
 # v0.11.2.2 修复子文件夹手动留空时候，标签列表错误的bug。
 # v0.11.2.3 逻辑优化。
-# v0.11.2.4 Bug修复，性能优化。
+# v0.11.2.4 Bug修复，性能优化，逻辑优化。
 #
 # 发现bug：文件列表刷新期间，点击其他文件夹的时候，会导致刷新结果出错。
 # 这个的解决方法应该是加一个代表“是否继续执行”的变量，如果更新文件夹，就中断现有的循环。
@@ -92,6 +92,7 @@ flag_inited=0 # 代表是否已经加载完成
 flag_break=0 # 代表是否中断查询
 flag_running=0 # 代表是否有正在运行的查询
 flag_root_folder=0
+flag_sub_folders_changed=0
 
 window = tk.Tk() # 主窗口
 
@@ -1048,9 +1049,10 @@ def get_search_items_sub_folder(event=None):
         tmp_path=lst_my_path[0]
     tmp_path=str(tmp_path).replace('\\','/')
 
-    # 这里，如果是子文件夹留空，还要刷新文件夹的标签
+    # 这里，如果是子文件夹切换，还要刷新文件夹的标签【bug】
     #
-    if flag_root_folder:
+    # if flag_root_folder:
+    if not flag_sub_folders_changed:
         pass
     else:
         # 加载新标签列表
@@ -1566,6 +1568,7 @@ def v_folder_choose(event=None,refresh=1,sub_folder=None): # 点击新的文件�
     选择左侧文件夹后启动。
     '''
     global lst_my_path,flag_running,flag_root_folder
+    #
     flag_root_folder=1
     # if flag_running: # 如果正在查，就先不启动新任务。这样处理还不理想。
         # return
@@ -1581,7 +1584,9 @@ def v_folder_choose(event=None,refresh=1,sub_folder=None): # 点击新的文件�
         # 设置按钮为无效
         bt_new.configure(state=tk.DISABLED)
         bt_folder_drop.configure(state=tk.DISABLED)
+        v_sub_folders.current(0)
         v_sub_folders.configure(state=tk.DISABLED)
+
     elif sub_folder is not None:
         tmp=sub_folder
         lst_my_path=[tmp]
@@ -1646,6 +1651,12 @@ def v_tag_choose(event=None):
     add_tree_item(tree,dT)
     tree.update()
 
+def v_sub_folders_choose(event=None):
+    global flag_sub_folders_changed
+    flag_sub_folders_changed=1
+    v_tag_choose()
+    flag_sub_folders_changed=0
+
 vPDX=10
 vPDY=5
 
@@ -1658,7 +1669,7 @@ if True: # 子文件夹搜索
     # v_sub_folders.grid(row=0,column=2, padx=10, pady=5,sticky=tk.W)
     v_sub_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
     # v_sub_folders.configure(postoffset=(0,0,1000,0))
-    v_sub_folders.bind('<<ComboboxSelected>>', v_tag_choose)
+    v_sub_folders.bind('<<ComboboxSelected>>', v_sub_folders_choose)
     # v_sub_folders.bind('<<ComboboxSelected>>', v_sub_folder_choose)
     # v_sub_folders.bind('<Return>',v_folder_choose) #绑定回车键
 
@@ -1712,8 +1723,8 @@ lable_sum.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) #
 bt_settings=ttk.Button(frameBtm,text='菜单')#,command=my_help)
 bt_settings.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
-bt_clear=ttk.Button(frameBtm,text='刷新',command=my_reload)
-bt_clear.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+bt_reload=ttk.Button(frameBtm,text='刷新',command=my_reload)
+bt_reload.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 bt_new=ttk.Button(frameBtm,text='新建笔记')#,state=tk.DISABLED)#,command=my_reload)
 bt_new.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 

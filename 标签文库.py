@@ -7,7 +7,7 @@ Created on Thu Jun 17 09:28:24 2021
 
 import os
 import tkinter as tk
-from tkinter import Text, ttk
+from tkinter import Text, Variable, ttk
 import json
 from tkinter import filedialog
 from tkinter import simpledialog
@@ -26,7 +26,7 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.11.2.4' # 版本号
+VER='v0.12.0.0' # 版本号
 # v0.11.0.0 完成了自制的居中输入窗体，并优化了界面。
 # v0.11.1.0 优化了窗口的左上角图标。
 # v0.11.2.0 增加列排序的可视化提示效果；优化标签的添加逻辑。
@@ -34,10 +34,7 @@ VER='v0.11.2.4' # 版本号
 # v0.11.2.2 修复子文件夹手动留空时候，标签列表错误的bug。
 # v0.11.2.3 逻辑优化。
 # v0.11.2.4 Bug修复，性能优化，逻辑优化。
-#
-# 发现bug：文件列表刷新期间，点击其他文件夹的时候，会导致刷新结果出错。
-# 这个的解决方法应该是加一个代表“是否继续执行”的变量，如果更新文件夹，就中断现有的循环。
-# 或者用居中的进度条遮挡，这个方案更优雅。
+# v0.12.0.0 制作完成了居中的进度条。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -88,11 +85,13 @@ lst_my_path_s=[]
 lst_my_path=[]
 lst_sub_path=[]
 dict_path=dict() # 用于列表简写和实际值
+#
 flag_inited=0 # 代表是否已经加载完成
 flag_break=0 # 代表是否中断查询
 flag_running=0 # 代表是否有正在运行的查询
 flag_root_folder=0
 flag_sub_folders_changed=0
+flag_file_changed=0
 
 window = tk.Tk() # 主窗口
 
@@ -368,13 +367,24 @@ load_json_data()
 
 #%%
 prog=tk.DoubleVar() # 进度
+prog_win=''
 def set_prog_bar(inp,maxv=100):
     prog.set(inp)
-    # progressbar_file.stop()
-    # progressbar_file.start()
-    # if maxv<=inp:
-    #     progressbar_file.stop()
-    progressbar_file.update()
+    # progressbar_file.update() # 刷新进度条
+    #
+    global prog_win
+    if inp<=1:
+        try:
+            prog_win=my_progress_window(inp)
+        except:
+            pass
+    elif inp==100:
+        prog_win.set(inp)
+        prog_win=''
+    else:
+        prog_win.set(inp)
+        
+
 
 def get_data(ipath=lst_my_path0,update_sub_path=1): 
     '''
@@ -393,7 +403,7 @@ def get_data(ipath=lst_my_path0,update_sub_path=1):
     lst_sub_path_copy=lst_sub_path.copy()
     if flag_inited==1:
         tree_clear(tree) # 
-        set_prog_bar(0,30)
+        set_prog_bar(1,30)
         str_btm.set("正在加载基础数据……")
         window.update()
         
@@ -405,10 +415,15 @@ def get_data(ipath=lst_my_path0,update_sub_path=1):
     n_max=len(ipath)
     lst_sub_path=[]
     
+    PROG_STEP=2
     for vPath in ipath:
         n+=1
         if flag_inited==1 and n % PROG_STEP == 0:
-            set_prog_bar(30*n/n_max)
+            PROG_STEP*=2
+            tmp_prog=1+29*n/n_max
+            if tmp_prog>30:
+                tmp_prog=30
+            set_prog_bar(tmp_prog)
             
         for root, dirs, files in os.walk(vPath):
             
@@ -549,7 +564,7 @@ def get_dt(lst_file0=None):
         # 更新进度条
         n+=1
         if flag_inited==1 and n % PROG_STEP ==0:
-            set_prog_bar(30+60*n/n_max)
+            set_prog_bar(30+69*n/n_max)
         
         tmp=get_file_part(tar)
         # dT.append([tmp['fname_0'],tmp['ftags'],tmp['fpath'],tmp['tar']])
@@ -578,7 +593,7 @@ def get_dt(lst_file0=None):
     
     
     if flag_inited==1:
-        set_prog_bar(90)
+        set_prog_bar(99)
         
     # 获取所有tag
     tmp=[]
@@ -677,6 +692,7 @@ class my_input_window:
 
     def __init__(self,title='未命名',msg='未定义',default_value='') -> None:
         
+        # 变量设置
         self.form0=window
 
         self.input_value=''
@@ -684,7 +700,9 @@ class my_input_window:
         self.msg=msg
         self.default_value=default_value
         self.input_window=tk.Toplevel(self.form0)
-
+        #
+        # 窗口设置
+        # self.input_window.overrideredirect(True) # 这句话可以去掉标题栏，同时也会没有阴影
         self.screenwidth = SCREEN_WIDTH
         self.screenheight = SCREEN_HEIGHT
         self.w_width = 800
@@ -750,7 +768,67 @@ class my_input_window:
     def __del__(self) -> str:
         self.input_value=''
         return ''
+
+class my_progress_window:
+    '''
+    一个屏幕中间的进度条
+    '''
+    my_prog=tk.DoubleVar() # 进度
+
+    def __init__(self,prog_value=0) -> None:
+        
+        # 变量设置
+        self.form0=window
+
+        self.input_value=''
+        self.input_window=tk.Toplevel(self.form0)
+        self.input_window.title('进度')
+        self.my_prog.set(prog_value)
+        #
+        # 窗口设置
+        self.input_window.overrideredirect(True) # 这句话可以去掉标题栏，同时也会没有阴影
+        self.screenwidth = SCREEN_WIDTH
+        self.screenheight = SCREEN_HEIGHT
+        self.w_width = 800
+        self.w_height = 100
+        self.x_pos= (self.screenwidth-self.w_width)/2
+        self.y_pos= (self.screenheight-self.w_height)/2
+        self.input_window.geometry('%dx%d+%d+%d'%(self.w_width, self.w_height,self.x_pos,self.y_pos))
+        # self.input_window.title(self.title)
+        self.input_window.transient(self.form0) # 避免在任务栏出现第二个窗口，而且可以实现置顶
+        
+        try:
+            self.input_window.iconbitmap(LOGO_PATH) # 左上角图标
+        except:
+            pass
+
+        self.iframe=tk.Frame(self.input_window,padx=20,pady=20)
+        self.iframe.pack(expand=0,fill=tk.BOTH)
+        # 标签
+        self.pct=tk.Label(self.iframe)
+        self.pct.pack()
+        # 进度条
+        self.prog_bar=ttk.Progressbar(self.iframe,variable=self.my_prog)
+        self.prog_bar.pack(expand=0,fill=tk.BOTH)
+
+    def set(self,value):
+        self.progress=value
+        self.my_prog.set(self.progress)
+        self.pct.configure(text=str(int(value))+'%')
+        self.pct.update()
+        self.prog_bar.update()
+
+        if value>0:
+            self.input_window.deiconify()
+            self.input_window.lift()
+            self.input_window.focus_force()
+            
+            self.input_window.grab_set() #模态
+        if self.progress>=100:
+            self.input_window.destroy()
     
+
+
 
 def fun_my_input_window(title='未命名',msg='未定义',default_value=''):
     '''
@@ -853,10 +931,10 @@ if False:
 
 # 文件夹区
 frameFolder=ttk.Frame(window,width=int(w_width*0.4))#,width=600)
-frameFolder.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=10,pady=10)
+frameFolder.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=10,pady=5)
 
-frameFolderCtl=ttk.Frame(frameFolder,height=50,borderwidth=0,relief=tk.FLAT)
-frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=10)
+frameFolderCtl=ttk.Frame(frameFolder,height=80,borderwidth=0,relief=tk.FLAT)
+frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
 
 # 上面功能区
 frame0=ttk.LabelFrame(window,text='',height=80)#,width=600)
@@ -930,7 +1008,7 @@ def update_folder_list():
 # tree_lst_folder.selection_set()
 
 update_folder_list()
-tree_lst_folder.pack(side=tk.LEFT,expand=0,fill=tk.BOTH)
+tree_lst_folder.pack(side=tk.LEFT,expand=0,fill=tk.BOTH,padx=0,pady=10)
 
 def tree_order_show():
     global ORDER_BY_N,ORDER_DESC
@@ -1127,13 +1205,14 @@ def add_tree_item(tree,dT):
         # if k % refresh_unit==0: # 刷新
         #     refresh_unit=refresh_unit*refresh_unit
         #     if flag_inited:
-        #         set_prog_bar(90+10*n/n_max)
+        #         set_prog_bar(99+1*n/n_max)
         #     tree.update() # 提前刷新，优化用户体验
         #     # str_btm.set('即将完成……')
     print('添加列表项消耗时间：')
     print(time.time()-time0)    
+    
     if flag_inited:    
-        set_prog_bar(0)
+        set_prog_bar(100)
     str_btm.set("找到 "+str(k)+" 个结果")#"，用时"+str(time.time()-time0)+"秒")
     # flag_running=0
     # 设置文件夹
@@ -1713,7 +1792,7 @@ vPDY=5
 
 # 进度条
 progressbar_file=ttk.Progressbar(frameBtm,variable=prog,mode='determinate')
-progressbar_file.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY)
+# progressbar_file.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY)
 
 lable_sum=tk.Label(frameBtm, text = str_btm,textvariable=str_btm)
 lable_sum.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
@@ -1885,6 +1964,8 @@ def tree_drag_enter(files):
     注意，不是移动，只是复制。
     safe_copy 的参数 opt_type = copy 是复制， = move 是移动。
     '''
+    global flag_file_changed
+
     short_name=get_folder()
     print(short_name)
     if short_name=='':
@@ -1924,14 +2005,17 @@ def tree_drag_enter(files):
         tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar'])
         tmp=tmp_v
         tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
+        flag_file_changed=1
         
-    
-    # 高亮文件
-    try:
-        tree_find(res)
-        tree.yview_moveto(1)
-    except:
-        pass
+    # 刷新：
+    if flag_file_changed:
+        my_reload(0) # 这里不刷新的话，后面排序或者筛选都会出错。
+        # 高亮文件
+        try:
+            tree_find(res)
+            # tree.yview_moveto(1)
+        except:
+            pass
     
 
 

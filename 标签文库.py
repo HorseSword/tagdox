@@ -26,10 +26,15 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.11.2.0' # 版本号
+VER='v0.11.2.1' # 版本号
 # v0.11.0.0 完成了自制的居中输入窗体，并优化了界面。
 # v0.11.1.0 优化了窗口的左上角图标。
 # v0.11.2.0 增加列排序的可视化提示效果；优化标签的添加逻辑。
+# v0.11.2.1 优化弹窗代码逻辑；修复 ALL_FOLDERS=2 的时候取消关注文件夹的按钮失效的bug；
+# 尝试修复子文件夹手动留空时候，标签列表错误的bug（开发中）。
+# 发现bug：文件列表刷新期间，点击其他文件夹的时候，会导致刷新结果出错。
+# 这个的解决方法应该是加一个代表“是否继续执行”的变量，如果更新文件夹，就中断现有的循环。
+# 或者用居中的进度条遮挡。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -47,6 +52,7 @@ PROG_STEP=500                       # 进度条刷新参数
 NOTE_NAME='未命名'                  # 新建笔记的名称
 NOTE_EXT='.docx'                    # 新建笔记的类型
 NOTE_EXT_LIST=['.md','.txt','.docx','.rtf']
+#
 if isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
     print('进入开发模式')
     OPTIONS_FILE='D:/MyPython/开发数据/options_for_tagdox.json'
@@ -639,18 +645,21 @@ def show_info_window():
 # 自制输入窗体
 class my_input_window:
     '''
-    输入窗体类
+    输入窗体类。
+    实现了一个居中的模态窗体。
     '''
     input_value=''
 
     def __init__(self,title='未命名',msg='未定义',default_value='') -> None:
+        
+        self.form0=window
+
         self.input_value=''
         self.title=title
         self.msg=msg
         self.default_value=default_value
+        self.input_window=tk.Toplevel(self.form0)
 
-        self.input_window=tk.Toplevel(window)
-        
         self.screenwidth = SCREEN_WIDTH
         self.screenheight = SCREEN_HEIGHT
         self.w_width = 800
@@ -663,9 +672,12 @@ class my_input_window:
         self.input_window.deiconify()
         self.input_window.lift()
         self.input_window.focus_force()
-        self.input_window.transient(window) # 避免在任务栏出现第二个窗口，而且可以实现置顶
+        self.input_window.transient(self.form0) # 避免在任务栏出现第二个窗口，而且可以实现置顶
         self.input_window.grab_set() #模态
-        self.input_window.iconbitmap(LOGO_PATH) # 左上角图标
+        try:
+            self.input_window.iconbitmap(LOGO_PATH) # 左上角图标
+        except:
+            pass
 
         self.iframe=tk.Frame(self.input_window,padx=20,pady=10)
         self.iframe.pack(expand=0,fill=tk.BOTH)
@@ -681,6 +693,7 @@ class my_input_window:
         self.et.focus()
         self.et.selection_range(0, len(self.et.get()))
         # self.et.focus()
+        # 键盘快捷键
         self.input_window.bind_all('<Return>',self.bt_yes_click)
         self.input_window.bind_all('<Escape>',self.bt_cancel_click)
 
@@ -693,8 +706,7 @@ class my_input_window:
         self.btc=ttk.Button(self.iframe_bt,text='取消',command=self.bt_cancel_click)
         self.btc.pack(side=tk.LEFT,padx=20)
 
-
-        window.wait_window(self.input_window) # 要用这句话拦截主窗体的代码运行
+        self.form0.wait_window(self.input_window) # 要用这句话拦截主窗体的代码运行
         
         
 
@@ -981,6 +993,9 @@ def get_search_items(event=None):
         print('进入子文件夹：')
         print(tmp_path)
         res+=[tmp_path]
+    else:
+        # 还要考虑子文件夹从有到无时候的处理；
+        pass
         '''
         # 还要刷新子文件夹的标签
         tmp_tag=v_tag.get() # 获取当前标签
@@ -1090,7 +1105,8 @@ def get_folder():
 
 def get_folder_long():
     '''
-    合并获取短路径和长路径的逻辑。返回值是代表长路径的字符串。
+    合并获取短路径和长路径的逻辑。
+    返回值是代表文件夹长路径的字符串。
     '''
     short_folder=get_folder()
     if short_folder =='':
@@ -1115,18 +1131,22 @@ style.configure("Treeview", font=(None, MON_FONTSIZE), rowheight=int(MON_FONTSIZ
 def tree_file_open(event=None): #单击
     '''
     打开列表选中项目。
+    按理说，兼容多文件。
 
     '''
     for item in tree.selection():
         item_text = tree.item(item, "values")
+        print('正在打开文件：')
         print(item_text[-1])
-        os.startfile(item_text[-1]) #打开这个文件
+        try:
+            os.startfile(item_text[-1]) #打开这个文件
+        except:
+            print('打开文件失败')
 
 def file_rename(tar=None): # 对文件重命名
     '''
-    重命名文件
-    需要有tree的选中项目。
-
+    重命名tree选中的文件。需要有tree的选中项目。
+    每个文件重命名一次，按理说兼容多文件，但是这个命令不应该给多文件执行。
     '''
     for item in tree.selection():
         # 获得目标文件
@@ -1157,7 +1177,7 @@ def file_rename(tar=None): # 对文件重命名
 def file_delete(tar=None):
     '''
     删除tree选中项对应的文件。
-    目前只能删除一个文件。
+    兼容多文件，但是每个文件要确认一次，可能体验不太好。
     '''
     for item in tree.selection():
         # 获取文件全路径
@@ -1187,20 +1207,18 @@ def fun_test(event=None): #
     print('自制输入框的返回值：')
     print(res)
     # print('进入测试功能')
-    
-    # full_path='D:/MaJian/Documents/NutNotes/_MY_NOTES/#Python_GUI/pyinstaller打包exe#@PIN.md'
-    # # 
-    # tree_find(full_path)
 
     pass
 
 def tree_find(full_path=''): # 
     '''
     用于在 tree 里面找到项目，并加高亮。
+    输入参数是完整路径。
+    只支持单文件查找。
     '''
     if full_path=='':
         return(-1)
-        # full_path='D:/MaJian/Documents/NutNotes/_MY_NOTES/#Python_GUI/pyinstaller打包exe#@PIN.md'
+        
     # 根据完整路径，找到对应的文件并高亮
     tree.update() # 必须在定位之前刷新列表，否则定位会错误
     tc=tree.get_children()
@@ -1243,10 +1261,10 @@ def tree_find(full_path=''): #
     # for i in range()
     
 
-def tree_open_folder(event=None): 
-    '''#打开当前文件所在的目录
+def tree_open_folder(event=None,VMETHOD=1): 
     '''
-    VMETHOD=1
+    # 打开当前文件所在的目录
+    '''
     for item in tree.selection():
         item_text = tree.item(item, "values")
         tmp_file=item_text[-1]
@@ -1256,9 +1274,9 @@ def tree_open_folder(event=None):
         # tmp_folder=item_text[-2]
         
         print(tmp_folder)
-        if VMETHOD==1:
+        if VMETHOD==1: # 打开文件夹
             os.startfile(tmp_folder) #打开这个文件
-        elif VMETHOD==2: 
+        elif VMETHOD==2:  # 打开文件夹并选中文件。
             tmp=r'explorer /select,'+tmp_file
             print(tmp)
             os.system(tmp) # 性能极差，不知道哪的原因
@@ -1268,7 +1286,8 @@ def tree_open_folder(event=None):
 
 def tree_open_current_folder(event=None):
     '''
-    没有选中文件的时候，打开当前文件夹
+    没有选中文件的时候，打开当前文件夹。
+    支持打开子文件夹。
     '''
     if len(v_sub_folders.get())>0:
         tmp_path=lst_my_path[0]+'/'+v_sub_folders.get()
@@ -1324,7 +1343,7 @@ def input_new_tag_via_dialog(event=None):
 
 def file_add_tag(filename,tag0):    
     '''
-    # 增加标签
+    增加标签
     '''
     tag_list=tag0.split(V_SEP)
     tag_old = get_file_part(filename)['ftags'] #已有标签
@@ -1360,7 +1379,7 @@ def file_add_star(event=None):
     加收藏。
     目前是为文件增加 TAG_STAR 对应的值。
     通常是 @PIN。
-    本函数目前作废，没有启用。
+    // 本函数目前作废，没有启用。
     '''
     TAG_STAR='@PIN'
     for item in tree.selection():
@@ -1426,8 +1445,8 @@ def my_reload(event=None):
     # v_inp.delete(0,len(v_inp.get()))
     
     # v_folder_choose(refresh=0)
-    lst_file = get_data(lst_my_path) # 原因是 lst_my_path 应该是长路径，不是短路径 #这里错误地清空了列表
-    
+    lst_file = get_data(lst_my_path) 
+
     (dT, lst_tags)=get_dt()
     # tree_clear(tree)
     if event==0 or event==1:
@@ -1457,25 +1476,29 @@ def my_advice(event=None):
     os.startfile(URL_ADV)
     
 def my_closing():
+    '''
+    退出程序。
+    '''
     if tk.messagebox.askokcancel("退出", "真的要退出吗"):
         window.destroy()
         
-tree.bind('<Double-Button-1>', tree_file_open)
-tree.bind('<Return>', tree_file_open)
-# tree.bind('<ButtonPress-3>', input_newname) # 右键，此功能作废
-
-
 
 # 搜索框
 
         
 def folder_s2l(inp):
+    '''
+    文件夹短路径转长路径。
+    '''
     return dict_path[inp]
     pass
 
 
 
 def v_folder_choose(event=None,refresh=1,sub_folder=None): # 点击新的文件夹之后
+    '''
+    选择左侧文件夹后启动。
+    '''
     global lst_my_path
     
     if sub_folder is None:
@@ -1514,7 +1537,7 @@ def v_folder_choose(event=None,refresh=1,sub_folder=None): # 点击新的文件�
 
 def v_sub_folder_choose(event=None):
     '''
-    还没弄完
+    还没弄完。功能没有被启用。
     '''
     global lst_sub_path,lst_my_path
     if v_sub_folders.get()=='':
@@ -1541,7 +1564,7 @@ def v_sub_folder_choose(event=None):
     
 def v_tag_choose(event=None):
     '''
-    选择标签之后触发。
+    选择标签之后、选择子文件夹后、输入搜索词按回车后触发
     清空tree，并按照dT为tree增加行。
     '''
     # tmp_tag=get_search_items()
@@ -1594,17 +1617,11 @@ if DEVELOP_MODE:
 
 
 
-
-
 # 布局
 bar2.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=2,pady=1) # 用pack 可以实现自适应side=tk.LEFTanchor=tk.E
 
-# tree.grid(row=1,column=0,padx=10, pady=5,sticky=tk.NSEW)
-# tree.place(anchor=tk.W,relheight=1)
 tree.pack(side=tk.LEFT,expand=1,fill=tk.BOTH,padx=2,pady=1)
 
-# bar1.grid(row=1,column=1,sticky=tk.NS)
-# bar1.place(x=0,y=0,anchor=tk.NE)
 bar1.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=2,pady=1) # 用pack 可以实现自适应side=tk.LEFTanchor=tk.E
 
 vPDX=10
@@ -1631,7 +1648,8 @@ bt_new.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) #
 bt_add_tag=ttk.Button(frameBtm,text='添加标签',command=input_new_tag)
 bt_add_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
-v_inp=ttk.Combobox(frameBtm,width=16) # 新标签的输入框
+# 新标签的输入框
+v_inp=ttk.Combobox(frameBtm,width=16) 
 v_inp.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 v_inp.bind('<Return>',input_new_tag)
 v_inp['value']=lst_tags
@@ -1773,8 +1791,7 @@ def my_folder_add_drag(files): #
     if len(folders)>0:
         my_folder_add(folders)
 
-# 设置拖拽反映函数
-windnd.hook_dropfiles(tree_lst_folder, func=my_folder_add_drag)
+
 
 def tree_drag_enter(files):
     '''
@@ -1830,8 +1847,7 @@ def tree_drag_enter(files):
     except:
         pass
     
-    
-windnd.hook_dropfiles(tree, func=tree_drag_enter)
+
 
 def my_folder_refresh(ind=None): # 刷新左侧的文件夹列表
     # 更新json文件
@@ -2048,9 +2064,7 @@ def create_note_here(event=None):
         tree_find(fpth)
     pass
 
-            
-bt_new.configure(command=create_note)
-bt_folder_drop.configure(state=tk.DISABLED)
+
 
 #%%
 def jump_to_search(event=None):
@@ -2061,91 +2075,51 @@ def jump_to_tag(event=None):
 
 #%%
 # 弹出菜单
-'''
-主菜单，点击设置按钮可以弹出
-'''
-menu_main = tk.Menu(window,tearoff=0)
-menu_main.add_command(label='参数设置',command=show_form_setting)
-menu_main.add_separator()
-# menu_main.add_command(label='使用说明')#,command=my_help)
-menu_main.add_command(label='在线帮助',command=my_help)
-menu_main.add_command(label='建议和反馈',command=my_advice)
-menu_main.add_command(label='关于',command=show_info_window)
-menu_main.add_separator()
-menu_main.add_command(label='退出',command=my_closing)
 
 def popup_menu_main(event):
     '''
-    程序核心设置菜单的弹出
+    主菜单，点击设置按钮可以弹出。
+    设置菜单的弹出
     '''
+    menu_main = tk.Menu(window,tearoff=0)
+    menu_main.add_command(label='参数设置',command=show_form_setting)
+    menu_main.add_separator()
+    # menu_main.add_command(label='使用说明')#,command=my_help)
+    menu_main.add_command(label='在线帮助',command=my_help)
+    menu_main.add_command(label='建议和反馈',command=my_advice)
+    menu_main.add_command(label='关于',command=show_info_window)
+    menu_main.add_separator()
+    menu_main.add_command(label='退出',command=my_closing)
+    #
     menu_main.post(event.x_root,event.y_root)
 
-'''
-文件夹区域的右键菜单
-'''
-menu_folder = tk.Menu(window,tearoff=0)
-menu_folder.add_command(label="添加关注文件夹…",command=my_folder_add_click)
-menu_folder.add_separator()
-menu_folder.add_command(label="向上移动",command=my_folder_up)
-menu_folder.add_command(label="向下移动",command=my_folder_down)
-menu_folder.add_separator()
-menu_folder.add_command(label="打开所选文件夹",command=my_folder_open)
-menu_folder.add_command(label="取消关注所选文件夹",command=my_folder_drop)
-
-menu_folder_no = tk.Menu(window,tearoff=0)
-menu_folder_no.add_command(label="添加关注文件夹…",command=my_folder_add_click)
-menu_folder_no.add_separator()
-menu_folder_no.add_command(label="打开所选文件夹",state=tk.DISABLED,command=my_folder_open)
-menu_folder_no.add_command(label="取消关注所选文件夹",state=tk.DISABLED,command=my_folder_drop)
 
 def popup_menu_folder(event):
+    '''
+    文件夹区域的右键菜单
+    '''
     if len(lst_my_path)!=1: # 如果没有选中项目的话
+        menu_folder_no = tk.Menu(window,tearoff=0)
+        menu_folder_no.add_command(label="添加关注文件夹…",command=my_folder_add_click)
+        menu_folder_no.add_separator()
+        menu_folder_no.add_command(label="打开所选文件夹",state=tk.DISABLED,command=my_folder_open)
+        menu_folder_no.add_command(label="取消关注所选文件夹",state=tk.DISABLED,command=my_folder_drop)
         menu_folder_no.post(event.x_root,event.y_root)
     else:
+        menu_folder = tk.Menu(window,tearoff=0)
+        menu_folder.add_command(label="添加关注文件夹…",command=my_folder_add_click)
+        menu_folder.add_separator()
+        menu_folder.add_command(label="向上移动",command=my_folder_up)
+        menu_folder.add_command(label="向下移动",command=my_folder_down)
+        menu_folder.add_separator()
+        menu_folder.add_command(label="打开所选文件夹",command=my_folder_open)
+        menu_folder.add_command(label="取消关注所选文件夹",command=my_folder_drop)
         menu_folder.post(event.x_root,event.y_root)
 
-menu_tags_to_drop = tk.Menu(window,tearoff=0)
-menu_tags_to_add = tk.Menu(window,tearoff=0)
-
-'''
-文件区域的右键菜单
-'''
-menu_file = tk.Menu(window,tearoff=0)
-menu_file.add_command(label="打开文件",command=tree_file_open)
-# menu_file.add_command(label="在相同位置创建笔记",command=create_note_here)
-# menu_file.add_command(label="创建笔记",command=create_note)
-menu_file.add_separator()
-menu_file.add_command(label="打开选中项所在文件夹",command=tree_open_folder)
-menu_file.add_command(label="打开当前文件夹",command=tree_open_current_folder)
-menu_file.add_separator()
-# menu_file.add_command(label="添加收藏 @PIN",command=file_add_star)
-menu_file.add_cascade(label="快速添加标签",menu=menu_tags_to_add)#,command=file_add_star)
-menu_file.add_cascade(label="移除标签",menu=menu_tags_to_drop)
-menu_file.add_separator()
-# menu_file.add_command(label="发送无标签副本到桌面（开发中）",state=tk.DISABLED)#,command=file_rename)
-# menu_file.add_command(label="复制到剪切板（开发中）",state=tk.DISABLED)#,command=file_rename)
-# menu_file.add_command(label="移动到文件夹（开发中）",state=tk.DISABLED)#,command=file_rename)
-# menu_file.add_command(label="粘贴（开发中）",state=tk.DISABLED)#,command=file_rename)
-menu_file.add_command(label="重命名",command=file_rename)
-menu_file.add_command(label="删除",command=file_delete)
-menu_file.add_separator()
-menu_file.add_command(label="刷新",command=my_reload)
-
-if len(QUICK_TAGS)>0:
-    for i in QUICK_TAGS:
-        menu_tags_to_add.add_command(label=i,command=lambda x=i:fast_add_tag(x))
-    menu_tags_to_add.add_separator()
-menu_tags_to_add.add_command(label='自定义标签…',command=input_new_tag_via_dialog)
-
-menu_file_no_selection = tk.Menu(window,tearoff=0)
-# menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=tree_file_open)
-menu_file_no_selection.add_command(label="打开当前文件夹",command=tree_open_current_folder)
-# menu_file_no_selection.add_command(label="重命名",state=tk.DISABLED)#,command=my_folder_add_click)
-# menu_file_no_selection.add_command(label="添加收藏",state=tk.DISABLED)#,command=my_folder_add_click)
-menu_file_no_selection.add_separator()
-menu_file_no_selection.add_command(label="刷新",command=my_reload)
-
-def drop_tag(event=None): # 删除标签，以后将#号换成SEP
+def drop_tag(event=None): 
+    '''
+    删除标签，以后将#号换成SEP
+    '''
     if event is None:
         return
     tag_value=event
@@ -2199,6 +2173,52 @@ def drop_tag(event=None): # 删除标签，以后将#号换成SEP
         pass
 
 def popup_menu_file(event):
+    '''
+    文件夹区域的菜单。
+    '''
+    '''
+    文件区域的右键菜单
+    '''
+    menu_tags_to_drop = tk.Menu(window,tearoff=0)
+    menu_tags_to_add = tk.Menu(window,tearoff=0)
+    if len(QUICK_TAGS)>0:
+        for i in QUICK_TAGS:
+            menu_tags_to_add.add_command(label=i,command=lambda x=i:fast_add_tag(x))
+        menu_tags_to_add.add_separator()
+    menu_tags_to_add.add_command(label='自定义标签…',command=input_new_tag_via_dialog)
+    #
+    menu_file = tk.Menu(window,tearoff=0)
+    menu_file.add_command(label="打开文件",command=tree_file_open)
+    # menu_file.add_command(label="在相同位置创建笔记",command=create_note_here)
+    # menu_file.add_command(label="创建笔记",command=create_note)
+    menu_file.add_separator()
+    menu_file.add_command(label="打开选中项所在文件夹",command=tree_open_folder)
+    menu_file.add_command(label="打开当前文件夹",command=tree_open_current_folder)
+    menu_file.add_separator()
+    # menu_file.add_command(label="添加收藏 @PIN",command=file_add_star)
+    menu_file.add_cascade(label="快速添加标签",menu=menu_tags_to_add)#,command=file_add_star)
+    menu_file.add_cascade(label="移除标签",menu=menu_tags_to_drop)
+    menu_file.add_separator()
+    # menu_file.add_command(label="发送无标签副本到桌面（开发中）",state=tk.DISABLED)#,command=file_rename)
+    # menu_file.add_command(label="复制到剪切板（开发中）",state=tk.DISABLED)#,command=file_rename)
+    # menu_file.add_command(label="移动到文件夹（开发中）",state=tk.DISABLED)#,command=file_rename)
+    # menu_file.add_command(label="粘贴（开发中）",state=tk.DISABLED)#,command=file_rename)
+    menu_file.add_command(label="重命名",command=file_rename)
+    menu_file.add_command(label="删除",command=file_delete)
+    menu_file.add_separator()
+    menu_file.add_command(label="刷新",command=my_reload)
+
+
+
+    menu_file_no_selection = tk.Menu(window,tearoff=0)
+    # menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=tree_file_open)
+    menu_file_no_selection.add_command(label="打开当前文件夹",command=tree_open_current_folder)
+    # menu_file_no_selection.add_command(label="重命名",state=tk.DISABLED)#,command=my_folder_add_click)
+    # menu_file_no_selection.add_command(label="添加收藏",state=tk.DISABLED)#,command=my_folder_add_click)
+    menu_file_no_selection.add_separator()
+    menu_file_no_selection.add_command(label="刷新",command=my_reload)
+
+
     tmp=0
     for item in tree.selection():
         item_text = tree.item(item, "values")
@@ -2243,12 +2263,22 @@ def popup_menu_file(event):
         menu_file_no_selection.post(event.x_root,event.y_root)
 
 #%%
+# 设置拖拽反映函数
+windnd.hook_dropfiles(tree_lst_folder, func=my_folder_add_drag)
+windnd.hook_dropfiles(tree, func=tree_drag_enter)
+            
+bt_new.configure(command=create_note)
+if ALL_FOLDERS==1:
+    bt_folder_drop.configure(state=tk.DISABLED)
+
 # 各种功能的绑定
 # tree_lst_folder.bind('<<ListboxSelect>>',v_folder_choose)
 # tree_lst_folder.bind('<Button-1>',v_folder_choose)
 tree_lst_folder.bind('<ButtonRelease-1>',v_folder_choose)
 tree.tag_configure('line1', background='#cccccc') # 灰色底纹,然而无效
-
+tree.bind('<Double-Button-1>', tree_file_open)
+tree.bind('<Return>', tree_file_open)
+# tree.bind('<ButtonPress-3>', input_newname) # 右键，此功能作废
 tree_lst_folder.bind("<Button-3>",popup_menu_folder) # 绑定文件夹区域的右键功能
 bt_settings.bind("<Button-1>",popup_menu_main) # 菜单按钮
 tree.bind("<Button-3>",popup_menu_file) # 绑定文件夹区域的功能
@@ -2271,7 +2301,7 @@ window.bind_all('<Control-t>',input_new_tag_via_dialog) # 快速输入标签。
 # 运行
 window.state('zoomed') # 最大化
 window.iconbitmap(LOGO_PATH) # 左上角图标
-run_flag=1
+run_flag=1 # 代表前面的部分已经运行过一次了
 set_prog_bar(0)
 # bt_add_tag.pack_forget()
 window.mainloop() 

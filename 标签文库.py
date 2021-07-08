@@ -26,17 +26,18 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.11.2.3' # 版本号
+VER='v0.11.2.4' # 版本号
 # v0.11.0.0 完成了自制的居中输入窗体，并优化了界面。
 # v0.11.1.0 优化了窗口的左上角图标。
 # v0.11.2.0 增加列排序的可视化提示效果；优化标签的添加逻辑。
 # v0.11.2.1 优化弹窗代码逻辑；修复 ALL_FOLDERS=2 的时候取消关注文件夹的按钮失效的bug；
 # v0.11.2.2 修复子文件夹手动留空时候，标签列表错误的bug。
 # v0.11.2.3 逻辑优化。
+# v0.11.2.4 Bug修复，性能优化。
 #
 # 发现bug：文件列表刷新期间，点击其他文件夹的时候，会导致刷新结果出错。
 # 这个的解决方法应该是加一个代表“是否继续执行”的变量，如果更新文件夹，就中断现有的循环。
-# 或者用居中的进度条遮挡。
+# 或者用居中的进度条遮挡，这个方案更优雅。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -386,7 +387,7 @@ def get_data(ipath=lst_my_path0,update_sub_path=1):
 
     global lst_sub_path,flag_running # 必须要有这句话，否则不能修改公共变量
 
-    flag_running=1 # 标记为运行中。
+    # flag_running=1 # 标记为运行中。
 
     lst_sub_path_copy=lst_sub_path.copy()
     if flag_inited==1:
@@ -1078,16 +1079,19 @@ def add_tree_item(tree,dT):
     # 关键函数：增加主框架的内容
     # 先获得搜索项目以及 tag
     '''
+    # global flag_running
+
     str_btm.set('正在刷新列表……')
     time0=time.time()
     # tmp_search_items=get_search_items() # 列表
     tmp_search_items=get_search_items_sub_folder() # 列表
     
     k=0
+    print('筛选条件：')
     print(tmp_search_items)
     n=0
     n_max=len(dT)
-    refresh_unit=5
+    refresh_unit=4
     for i in range(len(dT)):
         n+=1
 
@@ -1104,10 +1108,11 @@ def add_tree_item(tree,dT):
         
         canadd=1
         
-        for tag in tmp_search_items:            
+        for tag in tmp_search_items:  # 这里感觉好像逻辑有问题
             tag=str.lower(tag)
             if tag=='' or tag==cALL_FILES or (tag in tag_lower):
                 canadd=1
+                # break
             elif str.lower(tmp[3]).find(tag)<0:
                 canadd=0
         
@@ -1117,18 +1122,20 @@ def add_tree_item(tree,dT):
                 tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]),tags=['line1'])
             else:
                 tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
-        if k % refresh_unit==0:
-            refresh_unit=refresh_unit*refresh_unit
-            if flag_inited:
-                set_prog_bar(90+10*n/n_max)
-            tree.update() # 提前刷新，优化用户体验
-            # str_btm.set('即将完成……')
+        # if k % refresh_unit==0: # 刷新
+        #     refresh_unit=refresh_unit*refresh_unit
+        #     if flag_inited:
+        #         set_prog_bar(90+10*n/n_max)
+        #     tree.update() # 提前刷新，优化用户体验
+        #     # str_btm.set('即将完成……')
     print('添加列表项消耗时间：')
     print(time.time()-time0)    
     if flag_inited:    
         set_prog_bar(0)
     str_btm.set("找到 "+str(k)+" 个结果")#"，用时"+str(time.time()-time0)+"秒")
-    
+    # flag_running=0
+    # 设置文件夹
+
     # tree.insert('',i,values=(d[0][i],d[1][i],d[2][i],d[3][i]))
 
 add_tree_item(tree,dT)
@@ -1561,7 +1568,7 @@ def v_folder_choose(event=None,refresh=1,sub_folder=None): # 点击新的文件�
     global lst_my_path,flag_running,flag_root_folder
     flag_root_folder=1
     # if flag_running: # 如果正在查，就先不启动新任务。这样处理还不理想。
-    #     return
+        # return
     print('调用 v_folder_choose 函数')
     if sub_folder is None:
         lst_path_ori=lst_my_path.copy()
@@ -1597,7 +1604,7 @@ def v_folder_choose(event=None,refresh=1,sub_folder=None): # 点击新的文件�
             my_reload(CLEAR_AFTER_CHANGE_FOLDER)
         tree.yview_moveto(0)
     
-    flag_running=0 # 标记为没有任务
+    # flag_running=0 # 标记为没有任务
     flag_root_folder=0
     print('v_folder_choose 函数结束')
 

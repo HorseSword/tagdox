@@ -26,9 +26,10 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.12.0.1' # 版本号
+VER='v0.12.0.2' # 版本号
 # v0.12.0.0 制作完成了居中的进度条。
 # v0.12.0.1 修复了提示文字的错误。
+# v0.12.0.2 修复了输入框覆盖的错误。
 #
 # 已知bug：进度条出现之后，快捷键会失效。怀疑是进度条消失后，焦点没有回到主窗口上。
 
@@ -815,11 +816,12 @@ class my_progress_window:
         self.prog_bar.update()
 
         if value>0:
-            self.input_window.deiconify()
-            self.input_window.lift()
-            self.input_window.focus_force()
+            self.input_window.deiconify() # 置顶
+            # self.input_window.lift() # 置顶，但是会导致后面失去输入能力
+            # self.input_window.focus_force()
             
             self.input_window.grab_set() #模态
+
         if self.progress>=100:
             self.input_window.destroy()
 

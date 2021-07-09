@@ -26,12 +26,11 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.12.0.2' # 版本号
+VER='v0.12.1.0' # 版本号
 # v0.12.0.0 制作完成了居中的进度条。
 # v0.12.0.1 修复了提示文字的错误。
 # v0.12.0.2 修复了输入框覆盖的错误。
-#
-# 已知bug：进度条出现之后，快捷键会失效。怀疑是进度条消失后，焦点没有回到主窗口上。
+# v0.12.1.0 增加了文件大小数据。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -70,8 +69,10 @@ OPT_DEFAULT={
 json_data = OPT_DEFAULT # 用于后面处理的变量。
 QUICK_TAGS=['@PIN','@TODO','@toRead','@Done'] #
 DIR_LST=['▲','▼'] # 列排序标题行
-HEADING_LST=['file','tags','modify_time','file0']
-HEADING_LST_TXT=['文件名','标签','修改时间','完整路径']
+HEADING_LST=['file','tags','modify_time','size','file0']
+HEADING_LST_TXT=['文件名','标签','修改时间','文件大小(kB)','完整路径']
+# HEADING_LST=['file','tags','modify_time','file0']
+# HEADING_LST_TXT=['文件名','标签','修改时间','完整路径']
 
 #变量
 lst_file=[] # 所有文件的完整路径
@@ -370,17 +371,18 @@ def set_prog_bar(inp,maxv=100):
     # progressbar_file.update() # 刷新进度条
     #
     global prog_win
-    if inp<=1:
-        try:
-            prog_win=my_progress_window(inp)
-        except:
-            pass
-    elif inp==100:
-        prog_win.set(inp)
-        prog_win=''
-    else:
-        prog_win.set(inp)
-        
+    try:
+        if inp<=1:
+
+                prog_win=my_progress_window(inp)
+
+        elif inp==100:
+            prog_win.set(inp)
+            prog_win=''
+        else:
+            prog_win.set(inp)
+    except:
+        pass
 
 
 def get_data(ipath=lst_my_path0,update_sub_path=1): 
@@ -484,7 +486,15 @@ def get_file_part(tar):     # 【疑似bug】对带有空格的路径解析异�
     
     mtime = os.stat(tar).st_mtime
     file_modify_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))
-    
+
+    fsize=os.path.getsize(tar) # 文件大小，字节
+    fsize=fsize/(1024) #换算到kB
+    fsize=round(fsize,1)
+    # fsize*=100
+    # fsize=int(fsize)
+    # fsize/=100
+
+
     # 对文件目录的解析算法2：
     tmp=split_path(fpath)
     tmp2=[]
@@ -519,14 +529,18 @@ def get_file_part(tar):     # 【疑似bug】对带有空格的路径解析异�
             'fename':fename, # 扩展名
             'file_ext':fename, # 扩展名
             'tar':tar,
+            'fsize':fsize,
             'file_full_path':tar, # 完整路径，和输入参数完全一样
             'file_mdf_time':file_modify_time}
     
 def sort_by_tag(elem): # 主题表格排序
     global ORDER_BY_N
     tmp=str(elem[ORDER_BY_N])
-    tmp=tmp.replace('\xa0',' ') # GBK 不支持 'xa0' 的解码。这个是特殊空格。
-    return tmp.encode('gbk') # 需要gbk才能中文正确排序
+    if ORDER_BY_N==3:
+        return float(tmp) # 数字
+    else:
+        tmp=tmp.replace('\xa0',' ') # GBK 不支持 'xa0' 的解码。这个是特殊空格。
+        return tmp.encode('gbk') # 需要gbk才能中文正确排序
 
 def get_dt(lst_file0=None):
     '''
@@ -568,7 +582,7 @@ def get_dt(lst_file0=None):
         # 增加检查重复项的逻辑：
         # tmp_v=[tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar']]
         # tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar'])
-        tmp_v=(str(tmp['fname_0']),tmp['ftags'],str(tmp['file_mdf_time']),str(tmp['tar']))
+        tmp_v=(str(tmp['fname_0']),tmp['ftags'],str(tmp['file_mdf_time']),tmp['fsize'],str(tmp['tar']))
         
         # if not tmp_v in dT:
         #     dT.append(tmp_v) # 查重有点费时间
@@ -1048,16 +1062,19 @@ def tree_order_tag(inp=None):
 def tree_order_modi_time(inp=None):
     tree_order_base(2)
     
-def tree_order_path(inp=None):
+def tree_order_size(inp=None):
     tree_order_base(3)
+
+def tree_order_path(inp=None):
+    tree_order_base(4)
 
     
 
 #%%
-columns = ("index","file", "tags", "modify_time","file0")
+columns = ("index","file", "tags", "modify_time","size","file0")
 
 tree = ttk.Treeview(frameMain, show = "headings", columns = columns, \
-                    displaycolumns = ["file", "tags", "modify_time","file0"], \
+                    displaycolumns = ["file", "tags", "modify_time","size"], \
                     selectmode = tk.BROWSE, \
                     yscrollcommand = bar1.set,xscrollcommand = bar2.set)#, height=18)
 
@@ -1065,12 +1082,14 @@ tree.column('index', width=30, anchor='center')
 tree.column('file', width=400, anchor='w')
 tree.column('tags', width=300, anchor='w')
 tree.column('modify_time', width=100, anchor='w')
+tree.column('size', width=80, anchor='w')
 tree.column('file0', width=80, anchor='w')
 
 tree.heading("index", text = "序号",anchor='center')
 tree.heading("file", text = "文件名",anchor='w',command=tree_order_filename)
 tree.heading("tags", text = "标签",anchor='w',command=tree_order_tag)
 tree.heading("modify_time", text = "修改时间",anchor='w',command=tree_order_modi_time)
+tree.heading("size", text = "文件大小(kB)",anchor='w',command=tree_order_size)
 tree.heading("file0", text = "完整路径",anchor='w',command=tree_order_path)
 # 增加排序方向的可视化
 tree_order_show()
@@ -1189,15 +1208,15 @@ def add_tree_item(tree,dT):
             if tag=='' or tag==cALL_FILES or (tag in tag_lower):
                 canadd=1
                 # break
-            elif str.lower(tmp[3]).find(tag)<0:
+            elif str.lower(tmp[-1]).find(tag)<0:
                 canadd=0
         
         if canadd==1:
             k+=1
             if k%2==1:
-                tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]),tags=['line1'])
+                tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3],tmp[4]),tags=['line1'])
             else:
-                tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
+                tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3],tmp[4]))
         # if k % refresh_unit==0: # 刷新
         #     refresh_unit=refresh_unit*refresh_unit
         #     if flag_inited:
@@ -1997,10 +2016,10 @@ def tree_drag_enter(files):
         
         #再显示到列表中
         k+=1
-        tmp=get_file_part(res)
-        tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar'])
-        tmp=tmp_v
-        tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
+        # tmp=get_file_part(res)
+        # tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar'])
+        # tmp=tmp_v
+        # tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
         flag_file_changed=1
         
     # 刷新：

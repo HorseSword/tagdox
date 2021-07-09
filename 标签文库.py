@@ -26,15 +26,11 @@ import shutil
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.12.0.0' # 版本号
-# v0.11.0.0 完成了自制的居中输入窗体，并优化了界面。
-# v0.11.1.0 优化了窗口的左上角图标。
-# v0.11.2.0 增加列排序的可视化提示效果；优化标签的添加逻辑。
-# v0.11.2.1 优化弹窗代码逻辑；修复 ALL_FOLDERS=2 的时候取消关注文件夹的按钮失效的bug；
-# v0.11.2.2 修复子文件夹手动留空时候，标签列表错误的bug。
-# v0.11.2.3 逻辑优化。
-# v0.11.2.4 Bug修复，性能优化，逻辑优化。
+VER='v0.12.0.1' # 版本号
 # v0.12.0.0 制作完成了居中的进度条。
+# v0.12.0.1 修复了提示文字的错误。
+#
+# 已知bug：进度条出现之后，快捷键会失效。怀疑是进度条消失后，焦点没有回到主窗口上。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -826,8 +822,6 @@ class my_progress_window:
             self.input_window.grab_set() #模态
         if self.progress>=100:
             self.input_window.destroy()
-    
-
 
 
 def fun_my_input_window(title='未命名',msg='未定义',default_value=''):
@@ -1211,9 +1205,9 @@ def add_tree_item(tree,dT):
     print('添加列表项消耗时间：')
     print(time.time()-time0)    
     
+    str_btm.set("找到 "+str(k)+" 个结果")#"，用时"+str(time.time()-time0)+"秒")
     if flag_inited:    
         set_prog_bar(100)
-    str_btm.set("找到 "+str(k)+" 个结果")#"，用时"+str(time.time()-time0)+"秒")
     # flag_running=0
     # 设置文件夹
 

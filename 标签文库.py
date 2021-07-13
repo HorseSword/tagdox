@@ -17,20 +17,29 @@ import windnd
 from os.path import isdir
 from os.path import isfile
 import time
-# import threading # 多线程
+import threading # 多线程
+from multiprocessing import Pool
+from multiprocessing import Process
 # from docx import Document# 用于创建word文档
 # import ctypes # 用于调整分辨率
 from ctypes import windll
 import shutil
+import queue
+import send2trash # 回收站
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.12.1.0' # 版本号
+VER='v0.13.0.2' # 版本号
 # v0.12.0.0 制作完成了居中的进度条。
 # v0.12.0.1 修复了提示文字的错误。
 # v0.12.0.2 修复了输入框覆盖的错误。
 # v0.12.1.0 增加了文件大小数据。
+#
+# v0.12.2.0 优化代码架构。
+# v0.13.0.0 加入多进程并发处理逻辑。
+# v0.13.0.1 多进程性能太差，所以先关闭了这个逻辑，等待后续优化。
+# v0.13.0.2 修复了一处错别字。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -66,48 +75,18 @@ OPT_DEFAULT={
 		]
 	}
  }
-json_data = OPT_DEFAULT # 用于后面处理的变量。
+
 QUICK_TAGS=['@PIN','@TODO','@toRead','@Done'] #
 DIR_LST=['▲','▼'] # 列排序标题行
 HEADING_LST=['file','tags','modify_time','size','file0']
 HEADING_LST_TXT=['文件名','标签','修改时间','文件大小(kB)','完整路径']
 # HEADING_LST=['file','tags','modify_time','file0']
 # HEADING_LST_TXT=['文件名','标签','修改时间','完整路径']
+MULTI_PROC=1 # 并发进程数，设置为1或更低就单独进程。
+MULTI_FILE_COUNT=400
 
-#变量
-lst_file=[] # 所有文件的完整路径
-dT=[]
-lst_tags=[] # 全部标签
-lst_my_path0=[] # json里面，要扫描的文件夹列表
-lst_my_path_s=[]
-lst_my_path=[]
-lst_sub_path=[]
-dict_path=dict() # 用于列表简写和实际值
-#
-flag_inited=0 # 代表是否已经加载完成
-flag_break=0 # 代表是否中断查询
-flag_running=0 # 代表是否有正在运行的查询
-flag_root_folder=0
-flag_sub_folders_changed=0
-flag_file_changed=0
-
-window = tk.Tk() # 主窗口
-
-str_btm=tk.StringVar() #最下面显示状态用的
-str_btm.set("加载中")
 #%%
-
-# 通用函数
-if True: # 调整清晰度
-    #告诉操作系统使用程序自身的dpi适配
-    windll.shcore.SetProcessDpiAwareness(1)
-    #获取屏幕的缩放因子
-    ScaleFactor=windll.shcore.GetScaleFactorForDevice(0) # 当前屏幕放大百分数（125）
-    #设置程序缩放
-    window.tk.call('tk', 'scaling', ScaleFactor/75)
-    #
-    SCREEN_WIDTH=window.winfo_screenwidth()*ScaleFactor/100 # 必须考虑分辨率导致的偏移
-    SCREEN_HEIGHT=window.winfo_screenheight()*ScaleFactor/100 #
+#######################################################################
 
 def split_path(full_path): 
     '''
@@ -159,6 +138,19 @@ def safe_get_name(new_name):
         n+=1
     # print(tmp_new_full_name)
     return(tmp_new_full_name)
+
+
+
+def remove_to_trash(filename,remove=True):
+    '''
+    删除文件
+    '''
+    if remove:
+        print('直接删除')
+        os.remove(filename)
+    else:
+        print('删除到回收站')
+        send2trash.send2trash(filename) 
 
 def safe_rename(old_name,new_name):
     '''
@@ -257,11 +249,14 @@ def safe_copy(old_name,new_name,opt_type='copy'):
 # 加载设置项 json 内容。保存到 opt_data 变量中，这是个 dict。
 
 
-def update_json(tar=OPTIONS_FILE,data=json_data): 
+def update_json(tar=OPTIONS_FILE,data=None): 
     '''
     将 json_data变量的值，写入 json 文件。
     可以不带参数，随时调用就是写入json。
     '''
+    global json_data
+    if data is None:
+        data=json_data
     with open(tar,'w',encoding='utf-8') as f:
         json.dump(data,f,ensure_ascii=False)
 
@@ -342,7 +337,7 @@ def load_json_data():
         json_data = OPT_DEFAULT
         update_json()
         
-load_json_data()
+
 
 #%% 线程处理
 
@@ -364,8 +359,7 @@ load_json_data()
 
 
 #%%
-prog=tk.DoubleVar() # 进度
-prog_win=''
+
 def set_prog_bar(inp,maxv=100):
     prog.set(inp)
     # progressbar_file.update() # 刷新进度条
@@ -374,7 +368,7 @@ def set_prog_bar(inp,maxv=100):
     try:
         if inp<=1:
 
-                prog_win=my_progress_window(inp)
+                prog_win=my_progress_window(window,inp)
 
         elif inp==100:
             prog_win.set(inp)
@@ -385,7 +379,7 @@ def set_prog_bar(inp,maxv=100):
         pass
 
 
-def get_data(ipath=lst_my_path0,update_sub_path=1): 
+def get_data(ipath=None,update_sub_path=1): 
     '''
     根据所选中的文件夹(列表)，
     返回 lst_file 列表。
@@ -396,6 +390,9 @@ def get_data(ipath=lst_my_path0,update_sub_path=1):
     print('调用 get_data 函数')
 
     global lst_sub_path,flag_running # 必须要有这句话，否则不能修改公共变量
+    
+    if ipath is None:
+        ipath=lst_my_path0
 
     # flag_running=1 # 标记为运行中。
 
@@ -542,6 +539,17 @@ def sort_by_tag(elem): # 主题表格排序
         tmp=tmp.replace('\xa0',' ') # GBK 不支持 'xa0' 的解码。这个是特殊空格。
         return tmp.encode('gbk') # 需要gbk才能中文正确排序
 
+def sub_get_dt(lst_file_in):
+    # 子循环
+    tmp_dt=[]
+    for tar in lst_file_in:
+        tmp=get_file_part(tar)
+        tmp_v=(str(tmp['fname_0']),tmp['ftags'],str(tmp['file_mdf_time']),tmp['fsize'],str(tmp['tar']))
+        tmp_dt.append(tmp_v)
+    q.put(tmp_dt)
+    print([V_FOLDERS,V_SEP,NOTE_EXT])
+    return tmp_dt
+
 def get_dt(lst_file0=None):
     '''
     是最消耗时间的函数，也是获取数据的核心函数。
@@ -569,27 +577,68 @@ def get_dt(lst_file0=None):
     n_max=len(lst_file0)
     
     dT=list()    
-    
-    for tar in lst_file0:
-        
-        # 更新进度条
-        n+=1
-        if flag_inited==1 and n % PROG_STEP ==0:
-            set_prog_bar(30+69*n/n_max)
-        
-        tmp=get_file_part(tar)
-        # dT.append([tmp['fname_0'],tmp['ftags'],tmp['fpath'],tmp['tar']])
-        # 增加检查重复项的逻辑：
-        # tmp_v=[tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar']]
-        # tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar'])
-        tmp_v=(str(tmp['fname_0']),tmp['ftags'],str(tmp['file_mdf_time']),tmp['fsize'],str(tmp['tar']))
-        
-        # if not tmp_v in dT:
-        #     dT.append(tmp_v) # 查重有点费时间
-        dT.append(tmp_v)
+
+    if MULTI_PROC>1 and len(lst_file0)>MULTI_FILE_COUNT: # 如果是并发状态：
+        MAX_PROC=MULTI_PROC
+        res_proc=[]
+        tmp_len=int(len(lst_file0)/MAX_PROC)
+        tmp_file_in=[]
+        for i in range(MAX_PROC):
+            if i<MAX_PROC-1:
+                tmp_file_in.append(lst_file0[i*tmp_len:(i+1)*tmp_len])
+            else:
+                tmp_file_in.append(lst_file0[i*tmp_len:])
         #
-        if flag_break: # 如果被中断的话
-            break
+        p=Pool(MAX_PROC) # 设置默认并发数。可以忽略
+        # pl=[]
+        res_tmp=[]
+        t=[]
+        for i in range(MAX_PROC):
+            # res_tmp.append('')
+            # res_tmp[i]=p.apply(sub_get_dt,args=(tmp_file_in[i],))
+            # res_proc.append(res_tmp.get())
+            # pl[-1].start()
+            t.append(threading.Thread(target=sub_get_dt,args=(tmp_file_in[i],)))
+            t[-1].start()
+
+        # p.close()
+        # p.join()
+        set_prog_bar(50)
+        for i in t:
+            i.join()
+        while not q.empty():
+            tmp_get_dt=q.get()
+            # print(tmp_get_dt)
+            dT+=tmp_get_dt
+        set_prog_bar(70)
+        # tmp_part=[]
+        # print('组合之前：——————')
+        # print(time.time()-time0)
+        # for i in res_tmp:
+            # dT+=i
+        print('组合之后：——————')
+        print(time.time()-time0)
+    else:
+        for tar in lst_file0:
+            
+            # 更新进度条
+            n+=1
+            if flag_inited==1 and n % PROG_STEP ==0:
+                set_prog_bar(30+69*n/n_max)
+            
+            tmp=get_file_part(tar)
+            # dT.append([tmp['fname_0'],tmp['ftags'],tmp['fpath'],tmp['tar']])
+            # 增加检查重复项的逻辑：
+            # tmp_v=[tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar']]
+            # tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['tar'])
+            tmp_v=(str(tmp['fname_0']),tmp['ftags'],str(tmp['file_mdf_time']),tmp['fsize'],str(tmp['tar']))
+            
+            # if not tmp_v in dT:
+            #     dT.append(tmp_v) # 查重有点费时间
+            dT.append(tmp_v)
+            #
+            if flag_break: # 如果被中断的话
+                break
 
     print('加载dT消耗时间：')
     print(time.time()-time0)
@@ -623,32 +672,9 @@ def get_dt(lst_file0=None):
     
     return (dT, lst_tags)
 
-if ALL_FOLDERS==1: # 对应是否带有“所有文件夹”这个功能的开关
-    lst_my_path=lst_my_path0.copy() # 用这个变量修复添加文件夹之后定位不准确的问题。
-    lst_file = get_data(lst_my_path)
-else:
-    try:
-        lst_my_path=[lst_my_path0[0]]
-        lst_file = get_data(lst_my_path)
-    except:
-        lst_file = get_data() # 此处有隐患，还没条件测试
-    
-(dT, lst_tags)=get_dt()
-
 
 #%%
 
-# 窗体设计
-window.title(TAR+' '+VER)
-screenwidth = SCREEN_WIDTH
-screenheight = SCREEN_HEIGHT
-w_width = int(screenwidth*0.8)
-w_height = int(screenheight*0.8)
-x_pos=(screenwidth-w_width)/2
-y_pos=(screenheight-w_height)/2
-window.geometry('%dx%d+%d+%d'%(w_width, w_height, x_pos, y_pos))
-# window.resizable(0,0) #限制尺寸
-window.state('zoomed') # 最大化
 #%%
 def show_info_window():
     '''
@@ -784,16 +810,17 @@ class my_progress_window:
     '''
     一个屏幕中间的进度条
     '''
-    my_prog=tk.DoubleVar() # 进度
+    
 
-    def __init__(self,prog_value=0) -> None:
+    def __init__(self,parent,prog_value=0) -> None:
         
         # 变量设置
-        self.form0=window
+        self.form0=parent
 
         self.input_value=''
         self.input_window=tk.Toplevel(self.form0)
         self.input_window.title('进度')
+        self.my_prog=tk.DoubleVar() # 进度
         self.my_prog.set(prog_value)
         #
         # 窗口设置
@@ -937,61 +964,6 @@ if False:
 
 #%%
 
-# 框架设计
-
-# 文件夹区
-frameFolder=ttk.Frame(window,width=int(w_width*0.4))#,width=600)
-frameFolder.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=10,pady=5)
-
-frameFolderCtl=ttk.Frame(frameFolder,height=80,borderwidth=0,relief=tk.FLAT)
-frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
-
-# 上面功能区
-frame0=ttk.LabelFrame(window,text='',height=80)#,width=600)
-frame0.pack(expand=0,fill=tk.X,padx=10,pady=5)
-
-# 主功能区
-frameMain=ttk.Frame(window)#,height=800)
-frameMain.pack(expand=1,fill=tk.BOTH,padx=10,pady=0)
-
-# 底部区
-frameBtm=ttk.LabelFrame(window,height=80)
-frameBtm.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
-
-#%%
-v_sub_folders=ttk.Combobox(frame0) # 子文件夹选择框
-v_tag=ttk.Combobox(frame0) # 标签选择框
-v_search=ttk.Entry(frame0) # 搜索框
-v_folders=ttk.Combobox(frameFolder) # 文件夹选择框
-bar1=tk.Scrollbar(frameMain,width=20) #右侧滚动条
-bar2=tk.Scrollbar(frameMain,orient=tk.HORIZONTAL)#,width=20) #底部滚动条
-
-#%%
-vPDX=10
-vPDY=5
-
-# bt_setting=ttk.Button(frameBtm,text='设置')#,command=show_form_setting)
-# bt_setting.pack(side=tk.LEFT,expand=0,padx=5,pady=10)#,fill=tk.X) # 
-
-bt_folder_add=ttk.Button(frameFolderCtl,text='添加文件夹') #state=tk.DISABLED,,command=setting_fun
-bt_folder_add.pack(side=tk.LEFT,expand=0,padx=20,pady=10,fill=tk.X) # 
-
-bt_folder_drop=ttk.Button(frameFolderCtl,text='移除文件夹') #state=tk.DISABLED,,command=setting_fun
-bt_folder_drop.pack(side=tk.RIGHT,expand=0,padx=20,pady=10,fill=tk.X) # 
-
-bar_folder=tk.Scrollbar(frameFolder,width=20)
-bar_folder.pack(side=tk.RIGHT, expand=0,fill=tk.Y)
-
-tree_lst_folder = ttk.Treeview(frameFolder, show = "headings", columns = ['folders'], 
-                             selectmode = tk.BROWSE, 
-                             # cursor='hand2',
-                             yscrollcommand = bar_folder.set)#, height=18)
-bar_folder.config( command = tree_lst_folder.yview )
-
-tree_lst_folder.heading("folders", text = "关注的文件夹",anchor='w')
-tree_lst_folder.column('folders', width=300, anchor='w')
-
-# tree_lst_folder.insert(0,"（全部）")
 def update_folder_list():
     '''
     根据 lst_my_path_s，将文件夹列表刷新一次。
@@ -1017,8 +989,6 @@ def update_folder_list():
         pass
 # tree_lst_folder.selection_set()
 
-update_folder_list()
-tree_lst_folder.pack(side=tk.LEFT,expand=0,fill=tk.BOTH,padx=0,pady=10)
 
 def tree_order_show():
     global ORDER_BY_N,ORDER_DESC
@@ -1071,29 +1041,6 @@ def tree_order_path(inp=None):
     
 
 #%%
-columns = ("index","file", "tags", "modify_time","size","file0")
-
-tree = ttk.Treeview(frameMain, show = "headings", columns = columns, \
-                    displaycolumns = ["file", "tags", "modify_time","size"], \
-                    selectmode = tk.BROWSE, \
-                    yscrollcommand = bar1.set,xscrollcommand = bar2.set)#, height=18)
-
-tree.column('index', width=30, anchor='center')
-tree.column('file', width=400, anchor='w')
-tree.column('tags', width=300, anchor='w')
-tree.column('modify_time', width=100, anchor='w')
-tree.column('size', width=80, anchor='w')
-tree.column('file0', width=80, anchor='w')
-
-tree.heading("index", text = "序号",anchor='center')
-tree.heading("file", text = "文件名",anchor='w',command=tree_order_filename)
-tree.heading("tags", text = "标签",anchor='w',command=tree_order_tag)
-tree.heading("modify_time", text = "修改时间",anchor='w',command=tree_order_modi_time)
-tree.heading("size", text = "文件大小(kB)",anchor='w',command=tree_order_size)
-tree.heading("file0", text = "完整路径",anchor='w',command=tree_order_path)
-# 增加排序方向的可视化
-tree_order_show()
-
 
 def get_search_items(event=None): 
     '''
@@ -1234,7 +1181,7 @@ def add_tree_item(tree,dT):
 
     # tree.insert('',i,values=(d[0][i],d[1][i],d[2][i],d[3][i]))
 
-add_tree_item(tree,dT)
+
 
 def get_folder(): 
     '''
@@ -1271,15 +1218,7 @@ def get_folder_long():
         return res
 
 
-style = ttk.Style()
-# style.configure("Treeview.Heading", font=(None, 12),rowheight=60)
-style.configure("Treeview.Heading", font=('微软雅黑', MON_FONTSIZE), \
-                rowheight=int(MON_FONTSIZE*4),height=int(MON_FONTSIZE*4))
 
-style.configure("Treeview", font=(None, MON_FONTSIZE), rowheight=int(MON_FONTSIZE*3.5))
-
-# 行高
-# style.configure("Treeview.Heading", font=(None, 12))
 
 # 获取当前点击行的值
 def tree_file_open(event=None): #单击
@@ -1340,9 +1279,10 @@ def file_delete(tar=None):
         # 再次确认
         if not isfile(tmp_full_path):
             print('并不存在文件：'+str(tmp_full_path))  
-        elif tk.messagebox.askokcancel("退出", "真的要删除以下文件吗？"+str(tmp_full_path)):
+        elif tk.messagebox.askokcancel("删除确认", "真的要删除以下文件吗（不放进回收站）？"+str(tmp_full_path)):
             try:
-                os.remove(tmp_full_path)
+                # os.remove(tmp_full_path)
+                remove_to_trash(tmp_full_path)
                 my_reload(1)
             except:
                 t=tk.messagebox.showerror(title = 'ERROR',message='删除失败，文件可能被占用！')
@@ -1751,89 +1691,6 @@ def v_sub_folders_choose(event=None):
     v_tag_choose()
     flag_sub_folders_changed=0
 
-vPDX=10
-vPDY=5
-
-if True: # 子文件夹搜索
-    lable_sub_folders=tk.Label(frame0, text = '子文件夹')
-    lable_sub_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-
-    v_sub_folders['value']=['']+lst_sub_path
-    v_sub_folders['state'] = 'readonly'
-    # v_sub_folders.grid(row=0,column=2, padx=10, pady=5,sticky=tk.W)
-    v_sub_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-    # v_sub_folders.configure(postoffset=(0,0,1000,0))
-    v_sub_folders.bind('<<ComboboxSelected>>', v_sub_folders_choose)
-    # v_sub_folders.bind('<<ComboboxSelected>>', v_sub_folder_choose)
-    # v_sub_folders.bind('<Return>',v_folder_choose) #绑定回车键
-
-lable_tag=tk.Label(frame0, text = '标签')
-lable_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-
-v_tag['value']=lst_tags
-v_tag['state'] = 'readonly' # 只读
-v_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-v_tag.bind('<<ComboboxSelected>>', v_tag_choose)
-v_tag.bind('<Return>',v_tag_choose) #绑定回车键
-
-
-lable_search=tk.Label(frame0, text = '文件名')
-lable_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-
-v_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-v_search.bind('<Return>',v_tag_choose) #绑定回车键
-
-bt_search=ttk.Button(frame0,text='搜索',command=v_tag_choose)
-bt_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-
-bt_clear=ttk.Button(frame0,text='清空',command=my_reload)
-bt_clear.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-
-bt_test=ttk.Button(frame0,text='测试功能',command=fun_test)
-if DEVELOP_MODE:
-    bt_test.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-
-
-
-# 布局
-bar2.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=2,pady=1) # 用pack 可以实现自适应side=tk.LEFTanchor=tk.E
-
-tree.pack(side=tk.LEFT,expand=1,fill=tk.BOTH,padx=2,pady=1)
-
-bar1.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=2,pady=1) # 用pack 可以实现自适应side=tk.LEFTanchor=tk.E
-
-vPDX=10
-vPDY=5
-
-# 进度条
-progressbar_file=ttk.Progressbar(frameBtm,variable=prog,mode='determinate')
-# progressbar_file.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY)
-
-lable_sum=tk.Label(frameBtm, text = str_btm,textvariable=str_btm)
-lable_sum.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
-
-
-
-bt_settings=ttk.Button(frameBtm,text='菜单')#,command=my_help)
-bt_settings.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
-
-bt_reload=ttk.Button(frameBtm,text='刷新',command=my_reload)
-bt_reload.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
-
-bt_new=ttk.Button(frameBtm,text='新建笔记')#,state=tk.DISABLED)#,command=my_reload)
-bt_new.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
-
-bt_add_tag=ttk.Button(frameBtm,text='添加标签',command=input_new_tag)
-bt_add_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
-
-# 新标签的输入框
-v_inp=ttk.Combobox(frameBtm,width=16) 
-v_inp.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
-v_inp.bind('<Return>',input_new_tag)
-v_inp['value']=lst_tags
-
-lable_tag=tk.Label(frameBtm, text = '添加新标签')
-lable_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
 
 #%% 
 def show_from_progres():
@@ -2448,45 +2305,302 @@ def popup_menu_file(event):
         menu_file_no_selection.post(event.x_root,event.y_root)
 
 #%%
-# 设置拖拽反映函数
-windnd.hook_dropfiles(tree_lst_folder, func=my_folder_add_drag)
-windnd.hook_dropfiles(tree, func=tree_drag_enter)
-            
-bt_new.configure(command=create_note)
-if ALL_FOLDERS==1:
-    bt_folder_drop.configure(state=tk.DISABLED)
 
-# 各种功能的绑定
-# tree_lst_folder.bind('<<ListboxSelect>>',v_folder_choose)
-# tree_lst_folder.bind('<Button-1>',v_folder_choose)
-tree_lst_folder.bind('<ButtonRelease-1>',v_folder_choose)
-tree.tag_configure('line1', background='#cccccc') # 灰色底纹,然而无效
-tree.bind('<Double-Button-1>', tree_file_open)
-tree.bind('<Return>', tree_file_open)
-# tree.bind('<ButtonPress-3>', input_newname) # 右键，此功能作废
-tree_lst_folder.bind("<Button-3>",popup_menu_folder) # 绑定文件夹区域的右键功能
-bt_settings.bind("<Button-1>",popup_menu_main) # 菜单按钮
-tree.bind("<Button-3>",popup_menu_file) # 绑定文件夹区域的功能
+if __name__=='__main__':
+# if True:
+    json_data = OPT_DEFAULT # 用于后面处理的变量。
+    q=queue.Queue()
+    #变量
+    
+    lst_file=[] # 所有文件的完整路径
+    dT=[]
+    lst_tags=[] # 全部标签
+    lst_my_path0=[] # json里面，要扫描的文件夹列表
+    lst_my_path_s=[]
+    lst_my_path=[]
+    lst_sub_path=[]
+    dict_path=dict() # 用于列表简写和实际值
+    #
+    flag_inited=0 # 代表是否已经加载完成
+    flag_break=0 # 代表是否中断查询
+    flag_running=0 # 代表是否有正在运行的查询
+    flag_root_folder=0
+    flag_sub_folders_changed=0
+    flag_file_changed=0
 
-# bt_setting.configure(command=show_form_setting) # 功能绑定
-bt_folder_add.configure(command=my_folder_add_click) # 功能绑定
-bt_folder_drop.configure(command=my_folder_drop) # 功能绑定
+    #
+    window = tk.Tk() # 主窗口
+    #%%
 
-bar1.config( command = tree.yview )
-bar2.config( command = tree.xview )
-# tree.pack(expand = True, fill = tk.BOTH)
+    # 通用函数
+    if True: # 调整清晰度
+        #告诉操作系统使用程序自身的dpi适配
+        windll.shcore.SetProcessDpiAwareness(1)
+        #获取屏幕的缩放因子
+        ScaleFactor=windll.shcore.GetScaleFactorForDevice(0) # 当前屏幕放大百分数（125）
+        #设置程序缩放
+        window.tk.call('tk', 'scaling', ScaleFactor/75)
+        #
+        SCREEN_WIDTH=window.winfo_screenwidth()*ScaleFactor/100 # 必须考虑分辨率导致的偏移
+        SCREEN_HEIGHT=window.winfo_screenheight()*ScaleFactor/100 #
 
-# 程序内快捷键
-window.bind_all('<Control-n>',create_note) # 绑定添加笔记的功能。
-window.bind_all('<Control-f>',jump_to_search) # 跳转到搜索框。
-# window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
-window.bind_all('<Control-t>',input_new_tag_via_dialog) # 快速输入标签。
+    load_json_data()
 
-#%%
-# 运行
+    str_btm=tk.StringVar() #最下面显示状态用的
+    str_btm.set("加载中")
+    prog=tk.DoubleVar() # 进度
+    prog_win=''
 
-window.iconbitmap(LOGO_PATH) # 左上角图标
-flag_inited=1 # 代表前面的部分已经运行过一次了
-set_prog_bar(0)
-# bt_add_tag.pack_forget()
-window.mainloop() 
+
+    if ALL_FOLDERS==1: # 对应是否带有“所有文件夹”这个功能的开关
+        lst_my_path=lst_my_path0.copy() # 用这个变量修复添加文件夹之后定位不准确的问题。
+        lst_file = get_data(lst_my_path)
+    else:
+        try:
+            lst_my_path=[lst_my_path0[0]]
+            lst_file = get_data(lst_my_path)
+        except:
+            lst_file = get_data() # 此处有隐患，还没条件测试
+        
+    (dT, lst_tags)=get_dt()
+
+
+    # 窗体设计
+    window.title(TAR+' '+VER)
+    screenwidth = SCREEN_WIDTH
+    screenheight = SCREEN_HEIGHT
+    w_width = int(screenwidth*0.8)
+    w_height = int(screenheight*0.8)
+    x_pos=(screenwidth-w_width)/2
+    y_pos=(screenheight-w_height)/2
+    window.geometry('%dx%d+%d+%d'%(w_width, w_height, x_pos, y_pos))
+    # window.resizable(0,0) #限制尺寸
+    window.state('zoomed') # 最大化
+
+    ####################################################################
+    # 框架设计
+
+
+    # 文件夹区
+    frameFolder=ttk.Frame(window,width=int(w_width*0.4))#,width=600)
+    frameFolder.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=10,pady=5)
+
+    frameFolderCtl=ttk.Frame(frameFolder,height=80,borderwidth=0,relief=tk.FLAT)
+    frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
+
+    # 上面功能区
+    frame0=ttk.LabelFrame(window,text='',height=80)#,width=600)
+    frame0.pack(expand=0,fill=tk.X,padx=10,pady=5)
+
+    # 主功能区
+    frameMain=ttk.Frame(window)#,height=800)
+    frameMain.pack(expand=1,fill=tk.BOTH,padx=10,pady=0)
+
+    # 底部区
+    frameBtm=ttk.LabelFrame(window,height=80)
+    frameBtm.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
+
+    #%%
+    v_sub_folders=ttk.Combobox(frame0) # 子文件夹选择框
+    v_tag=ttk.Combobox(frame0) # 标签选择框
+    v_search=ttk.Entry(frame0) # 搜索框
+    v_folders=ttk.Combobox(frameFolder) # 文件夹选择框
+    bar1=tk.Scrollbar(frameMain,width=20) #右侧滚动条
+    bar2=tk.Scrollbar(frameMain,orient=tk.HORIZONTAL)#,width=20) #底部滚动条
+    
+    # ---
+
+    #%%
+    vPDX=10
+    vPDY=5
+
+    # bt_setting=ttk.Button(frameBtm,text='设置')#,command=show_form_setting)
+    # bt_setting.pack(side=tk.LEFT,expand=0,padx=5,pady=10)#,fill=tk.X) # 
+
+    bt_folder_add=ttk.Button(frameFolderCtl,text='添加文件夹') #state=tk.DISABLED,,command=setting_fun
+    bt_folder_add.pack(side=tk.LEFT,expand=0,padx=20,pady=10,fill=tk.X) # 
+
+    bt_folder_drop=ttk.Button(frameFolderCtl,text='移除文件夹') #state=tk.DISABLED,,command=setting_fun
+    bt_folder_drop.pack(side=tk.RIGHT,expand=0,padx=20,pady=10,fill=tk.X) # 
+
+    bar_folder=tk.Scrollbar(frameFolder,width=20)
+    bar_folder.pack(side=tk.RIGHT, expand=0,fill=tk.Y)
+
+    tree_lst_folder = ttk.Treeview(frameFolder, show = "headings", columns = ['folders'], 
+                                selectmode = tk.BROWSE, 
+                                # cursor='hand2',
+                                yscrollcommand = bar_folder.set)#, height=18)
+    bar_folder.config( command = tree_lst_folder.yview )
+
+    tree_lst_folder.heading("folders", text = "关注的文件夹",anchor='w')
+    tree_lst_folder.column('folders', width=300, anchor='w')
+
+    # tree_lst_folder.insert(0,"（全部）")
+
+
+    update_folder_list()
+    tree_lst_folder.pack(side=tk.LEFT,expand=0,fill=tk.BOTH,padx=0,pady=10)
+
+
+    columns = ("index","file", "tags", "modify_time","size","file0")
+
+    tree = ttk.Treeview(frameMain, show = "headings", columns = columns, \
+                        displaycolumns = ["file", "tags", "modify_time","size"], \
+                        selectmode = tk.BROWSE, \
+                        yscrollcommand = bar1.set,xscrollcommand = bar2.set)#, height=18)
+
+    tree.column('index', width=30, anchor='center')
+    tree.column('file', width=400, anchor='w')
+    tree.column('tags', width=300, anchor='w')
+    tree.column('modify_time', width=100, anchor='w')
+    tree.column('size', width=80, anchor='w')
+    tree.column('file0', width=80, anchor='w')
+
+    tree.heading("index", text = "序号",anchor='center')
+    tree.heading("file", text = "文件名",anchor='w',command=tree_order_filename)
+    tree.heading("tags", text = "标签",anchor='w',command=tree_order_tag)
+    tree.heading("modify_time", text = "修改时间",anchor='w',command=tree_order_modi_time)
+    tree.heading("size", text = "文件大小(kB)",anchor='w',command=tree_order_size)
+    tree.heading("file0", text = "完整路径",anchor='w',command=tree_order_path)
+    # 增加排序方向的可视化
+    tree_order_show()
+
+    add_tree_item(tree,dT)
+
+    style = ttk.Style()
+    # style.configure("Treeview.Heading", font=(None, 12),rowheight=60)
+    style.configure("Treeview.Heading", font=('微软雅黑', MON_FONTSIZE), \
+                    rowheight=int(MON_FONTSIZE*4),height=int(MON_FONTSIZE*4))
+
+    style.configure("Treeview", font=(None, MON_FONTSIZE), rowheight=int(MON_FONTSIZE*3.5))
+
+    # 行高
+    # style.configure("Treeview.Heading", font=(None, 12))
+
+
+    
+    vPDX=10
+    vPDY=5
+
+    if True: # 子文件夹搜索
+        lable_sub_folders=tk.Label(frame0, text = '子文件夹')
+        lable_sub_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+        v_sub_folders['value']=['']+lst_sub_path
+        v_sub_folders['state'] = 'readonly'
+        # v_sub_folders.grid(row=0,column=2, padx=10, pady=5,sticky=tk.W)
+        v_sub_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+        # v_sub_folders.configure(postoffset=(0,0,1000,0))
+        v_sub_folders.bind('<<ComboboxSelected>>', v_sub_folders_choose)
+        # v_sub_folders.bind('<<ComboboxSelected>>', v_sub_folder_choose)
+        # v_sub_folders.bind('<Return>',v_folder_choose) #绑定回车键
+
+    lable_tag=tk.Label(frame0, text = '标签')
+    lable_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+    v_tag['value']=lst_tags
+    v_tag['state'] = 'readonly' # 只读
+    v_tag.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+    v_tag.bind('<<ComboboxSelected>>', v_tag_choose)
+    v_tag.bind('<Return>',v_tag_choose) #绑定回车键
+
+
+    lable_search=tk.Label(frame0, text = '文件名')
+    lable_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+    v_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+    v_search.bind('<Return>',v_tag_choose) #绑定回车键
+
+    bt_search=ttk.Button(frame0,text='搜索',command=v_tag_choose)
+    bt_search.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+    bt_clear=ttk.Button(frame0,text='清空',command=my_reload)
+    bt_clear.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+    bt_test=ttk.Button(frame0,text='测试功能',command=fun_test)
+    if DEVELOP_MODE:
+        bt_test.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+
+
+    # 布局
+    bar2.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=2,pady=1) # 用pack 可以实现自适应side=tk.LEFTanchor=tk.E
+
+    tree.pack(side=tk.LEFT,expand=1,fill=tk.BOTH,padx=2,pady=1)
+
+    bar1.pack(side=tk.LEFT,expand=0,fill=tk.Y,padx=2,pady=1) # 用pack 可以实现自适应side=tk.LEFTanchor=tk.E
+
+    vPDX=10
+    vPDY=5
+
+    # 进度条
+    progressbar_file=ttk.Progressbar(frameBtm,variable=prog,mode='determinate')
+    # progressbar_file.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY)
+
+    lable_sum=tk.Label(frameBtm, text = str_btm,textvariable=str_btm)
+    lable_sum.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+
+
+
+    bt_settings=ttk.Button(frameBtm,text='菜单')#,command=my_help)
+    bt_settings.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+
+    bt_reload=ttk.Button(frameBtm,text='刷新',command=my_reload)
+    bt_reload.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+
+    bt_new=ttk.Button(frameBtm,text='新建笔记')#,state=tk.DISABLED)#,command=my_reload)
+    bt_new.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+
+    bt_add_tag=ttk.Button(frameBtm,text='添加标签',command=input_new_tag)
+    bt_add_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+
+    # 新标签的输入框
+    v_inp=ttk.Combobox(frameBtm,width=16) 
+    v_inp.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+    v_inp.bind('<Return>',input_new_tag)
+    v_inp['value']=lst_tags
+
+    lable_tag=tk.Label(frameBtm, text = '添加新标签')
+    lable_tag.pack(side=tk.RIGHT,expand=0,padx=vPDX,pady=vPDY) # 
+
+    # 设置拖拽反映函数
+    windnd.hook_dropfiles(tree_lst_folder, func=my_folder_add_drag)
+    windnd.hook_dropfiles(tree, func=tree_drag_enter)
+                
+    bt_new.configure(command=create_note)
+    if ALL_FOLDERS==1:
+        bt_folder_drop.configure(state=tk.DISABLED)
+
+    # 各种功能的绑定
+    # tree_lst_folder.bind('<<ListboxSelect>>',v_folder_choose)
+    # tree_lst_folder.bind('<Button-1>',v_folder_choose)
+    tree_lst_folder.bind('<ButtonRelease-1>',v_folder_choose)
+    tree.tag_configure('line1', background='#cccccc') # 灰色底纹,然而无效
+    tree.bind('<Double-Button-1>', tree_file_open)
+    tree.bind('<Return>', tree_file_open)
+    # tree.bind('<ButtonPress-3>', input_newname) # 右键，此功能作废
+    tree_lst_folder.bind("<Button-3>",popup_menu_folder) # 绑定文件夹区域的右键功能
+    bt_settings.bind("<Button-1>",popup_menu_main) # 菜单按钮
+    tree.bind("<Button-3>",popup_menu_file) # 绑定文件夹区域的功能
+
+    # bt_setting.configure(command=show_form_setting) # 功能绑定
+    bt_folder_add.configure(command=my_folder_add_click) # 功能绑定
+    bt_folder_drop.configure(command=my_folder_drop) # 功能绑定
+
+    bar1.config( command = tree.yview )
+    bar2.config( command = tree.xview )
+    # tree.pack(expand = True, fill = tk.BOTH)
+
+    # 程序内快捷键
+    window.bind_all('<Control-n>',create_note) # 绑定添加笔记的功能。
+    window.bind_all('<Control-f>',jump_to_search) # 跳转到搜索框。
+    # window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
+    window.bind_all('<Control-t>',input_new_tag_via_dialog) # 快速输入标签。
+
+    # 运行
+
+    window.iconbitmap(LOGO_PATH) # 左上角图标
+    flag_inited=1 # 代表前面的部分已经运行过一次了
+    set_prog_bar(0)
+    # bt_add_tag.pack_forget()
+    window.mainloop() 

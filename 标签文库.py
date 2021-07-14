@@ -30,7 +30,7 @@ import send2trash # 回收站
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.13.0.2' # 版本号
+VER='v0.13.0.3' # 版本号
 # v0.12.0.0 制作完成了居中的进度条。
 # v0.12.0.1 修复了提示文字的错误。
 # v0.12.0.2 修复了输入框覆盖的错误。
@@ -40,6 +40,7 @@ VER='v0.13.0.2' # 版本号
 # v0.13.0.0 加入多进程并发处理逻辑。
 # v0.13.0.1 多进程性能太差，所以先关闭了这个逻辑，等待后续优化。
 # v0.13.0.2 修复了一处错别字。
+# v0.13.0.3 修复致命bug。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -58,10 +59,14 @@ NOTE_NAME='未命名'                  # 新建笔记的名称
 NOTE_EXT='.docx'                    # 新建笔记的类型
 NOTE_EXT_LIST=['.md','.txt','.docx','.rtf']
 #
-if isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
-    print('进入开发模式')
-    OPTIONS_FILE='D:/MyPython/开发数据/options_for_tagdox.json'
-else:
+try:
+    if isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
+        print('进入开发模式')
+        OPTIONS_FILE='D:/MyPython/开发数据/options_for_tagdox.json'
+    else:
+        print('正式模式')
+        OPTIONS_FILE='options_for_tagdox.json'         # 配置文件的名称
+except:
     print('正式模式')
     OPTIONS_FILE='options_for_tagdox.json'         # 配置文件的名称
 V_SEP='#'
@@ -382,8 +387,7 @@ def set_prog_bar(inp,maxv=100):
 def get_data(ipath=None,update_sub_path=1): 
     '''
     根据所选中的文件夹(列表)，
-    返回 lst_file 列表。
-    这个参数可以在 get_dT 里面调用。
+    返回 lst_file 列表。这个列表可以在 get_dT 里面调用。
     此过程消耗时间较多。
     参数 ipath=lst_my_path0
     '''
@@ -2465,7 +2469,11 @@ if __name__=='__main__':
     # 增加排序方向的可视化
     tree_order_show()
 
-    add_tree_item(tree,dT)
+    try:
+        add_tree_item(tree,dT)
+    except:
+        str_btm.set('已就绪')
+        pass
 
     style = ttk.Style()
     # style.configure("Treeview.Heading", font=(None, 12),rowheight=60)

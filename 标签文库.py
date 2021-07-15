@@ -7,7 +7,8 @@ Created on Thu Jun 17 09:28:24 2021
 
 import os
 import tkinter as tk
-from tkinter import Text, Variable, ttk
+from tkinter import ttk
+from tkinter import Text, Variable
 import json
 from tkinter import filedialog
 from tkinter import simpledialog
@@ -31,18 +32,14 @@ import queue
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.13.0.4' # 版本号
-# v0.12.0.0 制作完成了居中的进度条。
-# v0.12.0.1 修复了提示文字的错误。
-# v0.12.0.2 修复了输入框覆盖的错误。
-# v0.12.1.0 增加了文件大小数据。
-#
-# v0.12.2.0 优化代码架构。
+VER='v0.13.0.5' # 版本号
+
 # v0.13.0.0 加入多进程并发处理逻辑。
 # v0.13.0.1 多进程性能太差，所以先关闭了这个逻辑，等待后续优化。
 # v0.13.0.2 修复了一处错别字。
 # v0.13.0.3 修复bug。
 # v0.13.0.4 修复分辨率和缩放不兼容导致的启动失败问题。
+# v0.13.0.5 修复设置项修改后不能立刻刷新的bug；修复输入框二次刷新的bug；优化部分菜单。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -51,8 +48,8 @@ LOGO_PATH='./src/LOGO.ico'
 cALL_FILES=''                       # 标签为空的表达方式，默认是空字符串
 LARGE_FONT=12                       # 表头字号
 MON_FONTSIZE=10                     # 正文字号
-ORDER_BY_N=1                        # 初始按哪一列排序，1代表标签，后面按顺序对应
-ORDER_DESC=False                    # 是否逆序
+ORDER_BY_N=2                        # 初始按哪一列排序，1代表标签，后面按顺序对应
+ORDER_DESC=True                    # 是否逆序
 CLEAR_AFTER_CHANGE_FOLDER=0         # 切换文件夹后，是否清除筛选。0 是保留，其他是清除。
 EXP_FOLDERS=['_img']                # 排除文件夹规则，以后会加到自定义里面
 ALL_FOLDERS=2                       # 是否有“所有文件夹”的功能,1 在前面，2在末尾，其余没有
@@ -280,7 +277,7 @@ def set_json_options(key1,value1):
     # load_json_data()
     pass
 
-def load_json_data():
+def load_json_data(load_settings=True,load_folders=True):
     '''
     读取json文件，获取其中的参数，并存储到相应的变量中。
 
@@ -300,49 +297,53 @@ def load_json_data():
     try:
         with open(OPTIONS_FILE,'r',encoding='utf8')as fp:
             json_data = json.load(fp)
-            
-        opt_data=json_data['options']   #设置
-        V_SEP=opt_data['sep'] # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
-        V_FOLDERS=int(opt_data['vfolders']) # 目录最末层数名称检查，作为标签的检查层数
-        NOTE_EXT=opt_data['note_ext'] # 默认笔记类型
-            
-        # lst_my_path=lst_my_path0.copy() #按文件夹筛选用
-        lst_my_path0=[]
-        lst_my_path_s=[]
         
-        print('加载基本参数成功')
+        if load_settings:
+            opt_data=json_data['options']   #设置
+            V_SEP=opt_data['sep'] # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
+            V_FOLDERS=int(opt_data['vfolders']) # 目录最末层数名称检查，作为标签的检查层数
+            NOTE_EXT=opt_data['note_ext'] # 默认笔记类型
+            print('加载基本参数成功')
 
-        for i in opt_data['tar']: 
-            # lst_my_path0.append(i)
-            tmp_L=i['pth']
-            tmp_L=tmp_L.strip()
-            try:
-                tmp_S=i['short']
-            except:
-                tmp_S=split_path(i['pth'])[-1]
-            tmp_S=tmp_S.replace(' ','_') # 修复路径空格bug的权宜之计，以后应该可以优化
-            
-            # 增加逻辑：避免短路径重名：
-            j=1
-            tmp_2=tmp_S
-            while tmp_2 in lst_my_path_s:
-                j+=1
-                tmp_2=tmp_S+"("+str(j)+")"
-                print(tmp_2)
-            tmp_S=tmp_2
-            tmp_S=tmp_S.strip()
-            
-            if tmp_S=='' or tmp_L=='': # 出现空白文件夹
-                for j in range(len(opt_data['tar'])-1,-1,-1):
-                    if opt_data['tar'][j]['pth'].strip()=='':    
-                        opt_data['tar'].pop(j)
-            else:
-                lst_my_path0.append(tmp_L)
-                lst_my_path_s.append(tmp_S)
-                tmp={tmp_S:tmp_L}
-                dict_path.update(tmp)
+        if load_folders:    
+            # lst_my_path=lst_my_path0.copy() #按文件夹筛选用
+            lst_my_path0=[]
+            lst_my_path_s=[]
         
-        lst_my_path=lst_my_path0.copy() # 此处有大量的可优化空间。
+        
+
+            for i in opt_data['tar']: 
+                # lst_my_path0.append(i)
+                tmp_L=i['pth']
+                tmp_L=tmp_L.strip()
+                try:
+                    tmp_S=i['short']
+                except:
+                    tmp_S=split_path(i['pth'])[-1]
+                tmp_S=tmp_S.replace(' ','_') # 修复路径空格bug的权宜之计，以后应该可以优化
+                
+                # 增加逻辑：避免短路径重名：
+                j=1
+                tmp_2=tmp_S
+                while tmp_2 in lst_my_path_s:
+                    j+=1
+                    tmp_2=tmp_S+"("+str(j)+")"
+                    print(tmp_2)
+                tmp_S=tmp_2
+                tmp_S=tmp_S.strip()
+                
+                if tmp_S=='' or tmp_L=='': # 出现空白文件夹
+                    for j in range(len(opt_data['tar'])-1,-1,-1):
+                        if opt_data['tar'][j]['pth'].strip()=='':    
+                            opt_data['tar'].pop(j)
+                else:
+                    lst_my_path0.append(tmp_L)
+                    lst_my_path_s.append(tmp_S)
+                    tmp={tmp_S:tmp_L}
+                    dict_path.update(tmp)
+        
+            lst_my_path=lst_my_path0.copy() # 此处有大量的可优化空间。
+            print('加载关注文件夹列表成功')
     except:
         print('加载json异常，正在重置json文件')
         # need_init_json=1
@@ -486,6 +487,7 @@ def get_file_part(tar):     # 【疑似bug】对带有空格的路径解析异�
     这里输入参数 tar 是完整文件路径。
     输入完整（文件）路径，以字典的形式，返回对应的所有文件信息。
     '''
+
     [fpath,ffname]=os.path.split(tar) # fpath 所在文件夹、ffname 原始文件名
     [fname,fename]=os.path.splitext(ffname) # fname 文件名前半部分，fename 扩展名
     lst_sp=fname.split(V_SEP) #拆分为多个片段
@@ -738,16 +740,25 @@ class my_input_window:
     '''
     input_value=''
 
-    def __init__(self,parent,title='未命名',msg='未定义',default_value='') -> None:
+    def __init__(self,parent,title='未命名',msg='未定义',default_value='',selection_range=None) -> None:
+        '''
+        自制输入窗体的初始化；
+        参数：
+        selection_range 是默认选中的范围。
+        '''
         
         # 变量设置
         self.form0=parent # 父窗格
-
+        #
         self.input_value=''
         self.title=title
         self.msg=msg
         self.default_value=default_value
         self.input_window=tk.Toplevel(self.form0)
+        #
+        self.input_window.transient(self.form0) # 避免在任务栏出现第二个窗口，而且可以实现置顶
+        self.input_window.grab_set() #模态
+        
         #
         # 窗口设置
         # self.input_window.overrideredirect(True) # 这句话可以去掉标题栏，同时也会没有阴影
@@ -760,11 +771,7 @@ class my_input_window:
         self.input_window.geometry('%dx%d+%d+%d'%(self.w_width, self.w_height,self.x_pos,self.y_pos))
         self.input_window.title(self.title)
         #
-        self.input_window.deiconify()
-        self.input_window.lift()
-        self.input_window.focus_force()
-        self.input_window.transient(self.form0) # 避免在任务栏出现第二个窗口，而且可以实现置顶
-        self.input_window.grab_set() #模态
+        
         try:
             self.input_window.iconbitmap(LOGO_PATH) # 左上角图标
         except:
@@ -776,13 +783,20 @@ class my_input_window:
         # 文本框
         self.lb=tk.Label(self.iframe,text=self.msg,font="微软雅黑 "+str(MON_FONTSIZE))
         self.lb.pack(anchor='sw',pady=5)
+        self.input_window.update()
         
         # 输入框
         self.et=tk.Entry(self.iframe,font="微软雅黑 "+str(MON_FONTSIZE))
         self.et.insert(0,self.default_value)
         self.et.pack(expand=0,fill=tk.X,pady=5)
+        
+        # self.et.selection_range(0, len(self.et.get()))
+        if selection_range is None:
+            self.et.selection_range(0, len(self.et.get()))
+        else:
+            self.et.selection_range(0, selection_range)
         self.et.focus() # 获得焦点
-        self.et.selection_range(0, len(self.et.get()))
+
         # self.et.focus()
         # 键盘快捷键
         self.input_window.bind_all('<Return>',self.bt_yes_click)
@@ -796,6 +810,11 @@ class my_input_window:
         self.bty.pack(side=tk.LEFT,padx=20)
         self.btc=ttk.Button(self.iframe_bt,text='取消',command=self.bt_cancel_click)
         self.btc.pack(side=tk.LEFT,padx=20)
+
+        self.input_window.deiconify()
+        self.input_window.lift()
+        self.input_window.focus_force()
+        
 
         self.form0.wait_window(self.input_window) # 要用这句话拦截主窗体的代码运行
         
@@ -1286,6 +1305,7 @@ def file_rename(tar=None): # 对文件重命名
                 t=tk.messagebox.showerror(title = 'ERROR',message='重命名失败！文件可能被占用，或者您没有操作权限。')
                 # print(t)
                 pass
+
 def file_delete(tar=None):
     '''
     删除tree选中项对应的文件。
@@ -1523,7 +1543,7 @@ def clear_entry(tar):
         pass
     pass
 
-def my_reload(event=None): 
+def my_reload(event=None,reload_setting=False): 
     '''
     刷新。
     切换目录之后自动执行此功能。
@@ -1534,6 +1554,10 @@ def my_reload(event=None):
 
     '''
     global lst_file,dT,lst_tags,lst_sub_path
+
+    if reload_setting==True:
+        # 按需加载设置参数
+        load_json_data(load_folders=False)
 
     tmp_sub_folder=v_sub_folders.get()
 
@@ -1606,7 +1630,6 @@ def my_closing():
 
 # 搜索框
 
-        
 def folder_s2l(inp):
     '''
     文件夹短路径转长路径。
@@ -1740,7 +1763,7 @@ def show_form_setting(): #
         # 关闭窗口
         form_setting.destroy()
         # 然后刷新文件列表
-        my_reload()
+        my_reload(None, reload_setting=True)
         pass
 
     form_setting=tk.Toplevel(window)
@@ -1835,7 +1858,7 @@ def my_folder_add_drag(files): #
     通过拖拽的方式，添加目录。
     '''
     filenames=list() #可以得到文件路径编码, 可以看到实际上就是个列表。
-    folders=list()
+    folders=[]
     # print(files)
     for item in files:
         item=item.decode('gbk') # 此处可能存在编码错误，而且，为啥要编码？？
@@ -2039,7 +2062,7 @@ def create_note(event=None): # 添加笔记
     tags=['Tagdox笔记']
     
     if len(lst_my_path)!=1:
-        print('新建功能锁定，暂不可用')
+        print('新建笔记功能锁定，暂不可用')
         return
     #
     # res = simpledialog.askstring('新建 Tagdox 笔记',prompt='请输入文件名',initialvalue =NOTE_NAME)
@@ -2161,19 +2184,19 @@ def popup_menu_folder(event):
     '''
     if len(lst_my_path)!=1: # 如果没有选中项目的话
         menu_folder_no = tk.Menu(window,tearoff=0)
-        menu_folder_no.add_command(label="添加关注文件夹…",command=my_folder_add_click)
-        menu_folder_no.add_separator()
         menu_folder_no.add_command(label="打开所选文件夹",state=tk.DISABLED,command=my_folder_open)
+        menu_folder_no.add_separator()
+        menu_folder_no.add_command(label="添加关注文件夹…",command=my_folder_add_click)
         menu_folder_no.add_command(label="取消关注所选文件夹",state=tk.DISABLED,command=my_folder_drop)
         menu_folder_no.post(event.x_root,event.y_root)
     else:
         menu_folder = tk.Menu(window,tearoff=0)
-        menu_folder.add_command(label="添加关注文件夹…",command=my_folder_add_click)
+        menu_folder.add_command(label="打开所选文件夹",command=my_folder_open)
         menu_folder.add_separator()
         menu_folder.add_command(label="向上移动",command=my_folder_up)
         menu_folder.add_command(label="向下移动",command=my_folder_down)
         menu_folder.add_separator()
-        menu_folder.add_command(label="打开所选文件夹",command=my_folder_open)
+        menu_folder.add_command(label="添加关注文件夹…",command=my_folder_add_click)
         menu_folder.add_command(label="取消关注所选文件夹",command=my_folder_drop)
         menu_folder.post(event.x_root,event.y_root)
 
@@ -2234,9 +2257,7 @@ def drop_tag(event=None):
         pass
 
 def popup_menu_file(event):
-    '''
-    文件夹区域的菜单。
-    '''
+
     '''
     文件区域的右键菜单
     '''
@@ -2249,14 +2270,18 @@ def popup_menu_file(event):
     menu_tags_to_add.add_command(label='自定义标签…',command=input_new_tag_via_dialog)
     #
     menu_file = tk.Menu(window,tearoff=0)
-    menu_file.add_command(label="打开文件",command=tree_file_open)
+    menu_file.add_command(label="打开文件 (Enter)",command=tree_file_open)
     # menu_file.add_command(label="在相同位置创建笔记",command=create_note_here)
-    # menu_file.add_command(label="创建笔记",command=create_note)
+    menu_file.add_separator()
+    if len(lst_my_path)==1:
+        menu_file.add_command(label="新建笔记 (Ctrl+N)",command=create_note)
+    else:
+        menu_file.add_command(label="新建笔记 (Ctrl+N)",state=tk.DISABLED,command=create_note)
     menu_file.add_separator()
     menu_file.add_command(label="打开选中项所在文件夹",command=tree_open_folder)
     menu_file.add_command(label="打开当前文件夹",command=tree_open_current_folder)
     menu_file.add_separator()
-    # menu_file.add_command(label="添加收藏 @PIN",command=file_add_star)
+    menu_file.add_command(label='添加标签 (Ctrl+T)',command=input_new_tag_via_dialog)
     menu_file.add_cascade(label="快速添加标签",menu=menu_tags_to_add)#,command=file_add_star)
     menu_file.add_cascade(label="移除标签",menu=menu_tags_to_drop)
     menu_file.add_separator()
@@ -2264,7 +2289,7 @@ def popup_menu_file(event):
     # menu_file.add_command(label="复制到剪切板（开发中）",state=tk.DISABLED)#,command=file_rename)
     # menu_file.add_command(label="移动到文件夹（开发中）",state=tk.DISABLED)#,command=file_rename)
     # menu_file.add_command(label="粘贴（开发中）",state=tk.DISABLED)#,command=file_rename)
-    menu_file.add_command(label="重命名",command=file_rename)
+    menu_file.add_command(label="重命名 (F2)",command=file_rename)
     menu_file.add_command(label="删除",command=file_delete)
     menu_file.add_separator()
     menu_file.add_command(label="刷新",command=my_reload)
@@ -2274,6 +2299,11 @@ def popup_menu_file(event):
     menu_file_no_selection = tk.Menu(window,tearoff=0)
     # menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=tree_file_open)
     menu_file_no_selection.add_command(label="打开当前文件夹",command=tree_open_current_folder)
+    menu_file_no_selection.add_separator()
+    if len(lst_my_path)==1:
+        menu_file_no_selection.add_command(label="新建笔记 (Ctrl+N)",command=create_note)
+    else:
+        menu_file_no_selection.add_command(label="新建笔记 (Ctrl+N)",state=tk.DISABLED,command=create_note)
     # menu_file_no_selection.add_command(label="重命名",state=tk.DISABLED)#,command=my_folder_add_click)
     # menu_file_no_selection.add_command(label="添加收藏",state=tk.DISABLED)#,command=my_folder_add_click)
     menu_file_no_selection.add_separator()
@@ -2324,6 +2354,9 @@ def popup_menu_file(event):
         menu_file_no_selection.post(event.x_root,event.y_root)
 
 #%%
+class main_app:
+    def __init__(self) -> None:
+        pass
 
 if __name__=='__main__':
 # if True:
@@ -2367,6 +2400,7 @@ if __name__=='__main__':
         SCREEN_WIDTH=window.winfo_screenwidth()
         SCREEN_HEIGHT=window.winfo_screenheight()
     #
+    # 加载设置参数。
     json_data = OPT_DEFAULT # 用于后面处理的变量。
     load_json_data()
 
@@ -2622,6 +2656,7 @@ if __name__=='__main__':
     # 程序内快捷键
     window.bind_all('<Control-n>',create_note) # 绑定添加笔记的功能。
     window.bind_all('<Control-f>',jump_to_search) # 跳转到搜索框。
+    window.bind_all('<F2>',file_rename) # 跳转到搜索框。
     # window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
     window.bind_all('<Control-t>',input_new_tag_via_dialog) # 快速输入标签。
 

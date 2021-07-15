@@ -22,15 +22,16 @@ from multiprocessing import Pool
 from multiprocessing import Process
 # from docx import Document# 用于创建word文档
 # import ctypes # 用于调整分辨率
-from ctypes import windll
+
 import shutil
 import queue
-import send2trash # 回收站
+# import my_logger
+# import send2trash # 回收站
 
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.13.0.3' # 版本号
+VER='v0.13.0.4' # 版本号
 # v0.12.0.0 制作完成了居中的进度条。
 # v0.12.0.1 修复了提示文字的错误。
 # v0.12.0.2 修复了输入框覆盖的错误。
@@ -40,7 +41,8 @@ VER='v0.13.0.3' # 版本号
 # v0.13.0.0 加入多进程并发处理逻辑。
 # v0.13.0.1 多进程性能太差，所以先关闭了这个逻辑，等待后续优化。
 # v0.13.0.2 修复了一处错别字。
-# v0.13.0.3 修复致命bug。
+# v0.13.0.3 修复bug。
+# v0.13.0.4 修复分辨率和缩放不兼容导致的启动失败问题。
 
 #%%
 #常量，但以后可以做到设置里面
@@ -90,6 +92,7 @@ HEADING_LST_TXT=['文件名','标签','修改时间','文件大小(kB)','完整�
 MULTI_PROC=1 # 并发进程数，设置为1或更低就单独进程。
 MULTI_FILE_COUNT=400
 
+
 #%%
 #######################################################################
 
@@ -104,6 +107,7 @@ def split_path(full_path):
 
 def tree_clear(tree_obj): # 
     '''
+    通用函数。
     通用的 treeview 清除函数，因为是通用的，所以必须带参数。
     参数是 具体的 treeview 对象。
     '''
@@ -155,7 +159,7 @@ def remove_to_trash(filename,remove=True):
         os.remove(filename)
     else:
         print('删除到回收站')
-        send2trash.send2trash(filename) 
+        # send2trash.send2trash(filename) 
 
 def safe_rename(old_name,new_name):
     '''
@@ -266,6 +270,9 @@ def update_json(tar=OPTIONS_FILE,data=None):
         json.dump(data,f,ensure_ascii=False)
 
 def set_json_options(key1,value1):
+    '''
+
+    '''
     global json_data
     opt_data=json_data['options']   #设置
     opt_data[key1]=value1
@@ -476,7 +483,7 @@ def get_data(ipath=None,update_sub_path=1):
 
 def get_file_part(tar):     # 【疑似bug】对带有空格的路径解析异常
     '''
-    这里输入参数 tar 是完整路径。
+    这里输入参数 tar 是完整文件路径。
     输入完整（文件）路径，以字典的形式，返回对应的所有文件信息。
     '''
     [fpath,ffname]=os.path.split(tar) # fpath 所在文件夹、ffname 原始文件名
@@ -731,10 +738,10 @@ class my_input_window:
     '''
     input_value=''
 
-    def __init__(self,title='未命名',msg='未定义',default_value='') -> None:
+    def __init__(self,parent,title='未命名',msg='未定义',default_value='') -> None:
         
         # 变量设置
-        self.form0=window
+        self.form0=parent # 父窗格
 
         self.input_value=''
         self.title=title
@@ -752,7 +759,7 @@ class my_input_window:
         self.y_pos= (self.screenheight-self.w_height)/2
         self.input_window.geometry('%dx%d+%d+%d'%(self.w_width, self.w_height,self.x_pos,self.y_pos))
         self.input_window.title(self.title)
-
+        #
         self.input_window.deiconify()
         self.input_window.lift()
         self.input_window.focus_force()
@@ -774,7 +781,7 @@ class my_input_window:
         self.et=tk.Entry(self.iframe,font="微软雅黑 "+str(MON_FONTSIZE))
         self.et.insert(0,self.default_value)
         self.et.pack(expand=0,fill=tk.X,pady=5)
-        self.et.focus()
+        self.et.focus() # 获得焦点
         self.et.selection_range(0, len(self.et.get()))
         # self.et.focus()
         # 键盘快捷键
@@ -816,7 +823,10 @@ class my_progress_window:
     '''
     
 
-    def __init__(self,parent,prog_value=0) -> None:
+    def __init__(self,parent,prog_value=0,prog_text='') -> None:
+        '''
+        进度条，输入进度数值
+        '''
         
         # 变量设置
         self.form0=parent
@@ -825,6 +835,7 @@ class my_progress_window:
         self.input_window=tk.Toplevel(self.form0)
         self.input_window.title('进度')
         self.my_prog=tk.DoubleVar() # 进度
+        self.my_text=prog_text
         self.my_prog.set(prog_value)
         #
         # 窗口设置
@@ -856,7 +867,7 @@ class my_progress_window:
     def set(self,value):
         self.progress=value
         self.my_prog.set(self.progress)
-        self.pct.configure(text=str(int(value))+'%')
+        self.pct.configure(text=self.my_text+str(int(value))+'%')
         self.pct.update()
         self.prog_bar.update()
 
@@ -928,7 +939,7 @@ def show_input_window(title_value,body_value='',init_value='',is_file_name=True)
     '''
     # 获得输入值
     # res = simpledialog.askstring(title_value,prompt=body_value,initialvalue=init_value)
-    res = str(my_input_window(title_value,body_value,init_value)).strip()
+    res = str(my_input_window(window,title_value,body_value,init_value)).strip()
     if len(res)==0:
         print('没有得到输入内容')
         return None
@@ -974,6 +985,10 @@ def update_folder_list():
     没有输入输出。
     '''
     global tree_lst_folder
+
+    global p_logo
+    p_logo = tk.PhotoImage(file='./src/在线帮助.png')
+    
     tree_clear(tree_lst_folder)
     tmp=0
     if ALL_FOLDERS==1:
@@ -1125,7 +1140,7 @@ def add_tree_item(tree,dT):
     # 关键函数：增加主框架的内容
     # 先获得搜索项目以及 tag
     '''
-    # global flag_running
+    global PIC_LST
 
     str_btm.set('正在刷新列表……')
     time0=time.time()
@@ -1301,7 +1316,7 @@ def fun_test(event=None): #
     为了避免 event 输入，所以套了一层。
 
     '''
-    res=my_input_window('输入框','aaaa','外部输入')
+    res=my_input_window(window,'输入框','aaaa','外部输入')
     print('自制输入框的返回值：')
     print(res)
     # print('进入测试功能')
@@ -2312,7 +2327,6 @@ def popup_menu_file(event):
 
 if __name__=='__main__':
 # if True:
-    json_data = OPT_DEFAULT # 用于后面处理的变量。
     q=queue.Queue()
     #变量
     
@@ -2335,9 +2349,11 @@ if __name__=='__main__':
     #
     window = tk.Tk() # 主窗口
     #%%
-
+    PIC_LST=[tk.PhotoImage(file="./src/龙猫.gif")]
     # 通用函数
-    if True: # 调整清晰度
+    try: # 调整清晰度
+        # 放在这里，是为了兼容不能打开ctypes的计算机。
+        from ctypes import windll
         #告诉操作系统使用程序自身的dpi适配
         windll.shcore.SetProcessDpiAwareness(1)
         #获取屏幕的缩放因子
@@ -2347,7 +2363,11 @@ if __name__=='__main__':
         #
         SCREEN_WIDTH=window.winfo_screenwidth()*ScaleFactor/100 # 必须考虑分辨率导致的偏移
         SCREEN_HEIGHT=window.winfo_screenheight()*ScaleFactor/100 #
-
+    except:
+        SCREEN_WIDTH=window.winfo_screenwidth()
+        SCREEN_HEIGHT=window.winfo_screenheight()
+    #
+    json_data = OPT_DEFAULT # 用于后面处理的变量。
     load_json_data()
 
     str_btm=tk.StringVar() #最下面显示状态用的

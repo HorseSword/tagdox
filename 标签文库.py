@@ -32,11 +32,17 @@ import queue
 URL_HELP='https://gitee.com/horse_sword/my-local-library' # 帮助的超链接，目前是 gitee 主页
 URL_ADV='https://gitee.com/horse_sword/my-local-library/issues' # 提建议的位置
 TAR='Tagdox / 标签文库' # 程序名称
-VER='v0.14.0.1' # 版本号
+VER='v0.14.0.2' # 版本号
 
-# v0.14.0.0 将子文件夹独立为左侧列表。
-# v0.14.0.1 切换文件夹时不再保留标签搜索项。
-
+'''
+## 近期更新说明
+#### v0.14.0.2 2021年7月18日
+修复进度条显示错误。
+#### v0.14.0.1 2021年7月18日
+切换文件夹时不再保留标签搜索项。
+#### v0.14.0.0 2021年7月17日
+将子文件夹独立为左侧列表。
+'''
 #%%
 #常量，但以后可以做到设置里面
 DEVELOP_MODE=0 # 开启调试模式
@@ -896,7 +902,8 @@ class my_progress_window:
         self.input_window.geometry('%dx%d+%d+%d'%(self.w_width, self.w_height,self.x_pos,self.y_pos))
         # self.input_window.title(self.title)
         self.input_window.transient(self.form0) # 避免在任务栏出现第二个窗口，而且可以实现置顶
-        
+        self.input_window.withdraw()
+
         try:
             self.input_window.iconbitmap(LOGO_PATH) # 左上角图标
         except:
@@ -918,8 +925,9 @@ class my_progress_window:
         self.input_window.update()
         # self.pct.update()
         # self.prog_bar.update()
-
-        if value>0:
+        if value==0:
+            self.input_window.withdraw()
+        elif value>0:
             self.input_window.deiconify() # 置顶
             # self.input_window.lift() # 置顶，但是会导致后面失去输入能力
             # self.input_window.focus_force()
@@ -927,6 +935,7 @@ class my_progress_window:
             self.input_window.grab_set() #模态
 
         if value>=100:
+            self.input_window.withdraw()
             # self.input_window.overrideredirect(False) 
             self.input_window.destroy()
             self.__destroy__()

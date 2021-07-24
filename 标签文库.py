@@ -102,7 +102,7 @@ MULTI_FILE_COUNT = 400
 # %%
 #######################################################################
 
-def split_path(full_path):
+def get_split_path(full_path) -> list:
     '''
     通用函数：    
     将完整路径拆分，得到每个文件夹到文件名的列表。
@@ -112,7 +112,7 @@ def split_path(full_path):
     return (test_str_res)
 
 
-def exec_tree_clear(tree_obj):  #
+def exec_tree_clear(tree_obj) -> None:  #
     '''
     通用函数。
     通用的 treeview 清除函数，因为是通用的，所以必须带参数。
@@ -125,7 +125,7 @@ def exec_tree_clear(tree_obj):  #
         window.update()
 
 
-def safe_get_name(new_name):
+def safe_get_name(new_name) -> str:
     '''
 
     输入目标全路径，返回安全的新路径（可用于重命名、新建等）
@@ -353,7 +353,7 @@ def get_json_file_data(load_settings=True, load_folders=True):
                 try:
                     tmp_S = i['short']
                 except:
-                    tmp_S = split_path(i['pth'])[-1]
+                    tmp_S = get_split_path(i['pth'])[-1]
                 tmp_S = tmp_S.replace(' ', '_')  # 修复路径空格bug的权宜之计，以后应该可以优化
 
                 # 增加逻辑：避免短路径重名：
@@ -439,7 +439,7 @@ def set_prog_bar(inp, maxv=100):
 def get_data(ipath=None, update_sub_path=1):
     '''
     根据所选中的文件夹(列表)，
-    返回 lst_file 列表。这个列表可以在 gen_dt 里面调用。
+    返回 lst_file 列表。这个列表可以在 get_dt 里面调用。
     此过程消耗时间较多。
     参数 ipath=lst_my_path_long
     '''
@@ -487,7 +487,7 @@ def get_data(ipath=None, update_sub_path=1):
                     and (str(new_sub_path) not in EXP_FOLDERS):
                 lst_sub_path.append(new_sub_path)
 
-            tmp_path = split_path(root)
+            tmp_path = get_split_path(root)
             for tmp2 in tmp_path:
                 if tmp2 in EXP_FOLDERS:
                     vpass = 1
@@ -564,7 +564,7 @@ def get_file_part(tar):  # 【疑似bug】对带有空格的路径解析异常
     # fsize/=100
 
     # 对文件目录的解析算法2：
-    tmp = split_path(fpath)
+    tmp = get_split_path(fpath)
     tmp2 = []
     try:  # 只要最后若干层的目录，取变量 V_FOLDERS
         for i in range(V_FOLDERS):
@@ -624,7 +624,7 @@ def sub_get_dt(lst_file_in):
     return tmp_dt
 
 
-def gen_dt(lst_file0=None):
+def get_dt(lst_file0=None):
     '''
     是最消耗时间的函数，也是获取数据的核心函数。
     输入参数是文件列表，缺省值是来自于 get_data() 函数的 lst_file ，提供了所有文件。
@@ -632,7 +632,7 @@ def gen_dt(lst_file0=None):
     根据 lst_file 里面的文件列表，返回 (dT, lst_tags) .
     无需输入参数，自动找变量。
     '''
-    print('进入 gen_dt 函数')
+    print('进入 get_dt 函数')
 
     if flag_break:
         return (None, None)
@@ -1210,7 +1210,7 @@ def get_search_items(event=None):
         tmp_tag=v_tag.get() # 获取当前标签
         #刷新标签列表
         new_files = get_data(res,update_sub_path=0)
-        (dt2,tags2)=gen_dt(new_files)
+        (dt2,tags2)=get_dt(new_files)
         print(tags2)
         v_tag['value']=['']+tags2
         if len(tmp_tag)>0:
@@ -1265,7 +1265,7 @@ def get_search_items_sub_folder(event=None):
         tmp_tag = v_tag.get()  # 获取当前标签
         # 刷新标签列表
         new_files = get_data([tmp_path], update_sub_path=0)
-        (dt2, tags2) = gen_dt(new_files)
+        (dt2, tags2) = get_dt(new_files)
         # print(tags2)
         v_tag['value'] = tags2
         if flag_inited:
@@ -1421,7 +1421,7 @@ def exec_file_rename(tar=None):  # 对文件重命名
         # 获得目标文件
         item_text = tree.item(item, "values")
         tmp_full_path = item_text[-1]
-        tmp_file_name = split_path(tmp_full_path)[-1]
+        tmp_file_name = get_split_path(tmp_full_path)[-1]
         #
         #
         print('正在重命名：')
@@ -1432,7 +1432,7 @@ def exec_file_rename(tar=None):  # 对文件重命名
         #
         if res is not None:
             try:
-                tmp_new_name = '/'.join(split_path(tmp_full_path)[0:-1] + [res])
+                tmp_new_name = '/'.join(get_split_path(tmp_full_path)[0:-1] + [res])
                 print('tmp_new_name=')
                 print(tmp_new_name)
                 # os.rename(tmp_full_path,tmp_new_name)
@@ -1547,7 +1547,7 @@ def tree_open_folder(event=None, VMETHOD=1):
         tmp_file = item_text[-1]
         tmp_file = tmp_file.replace('/', '\\')
 
-        tmp_folder = '/'.join(split_path(tmp_file)[0:-1])
+        tmp_folder = '/'.join(get_split_path(tmp_file)[0:-1])
         # tmp_folder=item_text[-2]
 
         print(tmp_folder)
@@ -1752,7 +1752,7 @@ def exec_main_window_reload(event=None, reload_setting=False):
     print('—— 刷新核心过程 start ———')
     #
     lst_file = get_data(lst_my_path_long_selected)
-    (dT, lst_tags) = gen_dt()
+    (dT, lst_tags) = get_dt()
     #
     print('—— 刷新核心过程 end ———')
     # exec_tree_clear(tree)
@@ -2384,7 +2384,7 @@ def exec_create_note_here(event=None):
     for item in tree.selection():
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
-    tmp_path = '/'.join(split_path(tmp_full_name)[0:-1])
+    tmp_path = '/'.join(get_split_path(tmp_full_name)[0:-1])
     print('当前路径')
     print(tmp_path)
     lst_tmp = lst_my_path_long_selected.copy()
@@ -2590,7 +2590,7 @@ def show_popup_menu_file(event):
         tmp_full_name = item_text[-1]
         tmp += 1
     if tmp > 0:  # 如果有选中项目的话，
-        # tmp_file_name=split_path(tmp_full_name)[-1]
+        # tmp_file_name=get_split_path(tmp_full_name)[-1]
         tmp_file_name = get_file_part(tmp_full_name)['fname']
         tmp_tags_all = get_file_part(tmp_full_name)['ftags']
         tmp_tags = tmp_file_name.split(V_SEP)
@@ -2697,7 +2697,7 @@ if __name__ == '__main__':
         except:
             lst_file = get_data()  # 此处有隐患，还没条件测试
 
-    (dT, lst_tags) = gen_dt()
+    (dT, lst_tags) = get_dt()
 
     # 窗体设计
     window.title(TAR + ' ' + VER)

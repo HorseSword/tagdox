@@ -8,6 +8,8 @@ Created on Thu Jun 17 09:28:24 2021
 import os
 import tkinter as tk
 from tkinter import ttk
+# import tkinter.tix as Tix 
+# from tkinter import tix
 from tkinter import Text, Variable
 import json
 from tkinter import filedialog
@@ -33,10 +35,20 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.14.1.2'  # 版本号
+VER = 'v0.14.2.2'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.14.2.2 2021年7月27日
+增加对多文件同时删除公共标签；将搜索逻辑从全路径减少到文件名和标签。
+#### v0.14.2.1 2021年7月27日
+增加对多文件同时操作的支持，而且可以快速选中多个处理结果。
+#### v0.14.2.0 2021年7月27日
+增加对多文件同时操作的支持，目前支持同时打开、同时增加标签，但是加标签的选中体验还不好。
+#### v0.14.1.4 2021年7月27日
+增加 Ctrl+F 出现弹窗快捷搜索的功能；调整弹窗位置为窗口中央而不是屏幕中央。
+#### v0.14.1.3 2021年7月24日
+增加按F5刷新的快捷键。
 #### v0.14.1.2 2021年7月24日
 修复了文件夹为空时刷新会导致卡死的bug。
 #### v0.14.1.1 2021年7月23日
@@ -50,7 +62,9 @@ DEVELOP_MODE = 0  # 开启调试模式
 LOGO_PATH = './src/LOGO.ico'
 cALL_FILES = ''  # 标签为空的表达方式，默认是空字符串
 LARGE_FONT = 10  # 表头字号
-MON_FONTSIZE = 10  # 正文字号
+MON_FONTSIZE = 9  # 正文字号
+FONT_TREE_HEADING=('微软雅黑', LARGE_FONT)
+FONT_TREE_BODY=('微软雅黑', MON_FONTSIZE)
 ORDER_BY_N = 2  # 初始按哪一列排序，1代表标签，后面按顺序对应
 ORDER_DESC = True  # 是否逆序
 CLEAR_AFTER_CHANGE_FOLDER = 2  # 切换文件夹后，是否清除筛选。0 是保留，其他是清除。
@@ -159,8 +173,8 @@ def safe_get_name(new_name) -> str:
 
 def remove_to_trash(filename, remove=True):
     '''
-    删除文件，
-    尚未调试成功，没有启用。
+    删除文件，remove=True就直接删除，否则移动到回收站。
+    但是移动到回收站的功能尚未调试成功，所以没有启用。参数只能是 True。
     '''
     if remove:
         print('直接删除')
@@ -558,6 +572,7 @@ def get_file_part(tar):  # 【疑似bug】对带有空格的路径解析异常
 
     fsize = os.path.getsize(tar)  # 文件大小，字节
     fsize = fsize / (1024)  # 换算到kB
+    # fsize=f'{fsize:,.1f}'
     fsize = round(fsize, 1)
     # fsize*=100
     # fsize=int(fsize)
@@ -822,12 +837,19 @@ class my_input_window:
         #
         # 窗口设置
         # self.input_window.overrideredirect(True) # 这句话可以去掉标题栏，同时也会没有阴影
-        self.screenwidth = SCREEN_WIDTH
-        self.screenheight = SCREEN_HEIGHT
         self.w_width = 800
         self.w_height = 160
-        self.x_pos = (self.screenwidth - self.w_width) / 2
-        self.y_pos = (self.screenheight - self.w_height) / 2
+        #
+        # 屏幕中央：
+        # self.screenwidth = SCREEN_WIDTH
+        # self.screenheight = SCREEN_HEIGHT
+        # self.x_pos = (self.screenwidth - self.w_width) / 2
+        # self.y_pos = (self.screenheight - self.w_height) / 2
+        #
+        # 主窗口中央：
+        self.x_pos=self.form0.winfo_x()+(self.form0.winfo_width()-self.w_width)/2
+        self.y_pos=self.form0.winfo_y()+(self.form0.winfo_height()-self.w_height)/2
+
         self.input_window.geometry('%dx%d+%d+%d' % (self.w_width, self.w_height, self.x_pos, self.y_pos))
         self.input_window.title(self.title)
         #
@@ -878,10 +900,17 @@ class my_input_window:
         self.form0.wait_window(self.input_window)  # 要用这句话拦截主窗体的代码运行
 
     def bt_cancel_click(self, event=None):
+        self.input_window.unbind_all('<Return>')
+        self.input_window.unbind_all('<Escape>')
         self.input_window.destroy()
 
     def bt_yes_click(self, event=None) -> str:
-        self.input_value = self.et.get()
+        self.input_window.unbind_all('<Return>')
+        self.input_window.unbind_all('<Escape>')
+        try:
+            self.input_value = self.et.get() # 
+        except Exception as e:
+            print(e)
         # print(self.input_value)
         self.input_window.destroy()
         return self.input_value
@@ -891,6 +920,7 @@ class my_input_window:
 
     def __del__(self) -> str:
         self.input_value = ''
+        # self.input_window.destroy()
         return ''
 
 
@@ -918,12 +948,19 @@ class my_progress_window:
         #
         # 窗口设置
         self.input_window.overrideredirect(True)  # 这句话可以去掉标题栏，同时也会没有阴影
-        self.screenwidth = SCREEN_WIDTH
-        self.screenheight = SCREEN_HEIGHT
         self.w_width = 800
         self.w_height = 100
-        self.x_pos = (self.screenwidth - self.w_width) / 2
-        self.y_pos = (self.screenheight - self.w_height) / 2
+        #
+        # 屏幕中央：
+        # self.screenwidth = SCREEN_WIDTH
+        # self.screenheight = SCREEN_HEIGHT
+        # self.x_pos = (self.screenwidth - self.w_width) / 2
+        # self.y_pos = (self.screenheight - self.w_height) / 2
+        #
+        # 主窗口中央：
+        self.x_pos=self.form0.winfo_x()+(self.form0.winfo_width()-self.w_width)/2
+        self.y_pos=self.form0.winfo_y()+(self.form0.winfo_height()-self.w_height)/2
+
         self.input_window.geometry('%dx%d+%d+%d' % (self.w_width, self.w_height, self.x_pos, self.y_pos))
         # self.input_window.title(self.title)
         self.input_window.transient(self.form0)  # 避免在任务栏出现第二个窗口，而且可以实现置顶
@@ -1322,7 +1359,8 @@ def exec_add_tree_item(tree, dT) -> None:
             if tag == '' or tag == cALL_FILES or (tag in tag_lower):
                 canadd = 1
                 # break
-            elif str.lower(tmp[-1]).find(tag) < 0:
+            # elif str.lower(tmp[-1]).find(tag) < 0: # 全路径搜索
+            elif str.lower(tmp[0]).find(tag) < 0 : # 文件名和标签搜索
                 canadd = 0
 
         if canadd == 1:
@@ -1417,6 +1455,9 @@ def exec_file_rename(tar=None):  # 对文件重命名
     重命名tree选中的文件。需要有tree的选中项目。
     每个文件重命名一次，按理说兼容多文件，但是这个命令不应该给多文件执行。
     '''
+    if len(tree.selection())>1:
+        print('暂不支持多文件重命名')
+        return
     for item in tree.selection():
         # 获得目标文件
         item_text = tree.item(item, "values")
@@ -1450,6 +1491,7 @@ def exec_tree_file_delete(tar=None):
     删除tree选中项对应的文件。
     兼容多文件，但是每个文件要确认一次，可能体验不太好。
     '''
+    flag_deleted=0
     for item in tree.selection():
         # 获取文件全路径
         item_text = tree.item(item, "values")
@@ -1458,16 +1500,20 @@ def exec_tree_file_delete(tar=None):
         if not isfile(tmp_full_path):
             print('并不存在文件：' + str(tmp_full_path))
         elif tk.messagebox.askokcancel("删除确认", "真的要删除以下文件吗（不放进回收站）？" + str(tmp_full_path)):
+            flag_deleted=1
             try:
                 # os.remove(tmp_full_path)
                 remove_to_trash(tmp_full_path)
-                exec_main_window_reload(1)
+                if len(tree.selection())==1:
+                    exec_main_window_reload(0)
             except:
                 t = tk.messagebox.showerror(title='ERROR', message='删除失败，文件可能被占用！')
                 print('删除失败，文件可能被占用')
             # 刷新
 
-    pass
+    if len(tree.selection())>1:
+        if flag_deleted:
+            exec_main_window_reload(0)
 
 
 def exec_fun_test(event=None):  #
@@ -1490,7 +1536,7 @@ def exec_tree_find(full_path=''):  #
     输入参数是完整路径。
     只支持单文件查找。
     '''
-    if full_path == '':
+    if full_path == '' or full_path is None:
         return (-1)
 
     # 根据完整路径，找到对应的文件并高亮
@@ -1510,7 +1556,8 @@ def exec_tree_find(full_path=''):  #
         # print(tmp[-1])
         if tmp[-1] == full_path:
             # tree.focus(i) #这个并不能高亮
-            tree.selection_set(i)
+            tree.selection_add(i)
+            # tree.selection_add(tc[0])
             print('在第%d处检查到了相应结果' % n)
 
             b1 = n / tc_cnt - 0.5 * b0
@@ -1605,6 +1652,7 @@ def input_new_tag(event=None, tag_name=None):
         print("取消新标签")
         return
 
+    taged_files=[]
     for item in tree.selection():
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
@@ -1615,9 +1663,16 @@ def input_new_tag(event=None, tag_name=None):
         if new_tag == None or new_tag == '':
             print("取消新标签")
         else:
-            exec_file_add_tag(tmp_full_name, new_tag)
+            taged_files.append(exec_file_add_tag(tmp_full_name, new_tag))
             # print(new_name)
-
+    if len(tree.selection())>1: # 多文件的只在最后刷新。
+        # (b1, b2) = bar_tree_v.get()
+        exec_main_window_reload(0)
+        for i in taged_files:
+            exec_tree_find(i)
+        
+        # exec_tree_find(taged_files[-1]) 
+        # tree.yview_moveto(b1)
 
 def exec_input_new_tag_via_dialog(event=None):
     '''
@@ -1625,7 +1680,8 @@ def exec_input_new_tag_via_dialog(event=None):
 
     '''
     # 没有选中项的时候，直接跳过
-    if len(tree.selection()) != 1:
+    if len(tree.selection()) ==0:
+        print('没有选中项目')
         return
 
     new_tag = show_input_window('添加标签', '请输入标签', '')
@@ -1642,6 +1698,8 @@ def exec_file_add_tag(filename, tag0):
     '''
     增加标签
     '''
+    tmp_final_name=filename
+
     tag_list = tag0.split(V_SEP)
     tag_old = get_file_part(filename)['ftags']  # 已有标签
     file_old = get_file_part(filename)['ffname']  # 原始的文件名
@@ -1663,14 +1721,16 @@ def exec_file_add_tag(filename, tag0):
                 t = tk.messagebox.showerror(title='ERROR', message='为文件添加标签失败！')
                 print('为文件添加标签失败')
                 pass
-    exec_main_window_reload(1)  # 此处可以优化，避免完全重载
-    try:
-        tmp_final_name = tmp_final_name.replace('\\', '/')
-        print('添加标签完成，正在定位%s' % (tmp_final_name))
-        exec_tree_find(tmp_final_name)  # 为加标签之后的项目高亮
-    except:
-        pass
-
+    
+    if len(tree.selection())==1:
+        exec_main_window_reload(0)  # 此处可以优化，避免完全重载
+        try:
+            tmp_final_name = tmp_final_name.replace('\\', '/')
+            print('添加标签完成，正在定位%s' % (tmp_final_name))
+            exec_tree_find(tmp_final_name)  # 为加标签之后的项目高亮
+        except:
+            pass
+    return tmp_final_name
 
 # def file_add_star(event=None):
 #     '''
@@ -1691,10 +1751,18 @@ def exec_fast_add_tag(tag):
     目前是为文件增加 TAG_STAR 对应的值。
     '''
     TAG_STAR = tag
+    taged_files=[]
     for item in tree.selection():
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
-    exec_file_add_tag(tmp_full_name, TAG_STAR)
+        taged_files.append(exec_file_add_tag(tmp_full_name, TAG_STAR))
+    if len(tree.selection())>1:
+        # (b1, b2) = bar_tree_v.get()
+        exec_main_window_reload(0)
+        # tree.yview_moveto(b1)
+        for i in taged_files:
+            exec_tree_find(i)
+        # exec_tree_find(taged_files[-1])
 
 
 def exec_clear_entry(tar):
@@ -1957,7 +2025,7 @@ def v_sub_folders_choose(event=None):
 
 
 # %%
-def show_from_progres():
+def show_form_progres():
     #
     pass
 
@@ -2112,14 +2180,32 @@ def exec_folder_add_drag(files):  #
     if len(folders) > 0:
         exec_my_folder_add(folders)
 
+def exec_tree_drag_enter_popupmenu(files):
+    '''
+    ###########################################
+    弹出菜单，判断是移动还是复制。
+    （存在逻辑问题，还没有启用）
+    #######################################
+    '''
+    global FILE_DRAG_MOVE
+    menu_move_or_copy = tk.Menu(window, tearoff=0)
+    menu_move_or_copy.add_command(label="复制", command=lambda x=files: exec_tree_drag_enter(x,'copy'))
+    menu_move_or_copy.add_command(label="移动", command=lambda x=files: exec_tree_drag_enter(x,'move'))
+    # menu_move_or_copy.post(event.x_root, event.y_root)
+    menu_move_or_copy.post(0,0)
+    # exec_tree_drag_enter(files)
 
-def exec_tree_drag_enter(files):
+def exec_tree_drag_enter(files,drag_type=None):
     '''
     以拖拽的方式将文件拖动到tree范围内，将执行复制命令。
     注意，不是移动，只是复制。
     safe_copy 的参数 opt_type = copy 是复制， = move 是移动。
     '''
     global flag_file_changed
+
+    if drag_type is not None:
+        global FILE_DRAG_MOVE
+        FILE_DRAG_MOVE=drag_type
 
     short_name = get_folder_short()
     print(short_name)
@@ -2401,7 +2487,19 @@ def exec_create_note_here(event=None):
 
 # %%
 def jump_to_search(event=None):
-    v_search.focus()
+    '''
+    输入快捷键快速搜索的功能。
+    '''
+    tmp_search_value=v_search.get()
+    res = show_input_window('快速搜索', body_value='请输入搜索关键词，多个关键词之间用空格隔开。',
+     init_value=tmp_search_value)
+    if res is not None:
+        exec_clear_entry(v_search)
+        res=res.strip()
+        v_search.insert(0, res)
+        exec_v_tag_choose()
+        v_search.focus()
+
 
 
 def jump_to_tag(event=None):
@@ -2482,60 +2580,67 @@ def exec_file_drop_tag(event=None):
     if event is None:
         return
     tag_value = event
+    res_lst=[]
     for item in tree.selection():
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
-    #
-    res = get_file_part(tmp_full_name)
-    file_path = res['f_path_only']
-    file_name_ori = res['filename_origional']
-    file_ext = res['fename']
-    if file_ext == '':
-        print(file_name_ori)
-        tmp_rv = list(file_name_ori)
-        tmp_rv.reverse()
-        tmp_rv = ''.join(tmp_rv)
-        print(tmp_rv)
         #
-        tmp_r_tag = list(V_SEP + tag_value)
-        tmp_r_tag.reverse()
-        tmp_r_tag = ''.join(tmp_r_tag)
-        print(tmp_r_tag)
-        #
-        tmp_rv = tmp_rv.replace(tmp_r_tag, '', 1)
-        #
-        tmp_rv = list(tmp_rv)
-        tmp_rv.reverse()
-        tmp_rv = ''.join(tmp_rv)
-        #
-        file_name_ori = tmp_rv
-        print('从右向左替换')
-        print(file_name_ori)
-    new_name = file_name_ori.replace(V_SEP + tag_value + V_SEP, V_SEP)
-    new_name = new_name.replace(V_SEP + tag_value + '.', ".")
+        res = get_file_part(tmp_full_name)
+        file_path = res['f_path_only']
+        file_name_ori = res['filename_origional']
+        file_ext = res['fename']
+        if file_ext == '':
+            print(file_name_ori)
+            tmp_rv = list(file_name_ori)
+            tmp_rv.reverse()
+            tmp_rv = ''.join(tmp_rv)
+            print(tmp_rv)
+            #
+            tmp_r_tag = list(V_SEP + tag_value)
+            tmp_r_tag.reverse()
+            tmp_r_tag = ''.join(tmp_r_tag)
+            print(tmp_r_tag)
+            #
+            tmp_rv = tmp_rv.replace(tmp_r_tag, '', 1)
+            #
+            tmp_rv = list(tmp_rv)
+            tmp_rv.reverse()
+            tmp_rv = ''.join(tmp_rv)
+            #
+            file_name_ori = tmp_rv
+            print('从右向左替换')
+            print(file_name_ori)
+        new_name = file_name_ori.replace(V_SEP + tag_value + V_SEP, V_SEP)
+        new_name = new_name.replace(V_SEP + tag_value + '.', ".")
 
-    new_full_name = file_path + '/' + new_name
-    print('原始文件名：')
-    print(tmp_full_name)
-    print('去掉标签后：')
-    print(new_full_name)
-    print('被去掉的标签：')
-    print(tag_value)
-    # os.rename(tmp_full_name,new_full_name)
-    tmp_final_name = exec_safe_rename(tmp_full_name, new_full_name)
-    exec_main_window_reload(1)  # 此处可以优化，避免完全重载
-    try:
+        new_full_name = file_path + '/' + new_name
+        print('原始文件名：')
+        print(tmp_full_name)
+        print('去掉标签后：')
+        print(new_full_name)
+        print('被去掉的标签：')
+        print(tag_value)
+        # os.rename(tmp_full_name,new_full_name)
+        if tmp_full_name!=new_full_name:
+            tmp_final_name = exec_safe_rename(tmp_full_name, new_full_name)
+        res_lst.append(new_full_name)
+    
+    exec_main_window_reload(0)  # 此处可以优化，避免完全重载
+    for tmp_final_name in res_lst:
         tmp_final_name = tmp_final_name.replace('\\', '/')
         print('删除标签完成，正在定位%s' % (tmp_final_name))
         exec_tree_find(tmp_final_name)  # 为加标签之后的项目高亮
-    except:
-        pass
-
 
 def show_popup_menu_file(event):
     '''
     文件区域的右键菜单
     '''
+    n_selection = len(tree.selection())
+    # for item in tree.selection():
+    #     item_text = tree.item(item, "values")
+    #     tmp_full_name = item_text[-1]
+    #     n_selection += 1
+    #
     menu_tags_to_drop = tk.Menu(window, tearoff=0)
     menu_tags_to_add = tk.Menu(window, tearoff=0)
     if len(QUICK_TAGS) > 0:
@@ -2553,19 +2658,24 @@ def show_popup_menu_file(event):
     else:
         menu_file.add_command(label="新建笔记", state=tk.DISABLED, command=exec_create_note, accelerator='Ctrl+N')
     menu_file.add_separator()
-    menu_file.add_command(label="打开选中项所在文件夹", command=tree_open_folder)
+    if n_selection==1:
+        menu_file.add_command(label="打开选中项所在文件夹", command=tree_open_folder)
     # menu_file.add_command(label="打开选中项所在文件夹并选中文件（有点慢）",command=tree_open_folder_select)
     menu_file.add_command(label="打开当前文件夹", command=tree_open_current_folder)
     menu_file.add_separator()
     menu_file.add_command(label='添加标签 ', command=exec_input_new_tag_via_dialog, accelerator='Ctrl+T')
     menu_file.add_cascade(label="快速添加标签", menu=menu_tags_to_add)
-    menu_file.add_cascade(label="移除标签", menu=menu_tags_to_drop)
+    if n_selection==1:
+        menu_file.add_cascade(label="移除标签", menu=menu_tags_to_drop)
+    elif n_selection>1:
+        menu_file.add_cascade(label="移除标签", menu=menu_tags_to_drop)
     menu_file.add_separator()
     # menu_file.add_command(label="发送无标签副本到桌面（开发中）",state=tk.DISABLED)#,command=exec_file_rename)
     # menu_file.add_command(label="复制到剪切板（开发中）",state=tk.DISABLED)#,command=exec_file_rename)
     # menu_file.add_command(label="移动到文件夹（开发中）",state=tk.DISABLED)#,command=exec_file_rename)
     # menu_file.add_command(label="粘贴（开发中）",state=tk.DISABLED)#,command=exec_file_rename)
-    menu_file.add_command(label="重命名", command=exec_file_rename, accelerator='F2')
+    if n_selection==1:
+        menu_file.add_command(label="重命名", command=exec_file_rename, accelerator='F2')
     menu_file.add_command(label="删除", command=exec_tree_file_delete)
     menu_file.add_separator()
     menu_file.add_command(label="刷新", command=exec_main_window_reload)
@@ -2584,13 +2694,13 @@ def show_popup_menu_file(event):
     menu_file_no_selection.add_separator()
     menu_file_no_selection.add_command(label="刷新", command=exec_main_window_reload)
 
-    tmp = 0
-    for item in tree.selection():
-        item_text = tree.item(item, "values")
-        tmp_full_name = item_text[-1]
-        tmp += 1
-    if tmp > 0:  # 如果有选中项目的话，
+    
+    if n_selection ==1:  # 如果有选中项目的话，
+        
         # tmp_file_name=get_split_path(tmp_full_name)[-1]
+        for item in tree.selection():
+            item_text = tree.item(item, "values")
+            tmp_full_name = item_text[-1]
         tmp_file_name = get_file_part(tmp_full_name)['fname']
         tmp_tags_all = get_file_part(tmp_full_name)['ftags']
         tmp_tags = tmp_file_name.split(V_SEP)
@@ -2623,6 +2733,49 @@ def show_popup_menu_file(event):
             menu_tags_to_drop.add_command(label='无可操作项目', state=tk.DISABLED)
             pass
 
+        menu_file.post(event.x_root, event.y_root)
+    
+    elif n_selection>1:
+        try:
+            for i in range(10000):  # 删除已有标签
+                menu_tags_to_drop.delete(0)
+        except:
+            pass
+        
+        tmp_tags_from_files=[]
+        file_checked=0
+        for item in tree.selection():
+            
+            item_text = tree.item(item, "values")
+            tmp_full_name = item_text[-1]
+            tmp_file_name = get_file_part(tmp_full_name)['fname']
+            tmp_tags_all = get_file_part(tmp_full_name)['ftags'] # 自带标签+路径标签
+            tmp_tags = tmp_file_name.split(V_SEP) # 选中项自带标签
+            # print(tmp_res)
+            tmp_tags.pop(0)
+            if file_checked==0:
+                tmp_tags_from_files+=tmp_tags
+            else:
+                # 取交集
+                tmp_tags_from_files=list(set(tmp_tags_from_files).intersection(set(tmp_tags)))
+                #
+                # 方法2
+                # for i in range(len(tmp_tags_from_files)):
+                #     if tmp_tags_from_files[-1-i] not in tmp_tags:
+                #         tmp_tags_from_files.pop(-1-i)
+                #
+                # 如果是取并集：
+                # tmp_tags_from_files+=tmp_tags
+
+            file_checked+=1
+        
+        if len(tmp_tags_from_files) > 0:
+            tmp_tags_from_files=list(set(tmp_tags_from_files))
+            for i in tmp_tags_from_files:
+                menu_tags_to_drop.add_command(label=i, command=lambda x=i: exec_file_drop_tag(x))
+        else:
+            menu_tags_to_drop.add_command(label='无可移除的共有标签', state=tk.DISABLED)
+            pass
         menu_file.post(event.x_root, event.y_root)
     else:
         menu_file_no_selection.post(event.x_root, event.y_root)
@@ -2813,7 +2966,8 @@ if __name__ == '__main__':
 
     tree = ttk.Treeview(frameMain, show="headings", columns=columns, \
                         displaycolumns=["file", "tags", "modify_time", "size"], \
-                        selectmode=tk.BROWSE, \
+                        # selectmode=tk.BROWSE, \
+                        selectmode='extended', \
                         yscrollcommand=bar_tree_v.set, xscrollcommand=bar_tree_h.set)  # , height=18)
 
     tree.column('index', width=30, anchor='center')
@@ -2840,9 +2994,9 @@ if __name__ == '__main__':
 
     # 样式
     style = ttk.Style()
-    style.configure("Treeview.Heading", font=('微软雅黑', LARGE_FONT), \
+    style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
                     rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4))
-    style.configure("Treeview", font=(None, MON_FONTSIZE), \
+    style.configure("Treeview", font=FONT_TREE_BODY, \
                     rowheight=int(MON_FONTSIZE * 3.5))
     # style.configure("Button",font=('微软雅黑', 12))
 
@@ -2871,7 +3025,7 @@ if __name__ == '__main__':
     v_tag.bind('<<ComboboxSelected>>', exec_v_tag_choose)
     v_tag.bind('<Return>', exec_v_tag_choose)  # 绑定回车键
 
-    lable_search = tk.Label(frame0, text='文件名')
+    lable_search = tk.Label(frame0, text='关键词')
     lable_search.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
 
     v_search.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
@@ -2928,6 +3082,7 @@ if __name__ == '__main__':
 
     # 设置拖拽反映函数
     windnd.hook_dropfiles(tree_lst_folder, func=exec_folder_add_drag)
+    # windnd.hook_dropfiles(tree, func=exec_tree_drag_enter_popupmenu)
     windnd.hook_dropfiles(tree, func=exec_tree_drag_enter)
 
     bt_new.configure(command=exec_create_note)
@@ -2955,6 +3110,7 @@ if __name__ == '__main__':
     window.bind_all('<Control-n>', exec_create_note)  # 绑定添加笔记的功能。
     window.bind_all('<Control-f>', jump_to_search)  # 跳转到搜索框。
     window.bind_all('<F2>', exec_file_rename)  # 跳转到搜索框。
+    tree.bind('<F5>', exec_main_window_reload)  # 刷新。
     # window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
     window.bind_all('<Control-t>', exec_input_new_tag_via_dialog)  # 快速输入标签。
 
@@ -2966,6 +3122,10 @@ if __name__ == '__main__':
     bar_tree_v.config(command=tree.yview)
     bar_tree_h.config(command=tree.xview)
     # tree.pack(expand = True, fill = tk.BOTH)
+    #
+    # 测试气泡
+    # b = tix.Balloon(window, statusbar=None)
+    # b.bind_widget(bt_clear,balloonmsg='test',statusmsg=None)
 
     # 运行
 

@@ -35,12 +35,16 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.14.2.2'  # 版本号
+VER = 'v0.14.2.4'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.14.2.4 2021年7月28日
+文件区右键菜单将不可执行的功能也显示出来并标记为灰色。
+#### v0.14.2.3 2021年7月28日
+增加对多文件拖拽添加的视觉支持；多个关键词的搜索逻辑现在是“and”关系。
 #### v0.14.2.2 2021年7月27日
-增加对多文件同时删除公共标签；将搜索逻辑从全路径减少到文件名和标签。
+增加对多文件同时删除公共标签。
 #### v0.14.2.1 2021年7月27日
 增加对多文件同时操作的支持，而且可以快速选中多个处理结果。
 #### v0.14.2.0 2021年7月27日
@@ -1359,9 +1363,10 @@ def exec_add_tree_item(tree, dT) -> None:
             if tag == '' or tag == cALL_FILES or (tag in tag_lower):
                 canadd = 1
                 # break
-            # elif str.lower(tmp[-1]).find(tag) < 0: # 全路径搜索
-            elif str.lower(tmp[0]).find(tag) < 0 : # 文件名和标签搜索
+            elif str.lower(tmp[-1]).find(tag) < 0: # 全路径搜索
+            # elif str.lower(tmp[0]).find(tag) < 0 : # 文件名和标签搜索
                 canadd = 0
+                break # 有这句话就是 and 关系。
 
         if canadd == 1:
             k += 1
@@ -1530,7 +1535,7 @@ def exec_fun_test(event=None):  #
     pass
 
 
-def exec_tree_find(full_path=''):  #
+def exec_tree_find(full_path='',need_update=True):  #
     '''
     用于在 tree 里面找到项目，并加高亮。
     输入参数是完整路径。
@@ -1540,7 +1545,8 @@ def exec_tree_find(full_path=''):  #
         return (-1)
 
     # 根据完整路径，找到对应的文件并高亮
-    tree.update()  # 必须在定位之前刷新列表，否则定位会错误
+    if need_update:
+        tree.update()  # 必须在定位之前刷新列表，否则定位会错误
     tc = tree.get_children()
     tc_cnt = len(tc)
     print('条目数量为：%s' % tc_cnt)
@@ -1581,6 +1587,15 @@ def exec_tree_find(full_path=''):  #
     return (-1)
     # for i in range()
 
+def exec_tree_find_lst(inp_lst):
+    '''
+    传入一个列表。tree高亮。
+    '''
+    tree.update()
+    for tmp_final_name in inp_lst:
+        tmp_final_name = tmp_final_name.replace('\\', '/')
+        print('删除标签完成，正在定位%s' % (tmp_final_name))
+        exec_tree_find(tmp_final_name,need_update=False)  # 为加标签之后的项目高亮
 
 def tree_open_folder(event=None, VMETHOD=1):
     '''
@@ -1639,7 +1654,8 @@ def exec_folder_add_from_sub(event=None):
 
 def input_new_tag(event=None, tag_name=None):
     '''
-    输入新的标签
+    输入新的标签，为选中项添加标签。
+    tag_name 是输入的标签。
     '''
     # new_name=''
     if tag_name is None:
@@ -1668,8 +1684,9 @@ def input_new_tag(event=None, tag_name=None):
     if len(tree.selection())>1: # 多文件的只在最后刷新。
         # (b1, b2) = bar_tree_v.get()
         exec_main_window_reload(0)
-        for i in taged_files:
-            exec_tree_find(i)
+        exec_tree_find_lst(taged_files)
+        # for i in taged_files:
+            # exec_tree_find(i)
         
         # exec_tree_find(taged_files[-1]) 
         # tree.yview_moveto(b1)
@@ -2225,6 +2242,7 @@ def exec_tree_drag_enter(files,drag_type=None):
     tc = tree.get_children()
     k = len(tc)
 
+    new_file_lst=[]
     for item in files:
         item = item.decode('gbk')
         if not isfile(item):
@@ -2242,7 +2260,7 @@ def exec_tree_drag_enter(files,drag_type=None):
         #     str_btm.set('文件拖拽成功')
         print('res=')
         print(res)
-
+        new_file_lst.append(res)
         # 再显示到列表中
         k += 1
         # tmp=get_file_part(res)
@@ -2256,7 +2274,8 @@ def exec_tree_drag_enter(files,drag_type=None):
         exec_main_window_reload(0)  # 这里不刷新的话，后面排序或者筛选都会出错。
         # 高亮文件
         try:
-            exec_tree_find(res)
+            exec_tree_find_lst(new_file_lst)
+            # exec_tree_find(res)
             # tree.yview_moveto(1)
         except:
             pass
@@ -2626,10 +2645,11 @@ def exec_file_drop_tag(event=None):
         res_lst.append(new_full_name)
     
     exec_main_window_reload(0)  # 此处可以优化，避免完全重载
-    for tmp_final_name in res_lst:
-        tmp_final_name = tmp_final_name.replace('\\', '/')
-        print('删除标签完成，正在定位%s' % (tmp_final_name))
-        exec_tree_find(tmp_final_name)  # 为加标签之后的项目高亮
+    exec_tree_find_lst(res_lst)
+    # for tmp_final_name in res_lst:
+    #     tmp_final_name = tmp_final_name.replace('\\', '/')
+    #     print('删除标签完成，正在定位%s' % (tmp_final_name))
+    #     exec_tree_find(tmp_final_name)  # 为加标签之后的项目高亮
 
 def show_popup_menu_file(event):
     '''
@@ -2660,6 +2680,8 @@ def show_popup_menu_file(event):
     menu_file.add_separator()
     if n_selection==1:
         menu_file.add_command(label="打开选中项所在文件夹", command=tree_open_folder)
+    elif n_selection>1:
+        menu_file.add_command(label="打开选中项所在文件夹", state=tk.DISABLED, command=tree_open_folder)
     # menu_file.add_command(label="打开选中项所在文件夹并选中文件（有点慢）",command=tree_open_folder_select)
     menu_file.add_command(label="打开当前文件夹", command=tree_open_current_folder)
     menu_file.add_separator()
@@ -2676,6 +2698,8 @@ def show_popup_menu_file(event):
     # menu_file.add_command(label="粘贴（开发中）",state=tk.DISABLED)#,command=exec_file_rename)
     if n_selection==1:
         menu_file.add_command(label="重命名", command=exec_file_rename, accelerator='F2')
+    elif n_selection>1:
+        menu_file.add_command(label="重命名", state=tk.DISABLED, command=exec_file_rename, accelerator='F2')
     menu_file.add_command(label="删除", command=exec_tree_file_delete)
     menu_file.add_separator()
     menu_file.add_command(label="刷新", command=exec_main_window_reload)

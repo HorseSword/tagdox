@@ -24,7 +24,7 @@ import threading  # 多线程
 from multiprocessing import Pool
 from multiprocessing import Process
 # from docx import Document# 用于创建word文档
-# import ctypes # 用于调整分辨率
+# import ctypes # 用于调整分辨率 #
 
 import shutil
 import queue

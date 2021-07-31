@@ -35,10 +35,12 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.14.2.5'  # 版本号
+VER = 'v0.14.2.6'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.14.2.6 2021年7月31日
+子文件夹区域新增「新建文件夹」和「重命名文件夹」功能。
 #### v0.14.2.5 2021年7月30日
 将搜索项目分类处理，并将关键词搜索限制在文件名和标签范围内；增加文件夹列表对键盘上下键的响应。
 已知bug：快速按上下键会导致进度条不消失。所以现在增加了点击进度条使其强行消失的功能。
@@ -52,6 +54,7 @@ VER = 'v0.14.2.5'  # 版本号
 增加对多文件同时操作的支持，而且可以快速选中多个处理结果。
 #### v0.14.2.0 2021年7月27日
 增加对多文件同时操作的支持，目前支持同时打开、同时增加标签，但是加标签的选中体验还不好。
+#
 #### v0.14.1.4 2021年7月27日
 增加 Ctrl+F 出现弹窗快捷搜索的功能；调整弹窗位置为窗口中央而不是屏幕中央。
 #### v0.14.1.3 2021年7月24日
@@ -1706,7 +1709,10 @@ def tree_open_current_folder(event=None):
         tmp_path = lst_my_path_long_selected[0] + '/' + get_sub_folder()
     else:
         tmp_path = lst_my_path_long_selected[0]
-    os.startfile(tmp_path)
+    try:
+        os.startfile(tmp_path)
+    except:
+        t = tk.messagebox.showerror(title='ERROR', message='打开文件夹失败！')
 
 
 def exec_folder_add_from_sub(event=None):
@@ -1718,8 +1724,70 @@ def exec_folder_add_from_sub(event=None):
             tmp_path = lst_my_path_long_selected[0] + '/' + get_sub_folder()
             exec_my_folder_add([tmp_path])
     except:
-        print('请检查1536')
+        print('请检查 exec_folder_add_from_sub 函数')
 
+def exec_sub_folder_new(event=None):
+    '''
+    新建子文件夹
+    '''
+    path=show_input_window('新建文件夹','请输入文件夹名称')
+    if path is None:
+        return
+
+    if len(lst_my_path_long_selected)==1:
+        tmp_path = lst_my_path_long_selected[0] + '/' + path
+    else:
+        t = tk.messagebox.showerror(title='ERROR', message='未选中唯一文件夹')
+        return
+
+    isExists=os.path.exists(tmp_path)
+ 
+    # 判断结果
+    if not isExists:
+        # 如果不存在则创建目录
+        # 创建目录操作函数
+        try:
+            os.makedirs(tmp_path) 
+ 
+            print (tmp_path+' 创建成功')
+            exec_main_window_reload(reload_setting=2)
+            return True
+        except:
+            t = tk.messagebox.showerror(title='ERROR', message='文件夹创建失败')
+    else:
+        # 如果目录存在则不创建，并提示目录已存在
+        t = tk.messagebox.showerror(title='ERROR', message=(tmp_path+' 目录已存在'))
+        return False
+
+def exec_sub_folder_rename(event=None):
+    '''
+    子文件夹重命名
+    '''
+    if len(get_sub_folder()) > 0:
+        old_folder=get_sub_folder()
+        old_path = lst_my_path_long_selected[0] + '/' + old_folder
+    new_folder=show_input_window('重命名文件夹','请输入文件夹名称',old_folder)
+    if new_folder is None:
+        return
+    new_path=lst_my_path_long_selected[0] + '/' + new_folder
+    
+    isExists=os.path.exists(new_path)
+    # 判断结果
+    if not isExists:
+        # 如果不存在则创建目录
+        # 创建目录操作函数
+        try:
+            os.rename(old_path,new_path) 
+            print (new_path+' 创建成功')
+            exec_main_window_reload(reload_setting=2)
+            return True
+        except:
+            t = tk.messagebox.showerror(title='ERROR', 
+            message='文件夹重命名失败，可能是有内部文件正在被访问，或没有操作权限。')
+    else:
+        # 如果目录存在则不创建，并提示目录已存在
+        t = tk.messagebox.showerror(title='ERROR', message=(new_path+' 目录已存在'))
+        return False
 
 def input_new_tag(event=None, tag_name=None):
     '''
@@ -2525,25 +2593,29 @@ def exec_create_note(event=None):  # 添加笔记
                 # 创建文件
                 print('创建文件：')
                 print(fpth)
-                if NOTE_EXT in NOTE_EXT_LIST:
-                    with open(fpth, 'w') as _:
+                try:
+                    if NOTE_EXT in NOTE_EXT_LIST:
+                        with open(fpth, 'w') as _:
+                            pass
+                    elif NOTE_EXT in ['.docxXXXXX']:
+                        # d=Document()
+                        # d.save(fpth)
                         pass
-                elif NOTE_EXT in ['.docxXXXXX']:
-                    # d=Document()
-                    # d.save(fpth)
-                    pass
-                # 打开
-                os.startfile(fpth)  # 打开这个文件
-                # 刷新
-                if event == 'exec_create_note_here':  # 【这里有bug，刷新之后不能显示内容】
-                    exec_main_window_reload(1)
-                    exec_tree_find(fpth)
-                    # return fpth
-                else:
-                    exec_main_window_reload(1)  # 没有这句话会搜不到
-                    exec_tree_find(fpth)
-                # else:
-                #     return fpth
+                    # 打开
+                    os.startfile(fpth)  # 打开这个文件
+                    # 刷新
+                    if event == 'exec_create_note_here':  # 【这里有bug，刷新之后不能显示内容】
+                        exec_main_window_reload(1)
+                        exec_tree_find(fpth)
+                        # return fpth
+                    else:
+                        exec_main_window_reload(1)  # 没有这句话会搜不到
+                        exec_tree_find(fpth)
+                    # else:
+                    #     return fpth
+                except:
+                    t = tk.messagebox.showerror(title='ERROR', message='新建笔记失败')
+
     else:
         pass
     #
@@ -2649,9 +2721,9 @@ def show_popup_menu_sub_folder(event):
         else:
             menu_sub_folder.add_command(label='将当前文件夹添加到关注', state=tk.DISABLED)
         menu_sub_folder.add_separator()
-        menu_sub_folder.add_command(label='新建文件夹', state=tk.DISABLED, command=tree_open_current_folder)
+        menu_sub_folder.add_command(label='新建文件夹', command=exec_sub_folder_new)
         if len(get_sub_folder()) > 0:
-            menu_sub_folder.add_command(label='重命名文件夹', state=tk.DISABLED, command=tree_open_current_folder)
+            menu_sub_folder.add_command(label='重命名文件夹', command=exec_sub_folder_rename)
         else:
             menu_sub_folder.add_command(label='重命名文件夹', state=tk.DISABLED)
         menu_sub_folder.add_separator()

@@ -35,10 +35,14 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.14.3.1'  # 版本号
+VER = 'v0.15.0.1'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.15.0.1 2021年8月2日
+标签区域排序优化，现在无论大小写英文都可以在一起排序了。
+#### v0.15.0.0 2021年8月1日
+实现左下角列表区域为标签功能的调试，好像可以正常使用。进入测试阶段。
 #### v0.14.3.1 2021年7月31日
 增加文件列表区拖拽进来的自动添加当前选中标签的功能，为标签化管理做好准备。
 #### v0.14.3.0 2021年7月31日
@@ -1287,6 +1291,7 @@ def get_search_tag(event=None):
     '''
     print('标签里面是'+v_tag.get())
     return v_tag.get()
+    #
     if TREE_SUB_SHOW=='tag':
         for item in tree_lst_sub_tag.selection():
             res = tree_lst_sub_tag.item(item, "values")[0]
@@ -1312,18 +1317,22 @@ def set_search_tag_values(v_lst):
     tmp = 0
     tree_lst_sub_tag.insert('', tmp, values=("（全部）"))
     # 令@开头的标签在最前
-    lst_1=[]
-    lst_2=[]
+    lst_at=[]
+    lst_en=[]
+    lst_cn=[]
     for i in v_lst:
         if str(i).startswith('@'):
-            lst_1.append(i)
+            lst_at.append(i)
         else:
-            lst_2.append(i)
-    v_lst=lst_1+lst_2
+            lst_en.append(i)
+    # 英文无论大小写都一起排序
+    lst_en = sorted(lst_en, key=lambda x: str.lower(x.replace('\xa0', ' ')).encode('gbk'))
+    # 组合起来
+    v_lst=lst_at+lst_en+lst_cn
     #
     for i in v_lst:
         tmp += 1
-        print(i)
+        # print(i)
         if str(i).strip()=='':
             continue
         tree_lst_sub_tag.insert('', tmp, values=(i,))  # 必须加逗号，否则对存在空格的不可用

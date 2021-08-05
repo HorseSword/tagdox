@@ -35,10 +35,12 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.15.0.3'  # 版本号
+VER = 'v0.15.0.4'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.15.0.4 2021年8月6日
+增加对文件创建时间的解析，但是还没开放。
 #### v0.15.0.3 2021年8月3日
 增加标签「强筛选」和「弱筛选」的功能。默认是弱筛选。
 #### v0.15.0.2 2021年8月3日

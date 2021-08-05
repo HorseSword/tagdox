@@ -30,7 +30,7 @@ import shutil
 import queue
 
 # import my_logger
-# import send2trash # 回收站
+# import send2trash # 回收站（作废）
 
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置

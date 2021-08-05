@@ -617,8 +617,10 @@ def get_file_part(tar):  #
     fname_0 = lst_sp[0] + fename  # fname_0 去掉标签之后的文件名
     ftags = lst_sp[1:]  # ftags 标签部分
 
-    mtime = os.stat(tar).st_mtime
+    mtime = os.stat(tar).st_mtime # 修改时间
     file_modify_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))
+    ctime = os.stat(tar).st_ctime # 创建时间
+    file_create_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ctime))
 
     fsize = os.path.getsize(tar)  # 文件大小，字节
     fsize_k = fsize / (1024)  # 换算到kB
@@ -676,10 +678,12 @@ def get_file_part(tar):  #
             'filename_no_ext': fname,  # 去掉扩展名的文件名
             'fename': fename,  # 扩展名
             'file_ext': fename,  # 扩展名
-            'full_path': tar,
-            'fsize': fsize_k,
+            'full_path': tar, # 全路径
+            'fsize': fsize_k, # 
             'file_full_path': tar,  # 完整路径，和输入参数完全一样
-            'file_mdf_time': file_modify_time}
+            'file_mdf_time': file_modify_time,
+            'file_crt_time': file_create_time
+            }
 
 
 def dt_sort_by(elem):  
@@ -3536,9 +3540,31 @@ if __name__ == '__main__':
     #
     # 主文件列表
     columns = ("index", "file", "tags", "modify_time", "size", "file0")
-
+    column_text = ("序号", "文件名", "标签", "修改时间", "文件大小(kB)", "完整路径")
+    tree_displaycolumns = ["file", "tags", "modify_time", "size"]
+    col_dic={
+        "序号":{
+            "name":"index",
+            "text":"序号",
+            "visb":False,
+            "head_anch":"center",
+            "body_anch":"center",
+            "width":30,
+            "head_command":None
+        },
+        "文件名":{
+            "name":"file",
+            "text":"文件名",
+            "visb":True,
+            "head_anch":"w",
+            "body_anch":"w",
+            "width":400,
+            "head_command":tree_order_filename
+        }
+    }
+    #
     tree = ttk.Treeview(frameMain, show="headings", columns=columns, \
-                        displaycolumns=["file", "tags", "modify_time", "size"], \
+                        displaycolumns=tree_displaycolumns, \
                         # selectmode=tk.BROWSE, \
                         selectmode='extended', \
                         yscrollcommand=bar_tree_v.set, xscrollcommand=bar_tree_h.set)  # , height=18)
@@ -3556,7 +3582,8 @@ if __name__ == '__main__':
     tree.heading("modify_time", text="修改时间", anchor='w', command=tree_order_modi_time)
     tree.heading("size", text="文件大小(kB)", anchor='w', command=tree_order_size)
     tree.heading("file0", text="完整路径", anchor='w', command=tree_order_path)
-    # 增加排序方向的可视化
+    # 
+    # 增加排序方向的可视化（三角形）
     show_tree_order()
 
     try:

@@ -35,10 +35,12 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.15.2.0'  # 版本号
+VER = 'v0.15.2.1'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.15.2.1 2021年8月9日
+优化排序逻辑，现在大小写放在一起排序。
 #### v0.15.2.0 2021年8月9日
 将窗口模式的添加到设置项中。
 #### v0.15.1.2 2021年8月8日
@@ -684,11 +686,12 @@ def dt_sort_by(elem):
     '''
     主题表格排序
     '''
-    global ORDER_BY_N
+    # global ORDER_BY_N
     tmp = str(elem[ORDER_BY_N])
     if ORDER_BY_N == 3:
         return float(tmp)  # 数字
     else:
+        tmp = str.lower(tmp)
         tmp = tmp.replace('\xa0', ' ')  # GBK 不支持 'xa0' 的解码。这个是特殊空格。
         return tmp.encode('gbk')  # 需要gbk才能中文正确排序
 
@@ -847,7 +850,7 @@ def get_dt(lst_file0=None,need_set_prog=True,FAST_MODE=True):
 # %%
 #######################################################################
 # %%
-def show_info_window():
+def show_window_info():
     '''
     显示关于窗口。
     不需要任何参数。
@@ -1092,7 +1095,7 @@ class my_progress_window:
             self.__destroy__()
 
 
-def show_my_input_window(title='未命名', msg='未定义', default_value=''):
+def X_show_my_input_window(title='未命名', msg='未定义', default_value=''):
     '''
     想要做输入框，替代 tkinter 自带的，
     但是并没有启用。
@@ -1141,7 +1144,7 @@ def show_my_input_window(title='未命名', msg='未定义', default_value=''):
 
 # my_input_window()
 
-def show_input_window(title_value, body_value='', init_value='', is_file_name=True):
+def show_window_input(title_value, body_value='', init_value='', is_file_name=True):
     '''
     接管输入框的过程，以后可以将自定义输入框替换到这里。
     目前的用法：输入参数 1 标题，2 正文，3 默认值；
@@ -1357,6 +1360,7 @@ def get_search_tag_selected(event=None):
     '''
     获取标签项（只是内容字符串，目前还不是列表）。
     '''
+    the_tag=''
     if TREE_SUB_SHOW=='tag':
         for item in tree_lst_sub_tag.selection():
             the_tag = tree_lst_sub_tag.item(item, "values")[0]
@@ -1838,7 +1842,7 @@ def exec_file_rename(tar=None):  # 对文件重命名
         print(tmp_full_path)
         print(tmp_file_name)
         # res = simpledialog.askstring('文件重命名',prompt='请输入新的文件名',initialvalue =tmp_file_name) # 有bug，不能输入#号
-        res = show_input_window('文件重命名', body_value='请输入新的文件名', init_value=tmp_file_name)  # 有bug，不能输入#号
+        res = show_window_input('文件重命名', body_value='请输入新的文件名', init_value=tmp_file_name)  # 有bug，不能输入#号
         #
         if res is not None:
             try:
@@ -2048,7 +2052,7 @@ def exec_sub_folder_new(event=None):
     '''
     # 
     # 获取名称
-    path=show_input_window('新建文件夹','请输入文件夹名称')
+    path=show_window_input('新建文件夹','请输入文件夹名称')
     if path is None:
         return
     #
@@ -2093,7 +2097,7 @@ def exec_sub_folder_rename(event=None):
         old_path = lst_my_path_long_selected[0] + '/' + old_folder
     #
     # 新文件夹名称
-    new_folder=show_input_window('重命名文件夹','请输入文件夹名称',old_folder)
+    new_folder=show_window_input('重命名文件夹','请输入文件夹名称',old_folder)
     if new_folder is None:
         return
     new_path=lst_my_path_long_selected[0] + '/' + new_folder
@@ -2169,7 +2173,7 @@ def exec_input_new_tag_via_dialog(event=None):
         print('没有选中项目')
         return
 
-    new_tag = show_input_window('添加标签', '请输入标签', '')
+    new_tag = show_window_input('添加标签', '请输入标签', '')
     if new_tag is None:
         return
     try:
@@ -2398,7 +2402,7 @@ def update_main_window(event=None, reload_setting=False,fast_mode=False):
     # tree.focus()
 
 
-def show_my_help(event=None):
+def show_online_help(event=None):
     '''
     提供帮助文件。
     目前的方式主要是跳转到在线帮助文件。以后考虑到内网打不开网页，需要增加一个离线的方面。
@@ -2406,18 +2410,21 @@ def show_my_help(event=None):
     os.startfile(URL_HELP)
 
 
-def show_my_advice(event=None):
+def show_online_advice(event=None):
     '''
     在线反馈
     '''
     os.startfile(URL_ADV)
 
 
-def show_main_closing():
+def show_window_closing(need_asking=True):
     '''
     退出程序。
     '''
-    if tk.messagebox.askokcancel("退出", "真的要退出吗"):
+    if need_asking:
+        if tk.messagebox.askokcancel("退出", "真的要退出吗"):
+            window.destroy()
+    else:
         window.destroy()
 
 
@@ -2606,7 +2613,7 @@ def exec_after_sub_folders_choose(event=None):
 # %%
 
 
-def show_form_setting():  #
+def show_window_setting():  #
     '''
     设置窗口
     '''
@@ -3062,7 +3069,7 @@ def exec_create_note(event=None):  # 添加笔记
         return
     #
     # res = simpledialog.askstring('新建 Tagdox 笔记',prompt='请输入文件名',initialvalue =NOTE_NAME)
-    res = show_input_window('新建 Tagdox 笔记', body_value='请输入文件名', init_value=NOTE_NAME)
+    res = show_window_input('新建 Tagdox 笔记', body_value='请输入文件名', init_value=NOTE_NAME)
     if res is not None:
         print('获得新笔记标题：')
         print(res)
@@ -3156,7 +3163,7 @@ def jump_to_search(event=None):
     输入快捷键快速搜索的功能。
     '''
     tmp_search_value=v_search.get()
-    res = show_input_window('快速搜索', body_value='请输入搜索关键词，多个关键词之间用空格隔开。',
+    res = show_window_input('快速搜索', body_value='请输入搜索关键词，多个关键词之间用空格隔开。',
      init_value=tmp_search_value)
     if res is not None:
         exec_clear_entry(v_search)
@@ -3180,14 +3187,14 @@ def show_popup_menu_main(event):
     设置菜单的弹出
     '''
     menu_main = tk.Menu(window, tearoff=0)
-    menu_main.add_command(label='参数设置', command=show_form_setting)
+    menu_main.add_command(label='参数设置', command=show_window_setting)
     menu_main.add_separator()
-    # menu_main.add_command(label='使用说明')#,command=show_my_help)
-    menu_main.add_command(label='访问主页（联网）', command=show_my_help)
-    menu_main.add_command(label='建议和反馈（联网）', command=show_my_advice)
-    menu_main.add_command(label='关于', command=show_info_window)
+    # menu_main.add_command(label='使用说明')#,command=show_online_help)
+    menu_main.add_command(label='访问主页（联网）', command=show_online_help)
+    menu_main.add_command(label='建议和反馈（联网）', command=show_online_advice)
+    menu_main.add_command(label='关于', command=show_window_info)
     menu_main.add_separator()
-    menu_main.add_command(label='退出', command=show_main_closing)
+    menu_main.add_command(label='退出', command=show_window_closing)
     #
     menu_main.post(event.x_root, event.y_root)
 
@@ -3463,8 +3470,9 @@ class main_app:
 
 if __name__ == '__main__':
     # if True:
+    # 变量 ###########################################################
     q = queue.Queue()
-    # 变量
+    #
     #
     lst_files_to_go = []  # 所有文件的完整路径
     dT = []
@@ -3488,7 +3496,7 @@ if __name__ == '__main__':
     flag_root_folder = 0
     flag_sub_folders_changed = 0
     flag_file_changed = 0
-
+    ###########################################################
     #
     window = tk.Tk()  # 主窗口
     # %%
@@ -3596,7 +3604,7 @@ if __name__ == '__main__':
     vPDX = 10
     vPDY = 5
 
-    # bt_setting=ttk.Button(frameBtm,text='设置')#,command=show_form_setting)
+    # bt_setting=ttk.Button(frameBtm,text='设置')#,command=show_window_setting)
     # bt_setting.pack(side=tk.LEFT,expand=0,padx=5,pady=10)#,fill=tk.X) # 
 
     bt_folder_add = ttk.Button(frameFolderCtl, text='添加文件夹')  # state=tk.DISABLED,,command=setting_fun
@@ -3729,7 +3737,9 @@ if __name__ == '__main__':
 
     try:
         exec_add_tree_item(tree, dT)
-    except:
+    except Exception as e:
+        print(e)
+        print('初始化主列表发生错误')
         str_btm.set('已就绪')
         pass
 
@@ -3806,7 +3816,7 @@ if __name__ == '__main__':
     lable_sum = tk.Label(frameBtm, text=str_btm, textvariable=str_btm)
     lable_sum.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
 
-    bt_settings = ttk.Button(frameBtm, text='菜单')  # ,command=show_my_help)
+    bt_settings = ttk.Button(frameBtm, text='菜单')  # ,command=show_online_help)
     bt_settings.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
     bt_reload = ttk.Button(frameBtm, text='刷新', command=update_main_window)
@@ -3875,7 +3885,7 @@ if __name__ == '__main__':
     window.bind_all('<Control-t>', exec_input_new_tag_via_dialog)  # 快速输入标签。
 
     # 按钮功能绑定
-    # bt_setting.configure(command=show_form_setting) # 
+    # bt_setting.configure(command=show_window_setting) # 
     bt_folder_add.configure(command=exec_folder_add_click)  # 增加文件夹
     bt_folder_drop.configure(command=exec_folder_drop)  # 减少文件夹
     bt_settings.bind("<Button-1>", show_popup_menu_main)  # 菜单按钮

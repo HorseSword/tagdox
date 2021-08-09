@@ -35,10 +35,12 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.15.1.2'  # 版本号
+VER = 'v0.15.2.0'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.15.2.0 2021年8月9日
+将窗口模式的添加到设置项中。
 #### v0.15.1.2 2021年8月8日
 修复子文件夹重命名和新建的bug。
 #### v0.15.1.1 2021年8月7日
@@ -71,7 +73,7 @@ EXP_FOLDERS = ['_img']  # 排除文件夹名称，以后会加到自定义里面
 ALL_FOLDERS = 2  # 文件夹列表是否带“（全部）”,1 在前面，2在末尾，其余没有
 NOTE_NAME = '未命名笔记'  # 新建笔记的默认名称
 DRAG_FILES_ADD_TAG = True # 为拖拽进来的新增文件统一添加当前选中的标签
-TREE_SUB_SHOW = ['tag','sub_folder'][1] # 决定左侧布局是标签模式还是子文件夹模式。
+TREE_SUB_SHOW = ['tag','sub_folder'][1] # 决定左侧布局是标签模式还是子文件夹模式。// 可修改
 FOLDER_AS_TAG = 0 # 最后多少层文件夹名称，强制作为标签（即使不包括V_SEP）
 TAG_EASY = 1 # 标签筛选是严格模式还是简单模式，1是简单模式，名称有就行；0是严格模式。
 
@@ -101,8 +103,8 @@ OPT_DEFAULT = {
         "sep": "^",
         "vfolders": "2",
         "note_ext": ".docx",
-        "file_drag_enter": "copy"
-
+        "file_drag_enter": "copy",
+        "TREE_SUB_SHOW":TREE_SUB_SHOW
     },
     "folders": [
     ]
@@ -300,6 +302,7 @@ def set_json_options(key1, value1, need_write=True):
     '''
     修改设置项，以键值对的方式修改。
     会自动触发 exec_update_json（写入json文件）.
+    参数 need_write 代表了是否需要写入文件。默认是修改后立刻写入。
     '''
     global json_data
     opt_data = json_data['options']  # 设置
@@ -325,6 +328,7 @@ def load_json_file_data(load_settings=True, load_folders=True):
     global lst_my_path_long
     global lst_my_path_short
     global lst_my_path_long_selected
+    global TREE_SUB_SHOW
 
     need_init_json = 0
     try:
@@ -350,6 +354,10 @@ def load_json_file_data(load_settings=True, load_folders=True):
                 pass
             try:
                 FILE_DRAG_MOVE = opt_data['file_drag_enter']  # 默认拖动操作
+            except:
+                pass
+            try:
+                TREE_SUB_SHOW = opt_data['TREE_SUB_SHOW']  # 默认布局
             except:
                 pass
             print('加载基本参数成功')
@@ -2563,6 +2571,8 @@ def exec_search(event=None):
     选择标签之后、选择子文件夹后、输入搜索词按回车后触发。
     清空tree，并按照dT为tree增加行。
     '''
+    if TREE_SUB_SHOW =='sub_folder':
+        v_tag.configure(state=tk.DISABLED)
     exec_tree_clear(tree)
     # exec_add_tree_item(tree,dT,tag=tmp_tag)
     # if flag_sub_folders_changed == 1:
@@ -2570,6 +2580,8 @@ def exec_search(event=None):
         # (dT, lst_tags) =get_dt()
     exec_add_tree_item(tree, dT)
     tree.update()
+    if TREE_SUB_SHOW =='sub_folder':
+        v_tag.configure(state='readonly')
 
 
 def exec_after_sub_folders_choose(event=None):
@@ -2600,6 +2612,9 @@ def show_form_setting():  #
     '''
     global V_SEP, V_FOLDERS, NOTE_EXT, FILE_DRAG_MOVE
     global json_data
+    #
+    dict_file_drag={"复制":"copy", "移动":"move"}
+    dict_window_mode={"标签":"tag", "子文件夹":"sub_folder"}
 
     def setting_yes(event=None):
         '''
@@ -2607,21 +2622,38 @@ def show_form_setting():  #
         '''
         # 获得新参数
         global V_SEP, V_FOLDERS, NOTE_EXT, FILE_DRAG_MOVE
+        global TREE_SUB_SHOW
+        need_reboot=False
+        # 先处理要重启的：
+        #
+        if dict_window_mode[v_inp_mode.get()] != TREE_SUB_SHOW:
+            if tk.messagebox.askokcancel("请确认", "部分设置需要重启才能生效。确定要保存设置并【关闭程序】吗？"):
+                need_reboot=True
+            else:
+                return
         NOTE_EXT = v_inp_note_type.get()
         V_FOLDERS = v_inp_folder_depth.get()
         V_SEP = v_inp_sep.get()
         FILE_DRAG_MOVE = v_inp_drag_type.get()
+        TREE_SUB_SHOW=dict_window_mode[v_inp_mode.get()]
         #
         # 保存到设置文件中
-        set_json_options('sep', V_SEP)
-        set_json_options('vfolders', V_FOLDERS)
-        set_json_options('note_ext', NOTE_EXT)
-        set_json_options('file_drag_enter', FILE_DRAG_MOVE)
+        set_json_options('sep', V_SEP,need_write=False)
+        set_json_options('vfolders', V_FOLDERS,need_write=False)
+        set_json_options('note_ext', NOTE_EXT,need_write=False)
+        set_json_options('file_drag_enter', FILE_DRAG_MOVE,need_write=False)
+        set_json_options('TREE_SUB_SHOW', TREE_SUB_SHOW)
         #
         # 关闭窗口
         form_setting.destroy()
         # 然后刷新文件列表
-        update_main_window(None, reload_setting=True)
+        if need_reboot:
+            window.destroy()
+        else:
+            update_main_window(None, reload_setting=True)
+        pass
+    
+    def add_combo():
         pass
 
     form_setting = tk.Toplevel(window)
@@ -2633,8 +2665,11 @@ def show_form_setting():  #
     screenheight = SCREEN_HEIGHT
     w_width = 400  # int(screenwidth*0.8)
     w_height = 260  # int(screenheight*0.8)
-    x_pos = (screenwidth - w_width) / 2
-    y_pos = (screenheight - w_height) / 2
+    # 主窗口中央：
+    x_pos=window.winfo_x()+(window.winfo_width()-w_width)/2
+    y_pos=window.winfo_y()+(window.winfo_height()-w_height)/2
+    # x_pos = (screenwidth - w_width) / 2
+    # y_pos = (screenheight - w_height) / 2
     form_setting.geometry('%dx%d+%d+%d' % (w_width, w_height, x_pos, y_pos))
     form_setting.deiconify()
     form_setting.lift()
@@ -2689,8 +2724,9 @@ def show_form_setting():  #
 
     # 拖动是移动还是复制
     nr += 1
-    lable_drag_type = tk.Label(frame_setting1, text='拖拽添加文件的操作')
-    lable_drag_type.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
+    # lable_drag_type
+    lable_ = tk.Label(frame_setting1, text='拖拽添加文件的操作')
+    lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
 
     v_inp_drag_type = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
     tmp_list = ['move', 'copy']
@@ -2700,6 +2736,21 @@ def show_form_setting():  #
     tmp_n = tmp_list.index(FILE_DRAG_MOVE)
     v_inp_drag_type.current(tmp_n)
     v_inp_drag_type.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
+    
+    # 布局是标签模式还是子文件夹模式
+    nr += 1
+    lable_ = tk.Label(frame_setting1, text='显示模式（*需要重启）')
+    lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
+    #
+    v_inp_mode = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
+    v_inp_mode['values'] = list(dict_window_mode.keys())
+    v_inp_mode['state'] = 'readonly'
+    v_inp_mode.current(0)
+    tmp_list=list(dict_window_mode.values())
+    print(tmp_list)
+    tmp_n = tmp_list.index(TREE_SUB_SHOW)
+    v_inp_mode.current(tmp_n)
+    v_inp_mode.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
 
     # 下面的设置区域
     nr = 10

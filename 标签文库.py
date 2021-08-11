@@ -35,10 +35,14 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.15.2.1'  # 版本号
+VER = 'v0.15.2.3'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.15.2.3 2021年8月11日
+优化部分界面显示。
+#### v0.15.2.2 2021年8月9日
+修复单击相同的主文件夹会导致子文件夹消失的bug。
 #### v0.15.2.1 2021年8月9日
 优化排序逻辑，现在大小写放在一起排序。
 #### v0.15.2.0 2021年8月9日
@@ -142,7 +146,8 @@ def exec_tree_clear(tree_obj) -> None:  #
 def safe_get_name(new_name) -> str:
     '''
 
-    输入目标全路径，返回安全的新路径（可用于重命名、新建等）
+    输入: 目标全路径; 
+    返回: 安全的新路径（可用于重命名、新建等）
     输入和输出都是字符串。
 
     '''
@@ -857,8 +862,8 @@ def show_window_info():
     '''
     screenwidth = SCREEN_WIDTH
     screenheight = SCREEN_HEIGHT
-    w_width = 600
-    w_height = 500
+    w_width = 660
+    w_height = 560
     info_window = tk.Toplevel(window)
     info_window.geometry(
         '%dx%d+%d+%d' % (w_width, w_height, (screenwidth - w_width) / 2, (screenheight - w_height) / 2))
@@ -881,7 +886,9 @@ def show_window_info():
     tmp.pack()
     tmp = tk.Label(info_frame, text='\n马剑 个人开发')
     tmp.pack()
-    tmp = tk.Label(info_frame, text='版本：' + VER + '\n')
+    tmp = tk.Label(info_frame, text='版本：' + VER + '')
+    tmp.pack()
+    tmp = tk.Label(info_frame, text='Powered by Python and Tkinter\n')
     tmp.pack()
 
     global p_logo
@@ -1662,7 +1669,7 @@ def exec_add_tree_item(tree, dT) -> None:
     关键函数：增加主框架的内容
     先获得搜索项目以及 tag
     '''
-    global PIC_LST
+    # global PIC_LST
 
     str_btm.set('正在刷新列表……')
     time0 = time.time()
@@ -1742,12 +1749,17 @@ def exec_add_tree_item(tree, dT) -> None:
                 tree.insert('', k, values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]), tags=['line1'])
             else:
                 tree.insert('', k, values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]))
+    
+
         # if k % refresh_unit==0: # 刷新
         #     refresh_unit=refresh_unit*refresh_unit
         #     if flag_inited:
         #         set_prog_bar(99+1*n/n_max)
         #     tree.update() # 提前刷新，优化用户体验
         #     # str_btm.set('即将完成……')
+    
+    tree.tag_configure('line1',background="#666666")
+
     print('添加列表项消耗时间：')
     print(time.time() - time0)
 
@@ -2170,7 +2182,8 @@ def exec_input_new_tag_via_dialog(event=None):
     '''
     # 没有选中项的时候，直接跳过
     if len(tree.selection()) ==0:
-        print('没有选中项目')
+        t = tk.messagebox.showerror(title='错误', message='添加标签之前，请先选中至少一个文件。')
+        print('没有选中任何项目')
         return
 
     new_tag = show_window_input('添加标签', '请输入标签', '')
@@ -2440,51 +2453,76 @@ def get_folder_s2l(folder_short_name):
 
 def exec_after_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文件夹之后
     '''
-    选择左侧文件夹后启动。
+    选择左侧文件夹后启动。\n
+    参数：refresh：默认是1，代表了运行之后是否刷新列表。\n
+    sub_folder：输入完整路径，但是没有被任何函数调用过
     '''
-    if TREE_SUB_SHOW=='tag':
-        pass
-    else:
-        exec_tree_clear(tree_lst_sub_folder)#新增语句
+    # 
+    # if TREE_SUB_SHOW=='tag':
+    #     pass
+    # elif TREE_SUB_SHOW=='sub_folder': # 如果是子文件夹模式，先清空子文件夹；
+    #     exec_tree_clear(tree_lst_sub_folder) # 新增语句
+    #     pass
 
-    global lst_my_path_long_selected, flag_running, flag_root_folder
+    global lst_my_path_long_selected # 
+    global flag_running 
+    global flag_root_folder
     #
     flag_root_folder = 1
     # if flag_running: # 如果正在查，就先不启动新任务。这样处理还不理想。
     # return
     print('调用 exec_after_folder_choose 函数')
-    if sub_folder is None:
+    #
+    # 缓存之前选中的文件夹；
+    #
+    if sub_folder is None: # 如果没有指定输入参数
         lst_path_ori = lst_my_path_long_selected.copy()
     else:
         lst_path_ori = []
-
-    tmp = get_folder_short()
-    if tmp == '':
+    #
+    # 
+    #
+    folder_short = get_folder_short() # 获取当前选中的文件夹；
+    need_disabled=0
+    #
+    if folder_short == '': # 如果主文件夹是全部；
         lst_my_path_long_selected = lst_my_path_long.copy()
         # 设置按钮为无效
+        need_disabled=1
+    #
+    # 如果有参数指定的子文件夹：（未开放）
+    elif sub_folder is not None:
+        folder_short = sub_folder
+        lst_my_path_long_selected = [folder_short] # 将传入的文件夹路径保存起来
+        # 设置按钮有效
+        need_disabled=0
+        pass
+    # 如果是其他文件夹，获取新选中的完整路径；
+    else:
+        folder_long = get_folder_s2l(folder_short)  # 将显示值转换为实际值
+        lst_my_path_long_selected = [folder_long]
+        # 设置按钮有效
+        need_disabled=0
+    # 
+    # 调整按钮和控件的可用性：
+    if need_disabled:
         bt_new.configure(state=tk.DISABLED)
         bt_folder_drop.configure(state=tk.DISABLED)
         v_sub_folders.current(0)
         v_sub_folders.configure(state=tk.DISABLED)
-
-    elif sub_folder is not None:
-        tmp = sub_folder
-        lst_my_path_long_selected = [tmp]
-        # 设置按钮有效
-        bt_new.configure(state=tk.NORMAL)
-        bt_folder_drop.configure(state=tk.NORMAL)
-        v_sub_folders.configure(state='readonly')
-        pass
     else:
-        tmp = get_folder_s2l(tmp)  # 将显示值转换为实际值
-        lst_my_path_long_selected = [tmp]
-        # 设置按钮有效
         bt_new.configure(state=tk.NORMAL)
         bt_folder_drop.configure(state=tk.NORMAL)
         v_sub_folders.configure(state='readonly')
-
-    if not lst_path_ori == lst_my_path_long_selected:  # 如果前后的选项没有变化的话，就不刷新文件夹列表
-        if refresh == 1:
+    #
+    # 如果前后的选项没有变化的话，就不刷新文件夹列表
+    #
+    if lst_path_ori == lst_my_path_long_selected: # 如果选项没变化
+        pass
+    else:  # 选项发生变化：
+        if TREE_SUB_SHOW=='sub_folder':
+            exec_tree_clear(tree_lst_sub_folder) # 新增语句
+        if refresh:
             # update_main_window(lst_my_path_long_selected)
             update_main_window(CLEAR_AFTER_CHANGE_FOLDER,fast_mode=True)
         tree.yview_moveto(0)
@@ -2610,6 +2648,7 @@ def exec_after_sub_folders_choose(event=None):
     elif TREE_SUB_SHOW=='sub_folder': # 子文件夹模式切换的时候，清空标签
         set_search_tag_selected(0)
 
+
 # %%
 
 
@@ -2671,7 +2710,7 @@ def show_window_setting():  #
     screenwidth = SCREEN_WIDTH
     screenheight = SCREEN_HEIGHT
     w_width = 400  # int(screenwidth*0.8)
-    w_height = 260  # int(screenheight*0.8)
+    w_height = 300  # int(screenheight*0.8)
     # 主窗口中央：
     x_pos=window.winfo_x()+(window.winfo_width()-w_width)/2
     y_pos=window.winfo_y()+(window.winfo_height()-w_height)/2
@@ -3187,12 +3226,12 @@ def show_popup_menu_main(event):
     设置菜单的弹出
     '''
     menu_main = tk.Menu(window, tearoff=0)
-    menu_main.add_command(label='参数设置', command=show_window_setting)
+    menu_main.add_command(label='参数设置…', command=show_window_setting)
     menu_main.add_separator()
     # menu_main.add_command(label='使用说明')#,command=show_online_help)
     menu_main.add_command(label='访问主页（联网）', command=show_online_help)
     menu_main.add_command(label='建议和反馈（联网）', command=show_online_advice)
-    menu_main.add_command(label='关于', command=show_window_info)
+    menu_main.add_command(label='关于…', command=show_window_info)
     menu_main.add_separator()
     menu_main.add_command(label='退出', command=show_window_closing)
     #
@@ -3460,13 +3499,53 @@ def show_popup_menu_file(event):
         menu_file_no_selection.post(event.x_root, event.y_root)
 
 
+def set_style(style):
+    # style = ttk.Style()
+    MY_THEME=False
+    if MY_THEME:
+        style.theme_use('winnative')
+        #
+        # treeview
+        style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
+                        rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4), \
+                        relief='flat',borderwidth=0)
+
+        style.configure("Treeview", font=FONT_TREE_BODY, \
+                        rowheight=int(MON_FONTSIZE * 3.5), \
+                        fieldbackground='white',background='#666666', \
+                        relief='flat',borderwidth=0)
+        # style.configure("Treeview.Item",font=5)
+        style.configure("Dark.Treeview", fieldbackground='#333333',background='black')
+        style.configure("Dark.Treeview.Heading", fieldbackground='blue', \
+            background='black',foreground='white')
+        #
+        # 框架
+        style.configure("TFrame",fieldbackground='white',background='#EEEEEE', \
+            borderwidth=0, relief='flat'
+            )
+        # 
+        # 按钮
+        style.configure("TButton",fieldbackground='#666666',background='#999900', \
+            activeforeground=" #ff0000",activebackground="#00ff00",
+            height=20,
+            borderwidth=1,relief='flat')
+        #
+        style.configure("TEntry",fieldbackground='#FFFFFF',background='#EEEEEE', \
+            borderwidth=1,relief='solid')
+        
+
+    else:
+        style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
+                        rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4))
+        style.configure("Treeview", font=FONT_TREE_BODY, \
+                        rowheight=int(MON_FONTSIZE * 3.5))
+    pass
+
+
 # %%
 class main_app:
     def __init__(self) -> None:
         pass
-
-###########################################################
-###########################################################
 
 if __name__ == '__main__':
     # if True:
@@ -3502,6 +3581,34 @@ if __name__ == '__main__':
     # %%
     PIC_LST = [tk.PhotoImage(file="./src/龙猫.gif")]
     IMAGE_FOLDER = tk.PhotoImage(file='./src/在线帮助.png')
+    #
+    # 样式
+    style = ttk.Style()
+    set_style(style)
+
+    # MY_THEME=True
+    # if MY_THEME:
+    #     style.theme_use('winnative')
+    #     style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
+    #                     rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4))
+    #     style.configure("Treeview", font=FONT_TREE_BODY, \
+    #                     rowheight=int(MON_FONTSIZE * 3.5),fieldbackground='#333333',background='#666666')
+    #     style.configure("Dark.Treeview", fieldbackground='#333333',background='black')
+    #     style.configure("Dark.Treeview.Heading", fieldbackground='blue', \
+    #         background='black',foreground='white')
+    #     style.configure("Frame",fieldbackground='white',background='white')
+    #     # 
+    #     # 按钮
+    #     style.configure("TButton",fieldbackground='blue',background='blue', \
+    #         )
+        
+
+    # else:
+    #     style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
+    #                     rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4))
+    #     style.configure("Treeview", font=FONT_TREE_BODY, \
+    #                     rowheight=int(MON_FONTSIZE * 3.5))
+    #
     # 通用函数
     try:  # 调整清晰度
         # 放在这里，是为了兼容不能打开ctypes的计算机。
@@ -3578,7 +3685,7 @@ if __name__ == '__main__':
     # frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
 
     # 上面功能区
-    frame0 = ttk.LabelFrame(window, text='', height=80)  # ,width=600)
+    frame0 = ttk.LabelFrame(window,  height=80)#, borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
     frame0.pack(expand=0, fill=tk.X, padx=10, pady=5)
 
     # 主功能区
@@ -3649,6 +3756,7 @@ if __name__ == '__main__':
                                         show="headings",
                                         # show="tree",
                                         # cursor='hand2',
+                                        # style="Dark.Treeview",
                                         yscrollcommand=bar_sub_folder_v.set)  # , height=18)
 
         tree_lst_sub_folder.heading("folders", text="子文件夹", anchor='w')
@@ -3744,11 +3852,12 @@ if __name__ == '__main__':
         pass
 
     # 样式
-    style = ttk.Style()
-    style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
-                    rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4))
-    style.configure("Treeview", font=FONT_TREE_BODY, \
-                    rowheight=int(MON_FONTSIZE * 3.5))
+    # style = ttk.Style()
+    # style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
+    #                 rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4))
+    # style.configure("Treeview", font=FONT_TREE_BODY, \
+    #                 rowheight=int(MON_FONTSIZE * 3.5))
+    # style.configure("Dark.Treeview", background='blue')
     # style.configure("Button",font=('微软雅黑', 12))
 
     # style.configure("Treeview.Heading", font=(None, 12),rowheight=60)
@@ -3825,17 +3934,17 @@ if __name__ == '__main__':
     bt_new = ttk.Button(frameBtm, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
     bt_new.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
-    bt_add_tag = ttk.Button(frameBtm, text='添加标签', command=input_new_tag)
+    bt_add_tag = ttk.Button(frameBtm, text='添加标签',command=exec_input_new_tag_via_dialog)#, command=input_new_tag
     bt_add_tag.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
     # 新标签的输入框
     v_inp = ttk.Combobox(frameBtm, width=16)
-    v_inp.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
+    # v_inp.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
     v_inp.bind('<Return>', input_new_tag)
     v_inp['value'] = lst_tags
 
     lable_tag = tk.Label(frameBtm, text='添加新标签')
-    lable_tag.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
+    # lable_tag.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
     # 设置拖拽反映函数
     windnd.hook_dropfiles(tree_lst_folder, func=exec_folder_add_drag)
@@ -3888,7 +3997,9 @@ if __name__ == '__main__':
     # bt_setting.configure(command=show_window_setting) # 
     bt_folder_add.configure(command=exec_folder_add_click)  # 增加文件夹
     bt_folder_drop.configure(command=exec_folder_drop)  # 减少文件夹
-    bt_settings.bind("<Button-1>", show_popup_menu_main)  # 菜单按钮
+    # bt_folder_drop.configure(command=exec_input_new_tag_via_dialog)  # 加标签
+    # bt_settings.configure(command=show_popup_menu_main)  # 菜单按钮
+    bt_settings.bind("<ButtonRelease-1>", show_popup_menu_main)  # 菜单按钮
     bt_new.configure(command=exec_create_note)
 
     bar_tree_v.config(command=tree.yview)

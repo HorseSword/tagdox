@@ -35,10 +35,12 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.15.2.4'  # 版本号
+VER = 'v0.15.2.5'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.15.2.5 2021年8月12日
+优化部分UI显示。
 #### v0.15.2.4 2021年8月12日
 优化部分UI显示，增加框架底纹。
 #### v0.15.2.3 2021年8月11日
@@ -3514,12 +3516,19 @@ def fixed_map(option):
     return [elm for elm in style.map('Treeview', query_opt=option) if
             elm[:2] != ('!disabled', '!selected')]
 
+def fixed_map_v2(tar,option):
+    return [elm for elm in style.map(tar, query_opt=option) if
+            elm[:2] != ('!disabled', '!selected')]
 
 def set_style(style):
     # style = ttk.Style()
+    # 修复 treeview 背景色的bug；
+    style.map('Treeview', foreground=fixed_map('foreground'), background=fixed_map('background'))
+    style.map('TFrame', foreground=fixed_map_v2('Frame','foreground'), background=fixed_map_v2('Frame','background'))
+    
     MY_THEME=False
     if MY_THEME:
-        style.theme_use('winnative')
+        style.theme_use('alt') #  winnative
         #
         # treeview
         style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
@@ -3537,8 +3546,7 @@ def set_style(style):
         #
         # 框架
         style.configure("TFrame",fieldbackground='white',background='#EEEEEE', \
-            borderwidth=0, relief='flat'
-            )
+            borderwidth=0, relief='flat')
         # 
         # 按钮
         style.configure("TButton",fieldbackground='#666666',background='#999900', \
@@ -3555,7 +3563,16 @@ def set_style(style):
                         rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4))
         style.configure("Treeview", font=FONT_TREE_BODY, \
                         rowheight=int(MON_FONTSIZE * 3.5),relief='flat',borderwidth=0)
-        style.map('Treeview', foreground=fixed_map('foreground'), background=fixed_map('background'))
+        # style.configure("Dark.TFrame", fieldbackground='#333333',background='#666666',
+        #     foreground='white')
+        # style.configure("Dark.Treeview", fieldbackground='#333333',background='#666666',
+        #     foreground='white')
+        # style.configure("Dark.Treeview.Heading", fieldbackground='blue', \
+        #     background='#888800',foreground='#999999')
+        style.configure("Dark.TFrame")
+        style.configure("Dark.Treeview")
+        style.configure("Dark.Treeview.Heading")
+
     pass
     
     # style.tag_configure('line1',background="#EEEEEE")
@@ -3681,21 +3698,27 @@ if __name__ == '__main__':
 
     ####################################################################
     # 框架设计
-    frame_window=ttk.Frame(window,padding=(2,2,2,2),relief='flat',borderwidth=0) 
-    frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=5, pady=5)
+    frame_window=ttk.Frame(window,padding=(1,1,1,1),relief='flat',borderwidth=0) 
+    frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=3, pady=3)
     # 文件夹区
-    frameLeft = ttk.Frame(frame_window, width=int(w_width * 0.4),padding=(0,0,0,0),relief='groove')  # ,width=600)
+    frameLeft = ttk.Frame(frame_window, 
+        # style="Dark.Treeview",
+        width=int(w_width * 0.4),
+        padding=(0,0,0,0),
+        borderwidth=0,
+        relief='flat')  # ,width=600)
     frameLeft.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
     # for i in range(2):
     # frameLeft.rowconfigure(i,weight=1)
 
-    frameFolder = ttk.Frame(frameLeft,relief='groove', height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
-    frameFolder.pack(side=tk.TOP, expand=1, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
+    frameFolder = ttk.Frame(frameLeft,relief='flat', borderwidth=0,
+        height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
+    frameFolder.pack(side=tk.TOP, expand=1, fill=tk.Y, padx=0, pady=2)  # padx=10,pady=5)
     # frameFolder.grid(column=0,row=0)
 
     # 子文件夹区
-    frameSubFolder = ttk.Frame(frameLeft,relief='groove')  # ,width=600)
-    frameSubFolder.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
+    frameSubFolder = ttk.Frame(frameLeft,relief='flat')  # ,width=600)
+    frameSubFolder.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=0, pady=2)  # padx=10,pady=5)
     # 同位置的标签区
     # frameSubTags = ttk.Frame(frameLeft)  # ,width=600)
     # frameSubTags.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=10, pady=5)  # padx=10,pady=5)
@@ -3777,7 +3800,7 @@ if __name__ == '__main__':
                                         show="headings",
                                         # show="tree",
                                         # cursor='hand2',
-                                        # style="Dark.Treeview",
+                                        style="Dark.Treeview",
                                         yscrollcommand=bar_sub_folder_v.set)  # , height=18)
 
         tree_lst_sub_folder.heading("folders", text="子文件夹", anchor='w')
@@ -3902,7 +3925,7 @@ if __name__ == '__main__':
 
     if TREE_SUB_SHOW=='sub_folder':
         lable_tag = tk.Label(frame0, text='标签')
-        lable_tag.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
+        lable_tag.pack(side=tk.LEFT, expand=0, padx=2, pady=vPDY)  #
 
     set_search_tag_values(lst_tags)
     v_tag['state'] = 'readonly'  # 只读
@@ -3945,7 +3968,7 @@ if __name__ == '__main__':
     progressbar_file.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY)
 
     lable_sum = tk.Label(frameBtm, text=str_btm, textvariable=str_btm)
-    lable_sum.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
+    lable_sum.pack(side=tk.LEFT, expand=0, padx=2, pady=vPDY)  #
 
     bt_settings = ttk.Button(frameBtm, text='菜单')  # ,command=show_online_help)
     bt_settings.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
@@ -4033,10 +4056,9 @@ if __name__ == '__main__':
     # b.bind_widget(bt_clear,balloonmsg='test',statusmsg=None)
     #
     # 样式
-    tree_lst_folder.tag_configure('line1',background="#EEEEEE")
-    tree_lst_sub_folder.tag_configure('line1',background="#EEEEEE")
-    tree_lst_sub_tag.tag_configure('line1',background="#EEEEEE")
-    tree.tag_configure('line1',background="#EEEEEE")
+    for tar in [tree_lst_folder,tree_lst_sub_folder,tree_lst_sub_tag,tree]:
+        tar.tag_configure('line1',background="#F2F2F2")
+
     # 运行
 
     window.iconbitmap(LOGO_PATH)  # 左上角图标

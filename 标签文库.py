@@ -5,6 +5,7 @@ Created on Thu Jun 17 09:28:24 2021
 @author: MaJian
 """
 
+import multiprocessing
 import os
 import tkinter as tk
 from tkinter import ttk
@@ -21,7 +22,7 @@ from os.path import isdir
 from os.path import isfile
 import time
 import threading  # 多线程
-from multiprocessing import Pool
+from multiprocessing import Pool # 进程
 from multiprocessing import Process
 # from docx import Document# 用于创建word文档
 # import ctypes # 用于调整分辨率 #
@@ -35,10 +36,12 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.15.2.5'  # 版本号
+VER = 'v0.16.0.0'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.16.0.0 2021年8月12日
+启动时增加后台进程，显著提高数据加载速度。
 #### v0.15.2.5 2021年8月12日
 优化部分UI显示。
 #### v0.15.2.4 2021年8月12日
@@ -477,7 +480,7 @@ def set_prog_bar(inp, maxv=100):
         pass
 
 
-def get_data(ipath=None, update_sub_path=1,need_set_prog=True):
+def get_data(ipath=None, update_sub_path=1,need_set_prog=True,is_global=True):
     '''
     根据所传入的文件夹列表 ipath，
     （1）刷新 子文件夹列表。
@@ -489,7 +492,12 @@ def get_data(ipath=None, update_sub_path=1,need_set_prog=True):
     '''
     print('调用 get_data 函数')
 
-    global lst_sub_path
+    if is_global:
+        global lst_sub_path
+    else:
+        lst_sub_path=[]
+        pass
+
     global flag_running  # 必须要有这句话，否则不能修改公共变量
 
     if ipath is None:
@@ -717,15 +725,90 @@ def sub_get_dt(lst_file_in):
     return tmp_dt
 
 
+def update_data(lst1):
+    '''
+    用于后台加载数据
+    '''
+    print('———— 后台数据加载开始 ————')
+
+    lst_files_to_go=[]
+    n=0
+    flag_break=0
+
+    global dicT
+
+    for vPath in lst1:
+        n += 1 # 第一轮循环的时候n就是2
+        #
+
+        for root, dirs, files in os.walk(vPath):
+            tmp = []
+            vpass = 0
+            #
+            #
+            # 文件
+            if '_nomedia' in files:
+                vpass=1
+                continue
+                # break # 这里可能不应该用break
+
+            #
+            tmp_path = get_split_path(root) # 对每个根文件夹，检查
+            for tmp2 in tmp_path:
+                if len(tmp2)<1:
+                    continue
+                if tmp2 in EXP_FOLDERS:
+                    vpass = 1
+                    break
+                elif tmp2[0] == '.':  # 排除.开头的文件夹内容
+                    vpass = 1
+                    break
+            #
+            
+            for name in files:
+                tmp.append(os.path.join(root, name))
+                # if name == '_nomedia':
+                #     vpass = 1
+                #     break  # 之前居然没写break，难怪那么慢
+
+            if not vpass == 1:
+                #
+                lst_files_to_go += tmp
+
+            if flag_break:  # 强行中断
+                break
+        if flag_break:
+            break
+
+    for one_file in lst_files_to_go:
+        # 先查字典，这样可以显著加速查询
+        if one_file in dicT.keys():
+            pass
+        else:
+            tmp = get_file_part(one_file)
+            tmp_v = (str(tmp['fname_0']), tmp['ftags'], str(tmp['file_mdf_time']), tmp['fsize'], str(tmp['full_path']))
+            try:
+                dicT[one_file]=tmp_v
+            except Exception as e:
+                print(e)
+                pass
+
+    print('———— 后台数据加载完毕 ————')
+
+
 def get_dt(lst_file0=None,need_set_prog=True,FAST_MODE=True):
     '''
     是最消耗时间的函数，也是获取数据的核心函数。
-    输入参数是文件列表，缺省值是来自于 get_data() 函数的 lst_files_to_go ，提供了所有文件。
+    输入参数是文件列表，lst_file0。
+    这个参数的缺省值是来自于 get_data() 函数的 lst_files_to_go ，提供了所有文件。
 
-    根据 lst_files_to_go 里面的文件列表，返回 (dT, lst_tags) .
-    无需输入参数，自动找变量。
+    根据 lst_files_to_go 里面的文件列表，返回 (dT, lst_tags) .\n
+    注意这里(dT, lst_tags)都不是全局变量，需要从返回值获得。
+    
+    只有 dicT 是全局变量，用于存储临时值，加快运行速度。
     '''
     print('进入 get_dt 函数')
+    global dicT #
 
     if flag_break:
         return (None, None)
@@ -788,7 +871,7 @@ def get_dt(lst_file0=None,need_set_prog=True,FAST_MODE=True):
         #
         #
     else:# 单线程
-        global dicT #
+        
         for one_file in lst_file0:
 
             # 更新进度条
@@ -816,7 +899,11 @@ def get_dt(lst_file0=None,need_set_prog=True,FAST_MODE=True):
                 # tmp_v=[tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['full_path']]
                 # tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['full_path'])
                 tmp_v = (str(tmp['fname_0']), tmp['ftags'], str(tmp['file_mdf_time']), tmp['fsize'], str(tmp['full_path']))
-                dicT[one_file]=tmp_v
+                try:
+                    dicT[one_file]=tmp_v
+                except Exception as e:
+                    print(e)
+                    pass
             # if not tmp_v in dT:
             #     dT.append(tmp_v) # 查重有点费时间
             dT.append(tmp_v)
@@ -3343,7 +3430,7 @@ def exec_file_drop_tag(event=None):
             tmp_final_name = exec_safe_rename(tmp_full_name, new_full_name)
         res_lst.append(new_full_name)
     
-    update_main_window(0)  # 此处可以优化，避免完全重载
+    update_main_window(0,fast_mode=True)  # 此处可以优化，避免完全重载
     exec_tree_find_lst(res_lst)
     # for tmp_final_name in res_lst:
     #     tmp_final_name = tmp_final_name.replace('\\', '/')
@@ -4066,4 +4153,9 @@ if __name__ == '__main__':
     set_prog_bar(0)
     # update_sub_folder_list(lst_sub_path)
     # bt_add_tag.pack_forget()
+
+    if True:
+        sub_task=threading.Thread(target=update_data,args=(lst_my_path_long,))
+        sub_task.start()
+
     window.mainloop()

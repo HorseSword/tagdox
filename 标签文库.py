@@ -35,10 +35,12 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.15.2.3'  # 版本号
+VER = 'v0.15.2.4'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.15.2.4 2021年8月12日
+优化部分UI显示，增加框架底纹。
 #### v0.15.2.3 2021年8月11日
 优化部分界面显示。
 #### v0.15.2.2 2021年8月9日
@@ -1211,21 +1213,23 @@ def update_folder_list():
     global tree_lst_folder
 
     exec_tree_clear(tree_lst_folder)
-    tmp = 0
+    tmp = 1
     if ALL_FOLDERS == 1:
-        tree_lst_folder.insert('', tmp, values=("（全部）"))
+        tree_lst_folder.insert('', tmp, values=("（全部）"),tags=['line1'] if tmp%2==0 else ['line2'])
+    
     for i in lst_my_path_short:
         tmp += 1
         print(i)
-        tree_lst_folder.insert('', tmp, values=(str(i)))  # 此处有bug，对存在空格的不可用
+        tree_lst_folder.insert('', tmp, values=(str(i)),tags=['line1'] if tmp%2==0 else ['line2'])  # 此处有bug，对存在空格的不可用
         # image=IMAGE_FOLDER,
     if ALL_FOLDERS == 2:
-        tree_lst_folder.insert('', tmp, values=("（全部）"))
+        tmp+=1
+        tree_lst_folder.insert('', tmp, values=("（全部）"),tags=['line1'] if tmp%2==0 else ['line2'])
         # tree_lst_folder.insert(tk.END,i)
     try:
-        tmp = tree_lst_folder.get_children()[0]
+        to_selct = tree_lst_folder.get_children()[0]
         # tree_lst_folder.focus(tmp)
-        tree_lst_folder.selection_set(tmp)
+        tree_lst_folder.selection_set(to_selct)
     except:
         pass
 
@@ -1266,7 +1270,7 @@ def update_sub_folder_list(sub_folder_list=None, refresh=True):
     tmp = 0
     #
     # 先插入一个“全部”
-    tree_lst_sub_folder.insert('', tmp, values=("（全部）"))
+    tree_lst_sub_folder.insert('', tmp, values=("（全部）"),tags=['line1'] if tmp%2==0 else ['line2'])
     # 排序
     sub_folder_list = sorted(sub_folder_list, key=lambda x: str.lower(x.replace('\xa0', ' ')).encode('gbk'))
     #
@@ -1275,7 +1279,7 @@ def update_sub_folder_list(sub_folder_list=None, refresh=True):
             continue
         tmp += 1
         print(i)
-        tree_lst_sub_folder.insert('', tmp, values=(i,))  # 必须加逗号，否则对存在空格的不可用
+        tree_lst_sub_folder.insert('', tmp, values=(i,),tags=['line1'] if tmp%2==0 else ['line2'])  # 必须加逗号，否则对存在空格的不可用
         # image=IMAGE_FOLDER,
     # 
     # 恢复之前的选项；
@@ -1421,14 +1425,14 @@ def set_search_tag_values(v_lst):
     #     return
 
     tmp = 0
-    tree_lst_sub_tag.insert('', tmp, values=("（全部）"))
+    tree_lst_sub_tag.insert('', tmp, values=("（全部）"),tags=['line1'] if tmp%2==0 else ['line2'])
     
     for i in v_lst:
         tmp += 1
         # print(i)
         if str(i).strip()=='':
             continue
-        tree_lst_sub_tag.insert('', tmp, values=(i,))  # 必须加逗号，否则对存在空格的不可用
+        tree_lst_sub_tag.insert('', tmp, values=(i,),tags=['line1'] if tmp%2==0 else ['line2'])  # 必须加逗号，否则对存在空格的不可用
         # image=IMAGE_FOLDER,
     tree_lst_sub_tag.update()
     try:
@@ -1686,12 +1690,13 @@ def exec_add_tree_item(tree, dT) -> None:
     n_max = len(dT)
     refresh_unit = 4
     print(f'检查的路径是{res_path}')
+
     for i in range(len(dT)): # 对每一条进行测试：
         n += 1
 
         tmp = dT[i]
         try:
-            if str(tmp[0]).startswith('~$'):  # 排除word临时文件
+            if str(tmp[0]).startswith('~'):  # 排除word临时文件
                 continue
         except Exception as e:
             print(e)
@@ -1748,7 +1753,7 @@ def exec_add_tree_item(tree, dT) -> None:
             if k % 2 == 1:
                 tree.insert('', k, values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]), tags=['line1'])
             else:
-                tree.insert('', k, values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]))
+                tree.insert('', k, values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]), tags=['line2'])
     
 
         # if k % refresh_unit==0: # 刷新
@@ -1757,8 +1762,6 @@ def exec_add_tree_item(tree, dT) -> None:
         #         set_prog_bar(99+1*n/n_max)
         #     tree.update() # 提前刷新，优化用户体验
         #     # str_btm.set('即将完成……')
-    
-    tree.tag_configure('line1',background="#666666")
 
     print('添加列表项消耗时间：')
     print(time.time() - time0)
@@ -3499,6 +3502,19 @@ def show_popup_menu_file(event):
         menu_file_no_selection.post(event.x_root, event.y_root)
 
 
+def fixed_map(option):
+    # Fix for setting text colour for Tkinter 8.6.9
+    # From: https://core.tcl.tk/tk/info/509cafafae
+    #
+    # Returns the style map for 'option' with any styles starting with
+    # ('!disabled', '!selected', ...) filtered out.
+
+    # style.map() returns an empty list for missing options, so this
+    # should be future-safe.
+    return [elm for elm in style.map('Treeview', query_opt=option) if
+            elm[:2] != ('!disabled', '!selected')]
+
+
 def set_style(style):
     # style = ttk.Style()
     MY_THEME=False
@@ -3538,8 +3554,11 @@ def set_style(style):
         style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
                         rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4))
         style.configure("Treeview", font=FONT_TREE_BODY, \
-                        rowheight=int(MON_FONTSIZE * 3.5))
+                        rowheight=int(MON_FONTSIZE * 3.5),relief='flat',borderwidth=0)
+        style.map('Treeview', foreground=fixed_map('foreground'), background=fixed_map('background'))
     pass
+    
+    # style.tag_configure('line1',background="#EEEEEE")
 
 
 # %%
@@ -3662,39 +3681,40 @@ if __name__ == '__main__':
 
     ####################################################################
     # 框架设计
-
+    frame_window=ttk.Frame(window,padding=(2,2,2,2),relief='flat',borderwidth=0) 
+    frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=5, pady=5)
     # 文件夹区
-    frameLeft = ttk.Frame(window, width=int(w_width * 0.4))  # ,width=600)
+    frameLeft = ttk.Frame(frame_window, width=int(w_width * 0.4),padding=(0,0,0,0),relief='groove')  # ,width=600)
     frameLeft.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
     # for i in range(2):
     # frameLeft.rowconfigure(i,weight=1)
 
-    frameFolder = ttk.Frame(frameLeft, height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
-    frameFolder.pack(side=tk.TOP, expand=1, fill=tk.Y, padx=10, pady=5)  # padx=10,pady=5)
+    frameFolder = ttk.Frame(frameLeft,relief='groove', height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
+    frameFolder.pack(side=tk.TOP, expand=1, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
     # frameFolder.grid(column=0,row=0)
 
     # 子文件夹区
-    frameSubFolder = ttk.Frame(frameLeft)  # ,width=600)
-    frameSubFolder.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=10, pady=5)  # padx=10,pady=5)
+    frameSubFolder = ttk.Frame(frameLeft,relief='groove')  # ,width=600)
+    frameSubFolder.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
     # 同位置的标签区
     # frameSubTags = ttk.Frame(frameLeft)  # ,width=600)
     # frameSubTags.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=10, pady=5)  # padx=10,pady=5)
     #
     # 文件夹下面的控制区
-    frameFolderCtl = ttk.Frame(frameLeft, height=10, borderwidth=0, relief=tk.FLAT)
+    frameFolderCtl = ttk.Frame(frameLeft, height=10, borderwidth=0, relief=tk.SOLID)
     # frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
 
     # 上面功能区
-    frame0 = ttk.LabelFrame(window,  height=80)#, borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
-    frame0.pack(expand=0, fill=tk.X, padx=10, pady=5)
+    frame0 = ttk.Frame(frame_window, relief='flat', height=120)#, borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
+    frame0.pack(expand=0, fill=tk.X, padx=0, pady=0)# padx=10, pady=5)
 
     # 主功能区
-    frameMain = ttk.Frame(window)  # ,height=800)
-    frameMain.pack(expand=1, fill=tk.BOTH, padx=10, pady=0)
+    frameMain = ttk.Frame(frame_window)  # ,height=800)
+    frameMain.pack(expand=1, fill=tk.BOTH, padx=0, pady=0)# padx=10, pady=0)
 
     # 底部区
-    frameBtm = ttk.LabelFrame(window, height=80)
-    frameBtm.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=10, pady=5)
+    frameBtm = ttk.Frame(frame_window, height=120,padding=(0,0,0,0),relief='flat')
+    frameBtm.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=0, pady=0)
 
     # %%
     v_sub_folders = ttk.Combobox(frame0)  # 子文件夹选择框
@@ -3733,13 +3753,14 @@ if __name__ == '__main__':
                                     show="headings",
                                     # show="tree",
                                     # cursor='hand2',
+                                    # pady=0,padx=0,
                                     yscrollcommand=bar_folder_v.set)  # , height=18)
         bar_folder_v.config(command=tree_lst_folder.yview)
 
         tree_lst_folder.heading("folders", text="关注的文件夹", anchor='w')
         tree_lst_folder.column('folders', width=300, anchor='w')
         #
-        tree_lst_folder.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=10)
+        tree_lst_folder.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=0)
         update_folder_list()
 
     # 子文件夹列表
@@ -3765,7 +3786,7 @@ if __name__ == '__main__':
         #
         update_sub_folder_list(lst_sub_path) # 填充内容
         if TREE_SUB_SHOW=='sub_folder':
-            tree_lst_sub_folder.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=10)
+            tree_lst_sub_folder.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=0)
     #
     # 标签列表：
     if True:
@@ -3783,6 +3804,7 @@ if __name__ == '__main__':
                                         show="headings",
                                         # show="tree",
                                         # cursor='hand2',
+                                        
                                         yscrollcommand=bar_sub_tag_v.set)  # , height=18)
 
         tree_lst_sub_tag.heading("tags", text="标签", anchor='w',command=tree_tag_search)
@@ -3790,7 +3812,7 @@ if __name__ == '__main__':
         bar_sub_tag_v.config(command=tree_lst_sub_tag.yview)
         #
         if TREE_SUB_SHOW=='tag':
-            tree_lst_sub_tag.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=10)
+            tree_lst_sub_tag.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=0)
     #
     # tree_lst_folder.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=10)
     # tree_lst_sub_folder.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=10)
@@ -3864,13 +3886,13 @@ if __name__ == '__main__':
     # 行高
     # style.configure("Treeview.Heading", font=(None, 12))
 
-    vPDX = 10
-    vPDY = 5
+    vPDX = 10#10
+    vPDY = 5#5
 
     if True:  # 子文件夹搜索
         lable_sub_folders = tk.Label(frame0, text='子文件夹')
         if TREE_SUB_SHOW=='tag':
-            lable_sub_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+            lable_sub_folders.pack(side=tk.LEFT,expand=0,padx=0,pady=vPDY) # 
 
         v_sub_folders['value'] = [''] + lst_sub_path
         v_sub_folders['state'] = 'readonly'
@@ -3890,7 +3912,7 @@ if __name__ == '__main__':
     v_tag.bind('<Return>', exec_search)  # 绑定回车键
 
     lable_search = tk.Label(frame0, text='关键词')
-    lable_search.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
+    lable_search.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
 
     v_search.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
     v_search.bind('<Return>', exec_search)  # 绑定回车键
@@ -3923,7 +3945,7 @@ if __name__ == '__main__':
     progressbar_file.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY)
 
     lable_sum = tk.Label(frameBtm, text=str_btm, textvariable=str_btm)
-    lable_sum.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
+    lable_sum.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
 
     bt_settings = ttk.Button(frameBtm, text='菜单')  # ,command=show_online_help)
     bt_settings.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
@@ -3973,7 +3995,7 @@ if __name__ == '__main__':
     tree_lst_sub_tag.bind('<KeyRelease-Up>', exec_after_sub_tag_choose)
     tree_lst_sub_tag.bind('<KeyRelease-Down>', exec_after_sub_tag_choose)
 
-    tree.tag_configure('line1', background='#cccccc')  # 灰色底纹,然而无效
+    # tree.tag_configure('line1', background='#EEEEEE')  # 灰色底纹
     #
     tree.bind('<Double-Button-1>', exec_tree_file_open)
     tree.bind('<Return>', exec_tree_file_open)
@@ -4009,7 +4031,12 @@ if __name__ == '__main__':
     # 测试气泡
     # b = tix.Balloon(window, statusbar=None)
     # b.bind_widget(bt_clear,balloonmsg='test',statusmsg=None)
-
+    #
+    # 样式
+    tree_lst_folder.tag_configure('line1',background="#EEEEEE")
+    tree_lst_sub_folder.tag_configure('line1',background="#EEEEEE")
+    tree_lst_sub_tag.tag_configure('line1',background="#EEEEEE")
+    tree.tag_configure('line1',background="#EEEEEE")
     # 运行
 
     window.iconbitmap(LOGO_PATH)  # 左上角图标

@@ -36,30 +36,18 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.16.0.0'  # 版本号
+VER = 'v0.16.1.1'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.16.1.1 2021年8月15日
+更新了关于页面的二维码。
+#### v0.16.1.0 2021年8月13日
+设置项增加对最后目录的解析设置、对标签的解析设置。
+#### v0.16.0.1 2021年8月13日
+优化最后一级目录作为标签对空格的解析。
 #### v0.16.0.0 2021年8月12日
 启动时增加后台进程，显著提高数据加载速度。
-#### v0.15.2.5 2021年8月12日
-优化部分UI显示。
-#### v0.15.2.4 2021年8月12日
-优化部分UI显示，增加框架底纹。
-#### v0.15.2.3 2021年8月11日
-优化部分界面显示。
-#### v0.15.2.2 2021年8月9日
-修复单击相同的主文件夹会导致子文件夹消失的bug。
-#### v0.15.2.1 2021年8月9日
-优化排序逻辑，现在大小写放在一起排序。
-#### v0.15.2.0 2021年8月9日
-将窗口模式的添加到设置项中。
-#### v0.15.1.2 2021年8月8日
-修复子文件夹重命名和新建的bug。
-#### v0.15.1.1 2021年8月7日
-修复子文件夹模式的标签刷新逻辑bug。
-#### v0.15.1.0 2021年8月7日
-采用字典查询，显著增加列表加载速度。
 '''
 # %%
 #
@@ -87,8 +75,8 @@ ALL_FOLDERS = 2  # 文件夹列表是否带“（全部）”,1 在前面，2在
 NOTE_NAME = '未命名笔记'  # 新建笔记的默认名称
 DRAG_FILES_ADD_TAG = True # 为拖拽进来的新增文件统一添加当前选中的标签
 TREE_SUB_SHOW = ['tag','sub_folder'][1] # 决定左侧布局是标签模式还是子文件夹模式。// 可修改
-FOLDER_AS_TAG = 0 # 最后多少层文件夹名称，强制作为标签（即使不包括V_SEP）
-TAG_EASY = 1 # 标签筛选是严格模式还是简单模式，1是简单模式，名称有就行；0是严格模式。
+FOLDER_AS_TAG = 0 # 最后多少层文件夹名称，强制作为标签（即使不包括V_SEP） // 可修改
+TAG_EASY = 1 # 标签筛选是严格模式还是简单模式，1是简单模式，名称有就行；0是严格模式。 // 可修改
 
 V_SEP = '^'  # 标签分隔符。// 可修改
 V_FOLDERS = 2  # 标签识别文件夹深度，// 可修改
@@ -96,7 +84,7 @@ V_FOLDERS = 2  # 标签识别文件夹深度，// 可修改
 NOTE_EXT_LIST = ['.md', '.txt', '.docx', '.rtf']
 NOTE_EXT = '.docx'  # 新建笔记的类型 // 可修改
 QUICK_TAGS = ['@PIN', '@TODO', '@toRead', '@Done']  # 快速添加标签
-FILE_DRAG_MOVE = 'move'  # 文件拖动到列表的时候，是复制，还是移动。可修改。
+FILE_DRAG_MOVE = 'move'  # 文件拖动到列表的时候，是复制，还是移动。// 可修改。
 # 取值：'move' 'copy'。// 可修改
 
 #
@@ -343,6 +331,8 @@ def load_json_file_data(load_settings=True, load_folders=True):
     global lst_my_path_short
     global lst_my_path_long_selected
     global TREE_SUB_SHOW
+    global FOLDER_AS_TAG
+    global TAG_EASY
 
     need_init_json = 0
     try:
@@ -352,11 +342,13 @@ def load_json_file_data(load_settings=True, load_folders=True):
         if load_settings:
             try:
                 opt_data = json_data['options']  # 设置
-            except:
+            except Exception as e:
+                print(e)
                 pass
             try:
                 V_SEP = opt_data['sep']  # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
-            except:
+            except Exception as e:
+                print(e)
                 pass
             try:
                 V_FOLDERS = int(opt_data['vfolders'])  # 目录最末层数名称检查，作为标签的检查层数
@@ -364,16 +356,32 @@ def load_json_file_data(load_settings=True, load_folders=True):
                 pass
             try:
                 NOTE_EXT = opt_data['note_ext']  # 默认笔记类型
-            except:
+            except Exception as e:
+                print(e)
                 pass
             try:
                 FILE_DRAG_MOVE = opt_data['file_drag_enter']  # 默认拖动操作
-            except:
+            except Exception as e:
+                print(e)
                 pass
             try:
                 TREE_SUB_SHOW = opt_data['TREE_SUB_SHOW']  # 默认布局
-            except:
+            except Exception as e:
+                print(e)
                 pass
+            #
+            try:
+                FOLDER_AS_TAG = opt_data['FOLDER_AS_TAG']  # 最后文件夹识别
+            except Exception as e:
+                print(e)
+                pass
+            #
+            try:
+                TAG_EASY = opt_data['TAG_EASY']  # 标签搜索方式
+            except Exception as e:
+                print(e)
+                pass
+            #
             print('加载基本参数成功')
 
         if load_folders:
@@ -657,11 +665,17 @@ def get_file_part(tar):  #
             i3=[]
         ftags += i3
     #
-    # 增加最后若干层子文件夹作为标签的功能（默认1层）：
+    # 增加：最后若干层子文件夹作为标签的功能（默认1层）：
     for i in range(FOLDER_AS_TAG):
         try:
-            ftags+=tmp[-1-i].split(V_SEP)
-        except:
+            if str(tmp[-1-i][0])==V_SEP:
+                continue
+            tags_from_folder=tmp[-1-i].split(V_SEP)
+            for j in range(len(tags_from_folder)):
+                tags_from_folder[j]=str(tags_from_folder[j]).replace(" ","_")
+            ftags+=tags_from_folder
+        except Exception as e:
+            print(e)
             pass
 
     # 对当前文件，进行标签整理、去重并排序
@@ -955,7 +969,7 @@ def show_window_info():
     screenheight = SCREEN_HEIGHT
     w_width = 660
     w_height = 560
-    info_window = tk.Toplevel(window)
+    info_window = tk.Toplevel(window,background='white')
     info_window.geometry(
         '%dx%d+%d+%d' % (w_width, w_height, (screenwidth - w_width) / 2, (screenheight - w_height) / 2))
     info_window.title('关于标签文库')
@@ -968,27 +982,27 @@ def show_window_info():
     info_window.focus_force()
     info_window.iconbitmap(LOGO_PATH)  # 左上角图标
 
-    info_frame = tk.Frame(info_window, padx=5, pady=5)
+    info_frame = tk.Frame(info_window, padx=5, pady=5,background='white')
     info_frame.pack(expand=0, fill=tk.BOTH)
 
-    tmp = tk.Label(info_frame, text='\n')
+    tmp = tk.Label(info_frame,background='white', text='\n')
     tmp.pack()
-    tmp = tk.Label(info_frame, text='标签文库 / Tagdox', fg='#2d7d9a', font=('微软雅黑', 16))
+    tmp = tk.Label(info_frame,background='white', text='标签文库 / Tagdox', fg='#2d7d9a', font=('微软雅黑', 16))
     tmp.pack()
-    tmp = tk.Label(info_frame, text='\n马剑 个人开发')
+    tmp = tk.Label(info_frame,background='white', text='\n马剑 个人开发')
     tmp.pack()
-    tmp = tk.Label(info_frame, text='版本：' + VER + '')
+    tmp = tk.Label(info_frame,background='white', text='版本：' + VER + '')
     tmp.pack()
-    tmp = tk.Label(info_frame, text='Powered by Python and Tkinter\n')
+    tmp = tk.Label(info_frame,background='white', text='Powered by Python and Tkinter\n')
     tmp.pack()
 
     global p_logo
-    p_logo = tk.PhotoImage(file='./src/在线帮助.png')
-    logolbl = tk.Label(info_frame, text='A', image=p_logo)
+    p_logo = tk.PhotoImage(file='./src/二维码设计.png')
+    logolbl = tk.Label(info_frame,background='white', text='A', image=p_logo)
     logolbl.pack()
 
-    tmp = tk.Label(info_frame, text='（欢迎扫码访问产品动态）')
-    tmp.pack()
+    # tmp = tk.Label(info_frame,background='white', text='（欢迎扫码访问产品动态）')
+    # tmp.pack()
 
 
 # 自制输入窗体
@@ -2749,10 +2763,14 @@ def show_window_setting():  #
     设置窗口
     '''
     global V_SEP, V_FOLDERS, NOTE_EXT, FILE_DRAG_MOVE
+    global FOLDER_AS_TAG
+    global TAG_EASY
     global json_data
     #
     dict_file_drag={"复制":"copy", "移动":"move"}
     dict_window_mode={"标签":"tag", "子文件夹":"sub_folder"}
+    dict_tag_mode={"包含匹配":1, "严格全字匹配":0}
+    dict_yes_no={"是":1, "否":0}
 
     def setting_yes(event=None):
         '''
@@ -2760,11 +2778,14 @@ def show_window_setting():  #
         '''
         # 获得新参数
         global V_SEP, V_FOLDERS, NOTE_EXT, FILE_DRAG_MOVE
+        global FOLDER_AS_TAG
+        global TAG_EASY
         global TREE_SUB_SHOW
         need_reboot=False
         # 先处理要重启的：
         #
-        if dict_window_mode[v_inp_mode.get()] != TREE_SUB_SHOW:
+        if dict_window_mode[v_inp_mode.get()] != TREE_SUB_SHOW \
+            or dict_yes_no[v_last_folder_as_tag.get()] != FOLDER_AS_TAG:
             if tk.messagebox.askokcancel("请确认", "部分设置需要重启才能生效。确定要保存设置并【关闭程序】吗？"):
                 need_reboot=True
             else:
@@ -2772,8 +2793,10 @@ def show_window_setting():  #
         NOTE_EXT = v_inp_note_type.get()
         V_FOLDERS = v_inp_folder_depth.get()
         V_SEP = v_inp_sep.get()
-        FILE_DRAG_MOVE = v_inp_drag_type.get()
-        TREE_SUB_SHOW=dict_window_mode[v_inp_mode.get()]
+        FILE_DRAG_MOVE = dict_file_drag[v_inp_drag_type.get()]
+        TREE_SUB_SHOW = dict_window_mode[v_inp_mode.get()]
+        FOLDER_AS_TAG = dict_yes_no[v_last_folder_as_tag.get()]
+        TAG_EASY = dict_tag_mode[v_tag_easy.get()]
         #
         # 保存到设置文件中
         set_json_options('sep', V_SEP,need_write=False)
@@ -2781,6 +2804,8 @@ def show_window_setting():  #
         set_json_options('note_ext', NOTE_EXT,need_write=False)
         set_json_options('file_drag_enter', FILE_DRAG_MOVE,need_write=False)
         set_json_options('TREE_SUB_SHOW', TREE_SUB_SHOW)
+        set_json_options('FOLDER_AS_TAG', FOLDER_AS_TAG)
+        set_json_options('TAG_EASY', TAG_EASY)
         #
         # 关闭窗口
         form_setting.destroy()
@@ -2801,8 +2826,8 @@ def show_window_setting():  #
     form_setting.grab_set()
     screenwidth = SCREEN_WIDTH
     screenheight = SCREEN_HEIGHT
-    w_width = 400  # int(screenwidth*0.8)
-    w_height = 300  # int(screenheight*0.8)
+    w_width = 500  # int(screenwidth*0.8)
+    w_height = 400  # int(screenheight*0.8)
     # 主窗口中央：
     x_pos=window.winfo_x()+(window.winfo_width()-w_width)/2
     y_pos=window.winfo_y()+(window.winfo_height()-w_height)/2
@@ -2824,6 +2849,8 @@ def show_window_setting():  #
 
     frame_setting1 = ttk.Frame(form_setting, height=800, width=800)
     frame_setting1.pack(expand=0, fill=tk.BOTH)
+    frame_setting1.columnconfigure(0, weight=1)
+    frame_setting1.columnconfigure(1, weight=1)
 
     # frame_setting2.grid_configure()
 
@@ -2846,8 +2873,25 @@ def show_window_setting():  #
     v_inp_folder_depth.current(tmp_n)
     v_inp_folder_depth.grid(row=1, column=1, padx=10, pady=5, sticky=tk.EW)
 
-    # 笔记类型
     nr = 2
+    #
+    # 是否将最后的目录视为标签
+    nr += 1
+    lable_ = tk.Label(frame_setting1, text='将最后一层文件夹作为标签 *')
+    lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
+    #
+    v_last_folder_as_tag = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
+    v_last_folder_as_tag['values'] = list(dict_yes_no.keys())
+    v_last_folder_as_tag['state'] = 'readonly'
+    v_last_folder_as_tag.current(0)
+    tmp_list=list(dict_yes_no.values())
+    print(tmp_list)
+    tmp_n = tmp_list.index(FOLDER_AS_TAG)
+    v_last_folder_as_tag.current(tmp_n)
+    v_last_folder_as_tag.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
+
+    # 笔记类型
+    
     nr += 1
     lable_set_note_type = tk.Label(frame_setting1, text='笔记类型')
     lable_set_note_type.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
@@ -2865,19 +2909,42 @@ def show_window_setting():  #
     # lable_drag_type
     lable_ = tk.Label(frame_setting1, text='拖拽添加文件的操作')
     lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
-
-    v_inp_drag_type = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
-    tmp_list = ['move', 'copy']
-    v_inp_drag_type['values'] = tmp_list
-    v_inp_drag_type['state'] = 'readonly'
-    v_inp_drag_type.current(0)
-    tmp_n = tmp_list.index(FILE_DRAG_MOVE)
-    v_inp_drag_type.current(tmp_n)
-    v_inp_drag_type.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
+    #
+    v_inp_drag_type = ttk.Combobox(frame_setting1, width=16)  
+    the_combo=v_inp_drag_type
+    the_dict=dict_file_drag
+    the_val=FILE_DRAG_MOVE
+    #
+    the_combo['values'] = list(the_dict.keys()) 
+    the_combo['state'] = 'readonly'
+    the_combo.current(0)
+    tmp_list=list(the_dict.values())
+    tmp_n = tmp_list.index(the_val)
+    the_combo.current(tmp_n)
+    the_combo.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
     
+    # 拖动是移动还是复制
+    nr += 1
+    # lable_drag_type
+    lable_ = tk.Label(frame_setting1, text='标签搜索模式')
+    lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
+    #
+    v_tag_easy = ttk.Combobox(frame_setting1, width=16)  
+    the_combo=v_tag_easy
+    the_dict=dict_tag_mode
+    the_val=TAG_EASY
+    #
+    the_combo['values'] = list(the_dict.keys()) 
+    the_combo['state'] = 'readonly'
+    the_combo.current(0)
+    tmp_list=list(the_dict.values())
+    tmp_n = tmp_list.index(the_val)
+    the_combo.current(tmp_n)
+    the_combo.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
+
     # 布局是标签模式还是子文件夹模式
     nr += 1
-    lable_ = tk.Label(frame_setting1, text='显示模式（*需要重启）')
+    lable_ = tk.Label(frame_setting1, text='显示模式 *')
     lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
     #
     v_inp_mode = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
@@ -2890,8 +2957,13 @@ def show_window_setting():  #
     v_inp_mode.current(tmp_n)
     v_inp_mode.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
 
+    # 布局是标签模式还是子文件夹模式
+    nr += 1
+    lable_ = tk.Label(frame_setting1, text='（注意：标*的项目需要重启生效）')
+    lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
+
     # 下面的设置区域
-    nr = 10
+    nr = 100
     bt_setting_yes = ttk.Button(frame_setting2, text='确定', command=setting_yes)
     bt_setting_yes.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.EW)
     # bt_setting_yes.pack(side=tk.LEFT,expand=0,fill=tk.X)
@@ -3669,6 +3741,7 @@ def set_style(style):
 class main_app:
     def __init__(self) -> None:
         pass
+
 
 if __name__ == '__main__':
     # if True:

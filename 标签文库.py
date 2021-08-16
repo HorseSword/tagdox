@@ -5,7 +5,6 @@ Created on Thu Jun 17 09:28:24 2021
 @author: MaJian
 """
 
-import multiprocessing
 import os
 import tkinter as tk
 from tkinter import ttk
@@ -22,6 +21,7 @@ from os.path import isdir
 from os.path import isfile
 import time
 import threading  # 多线程
+import multiprocessing
 from multiprocessing import Pool # 进程
 from multiprocessing import Process
 # from docx import Document# 用于创建word文档
@@ -748,7 +748,7 @@ def update_data(lst1):
     lst_files_to_go=[]
     n=0
     flag_break=0
-
+    time0=time.time()
     global dicT
 
     for vPath in lst1:
@@ -806,8 +806,10 @@ def update_data(lst1):
             except Exception as e:
                 print(e)
                 pass
-
+    #
+    print(f'时间消耗：{time.time()-time0}')
     print('———— 后台数据加载完毕 ————')
+    
 
 
 def get_dt(lst_file0=None,need_set_prog=True,FAST_MODE=True):
@@ -1124,7 +1126,7 @@ class my_input_window:
 
 class my_progress_window:
     '''
-    一个屏幕中间的进度条
+    一个出现在主窗口中间的进度条
     '''
 
     # input_window = ''  # =tk.Toplevel(self.form0)
@@ -3739,8 +3741,96 @@ def set_style(style):
 
 # %%
 class main_app:
+    '''
+    主窗口类
+    '''
     def __init__(self) -> None:
+        '''
+        界面部分。
+        也就是UI的设计。
+        '''
+        self.window=tk.Tk()
+        #
+        # 调整清晰度 ############################################
+        try:  
+            # 放在这里，是为了兼容不能打开ctypes的计算机。
+            from ctypes import windll
+
+            # 告诉操作系统使用程序自身的dpi适配
+            windll.shcore.SetProcessDpiAwareness(1)
+            # 获取屏幕的缩放因子
+            ScaleFactor = windll.shcore.GetScaleFactorForDevice(0)  # 当前屏幕放大百分数（125）
+            # 设置程序缩放
+            self.window.tk.call('tk', 'scaling', ScaleFactor / 75)
+            #
+            SCREEN_WIDTH = self.window.winfo_screenwidth() * ScaleFactor / 100  # 必须考虑分辨率导致的偏移
+            SCREEN_HEIGHT = self.window.winfo_screenheight() * ScaleFactor / 100  #
+        except:
+            SCREEN_WIDTH = self.window.winfo_screenwidth()
+            SCREEN_HEIGHT = self.window.winfo_screenheight()
         pass
+        #
+        self.SCREEN_WIDTH=SCREEN_WIDTH
+        self.SCREEN_HEIGHT=SCREEN_HEIGHT
+        #
+        # 窗体设计 ############################################
+        #
+        self.window.title(TAR + ' ' + VER)
+        screenwidth = SCREEN_WIDTH
+        screenheight = SCREEN_HEIGHT
+        w_width = int(screenwidth * 0.8)
+        w_height = int(screenheight * 0.8)
+        x_pos = (screenwidth - w_width) / 2
+        y_pos = (screenheight - w_height) / 2
+        self.window.geometry('%dx%d+%d+%d' % (w_width, w_height, x_pos, y_pos))
+        # window.resizable(0,0) #限制尺寸
+        self.window.state('zoomed')  # 最大化
+
+        #
+        # 框架设计 ############################################
+        #
+        self.frame_window=ttk.Frame(self.window,padding=(1,1,1,1),relief='flat',borderwidth=0) 
+        self.frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=3, pady=3)
+        # 上面功能区
+        self.frame0 = ttk.Frame(self.frame_window, relief='flat', height=120)#, borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
+        self.frame0.pack(expand=0, fill=tk.X, padx=0, pady=0)# padx=10, pady=5)
+
+        # 文件夹区
+        self.frameLeft = ttk.Frame(self.frame_window, 
+            # style="Dark.Treeview",
+            # width=int(w_width * 0.4),
+            padding=(0,0,0,0),
+            borderwidth=0,
+            relief='flat')  # ,width=600)
+        self.frameLeft.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
+        # for i in range(2):
+        # frameLeft.rowconfigure(i,weight=1)
+
+        self.frameFolder = ttk.Frame(self.frameLeft,relief='flat', borderwidth=0,)
+            # height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
+        self.frameFolder.pack(side=tk.TOP, expand=1, fill=tk.Y, padx=0, pady=2)  # padx=10,pady=5)
+        # frameFolder.grid(column=0,row=0)
+        #
+        # 子文件夹区
+        self.frameSubFolder = ttk.Frame(self.frameLeft,relief='flat')  # ,width=600)
+        self.frameSubFolder.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=0, pady=2)  # padx=10,pady=5)
+        # 同位置的标签区
+        # frameSubTags = ttk.Frame(frameLeft)  # ,width=600)
+        # frameSubTags.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=10, pady=5)  # padx=10,pady=5)
+        #
+        # 文件夹下面的控制区
+        self.frameFolderCtl = ttk.Frame(self.frameLeft, height=10, borderwidth=0, relief=tk.SOLID)
+        # self.frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
+
+        
+
+        # 主功能区
+        self.frameMain = ttk.Frame(self.frame_window)  # ,height=800)
+        self.frameMain.pack(expand=1, fill=tk.BOTH, padx=0, pady=0)# padx=10, pady=0)
+
+        # 底部区
+        self.frameBtm = ttk.Frame(self.frame_window, height=120,padding=(0,0,0,0),relief='flat')
+        self.frameBtm.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=0, pady=0)
 
 
 if __name__ == '__main__':
@@ -3773,7 +3863,11 @@ if __name__ == '__main__':
     flag_file_changed = 0
     ###########################################################
     #
-    window = tk.Tk()  # 主窗口
+    app=main_app()
+    # window = tk.Tk()  # 主窗口
+    window = app.window  # 主窗口
+    SCREEN_WIDTH=app.SCREEN_WIDTH
+    SCREEN_HEIGHT=app.SCREEN_HEIGHT
     # %%
     PIC_LST = [tk.PhotoImage(file="./src/龙猫.gif")]
     IMAGE_FOLDER = tk.PhotoImage(file='./src/在线帮助.png')
@@ -3806,7 +3900,7 @@ if __name__ == '__main__':
     #                     rowheight=int(MON_FONTSIZE * 3.5))
     #
     # 通用函数
-    try:  # 调整清晰度
+    '''try:  # 调整清晰度
         # 放在这里，是为了兼容不能打开ctypes的计算机。
         from ctypes import windll
 
@@ -3821,7 +3915,7 @@ if __name__ == '__main__':
         SCREEN_HEIGHT = window.winfo_screenheight() * ScaleFactor / 100  #
     except:
         SCREEN_WIDTH = window.winfo_screenwidth()
-        SCREEN_HEIGHT = window.winfo_screenheight()
+        SCREEN_HEIGHT = window.winfo_screenheight()'''
     #
     # 加载设置参数。
     json_data = OPT_DEFAULT  # 用于后面处理的变量。
@@ -3844,7 +3938,7 @@ if __name__ == '__main__':
 
     (dT, lst_tags) = get_dt()
 
-    # 窗体设计
+    '''# 窗体设计
     window.title(TAR + ' ' + VER)
     screenwidth = SCREEN_WIDTH
     screenheight = SCREEN_HEIGHT
@@ -3854,16 +3948,16 @@ if __name__ == '__main__':
     y_pos = (screenheight - w_height) / 2
     window.geometry('%dx%d+%d+%d' % (w_width, w_height, x_pos, y_pos))
     # window.resizable(0,0) #限制尺寸
-    window.state('zoomed')  # 最大化
+    window.state('zoomed')  # 最大化'''
 
     ####################################################################
-    # 框架设计
+    '''# 框架设计
     frame_window=ttk.Frame(window,padding=(1,1,1,1),relief='flat',borderwidth=0) 
     frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=3, pady=3)
     # 文件夹区
     frameLeft = ttk.Frame(frame_window, 
         # style="Dark.Treeview",
-        width=int(w_width * 0.4),
+        # width=int(w_width * 0.4),
         padding=(0,0,0,0),
         borderwidth=0,
         relief='flat')  # ,width=600)
@@ -3871,8 +3965,8 @@ if __name__ == '__main__':
     # for i in range(2):
     # frameLeft.rowconfigure(i,weight=1)
 
-    frameFolder = ttk.Frame(frameLeft,relief='flat', borderwidth=0,
-        height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
+    frameFolder = ttk.Frame(frameLeft,relief='flat', borderwidth=0,)
+        # height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
     frameFolder.pack(side=tk.TOP, expand=1, fill=tk.Y, padx=0, pady=2)  # padx=10,pady=5)
     # frameFolder.grid(column=0,row=0)
 
@@ -3897,7 +3991,18 @@ if __name__ == '__main__':
 
     # 底部区
     frameBtm = ttk.Frame(frame_window, height=120,padding=(0,0,0,0),relief='flat')
-    frameBtm.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=0, pady=0)
+    frameBtm.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=0, pady=0)'''
+
+    frame_window=app.frame_window
+    #
+    frame0=app.frame0 # TOP
+    frameMain=app.frameMain
+    frameBtm=app.frameBtm
+    #
+    frameFolder=app.frameFolder
+    frameFolderCtl=app.frameFolderCtl
+    frameSubFolder=app.frameSubFolder
+    
 
     # %%
     v_sub_folders = ttk.Combobox(frame0)  # 子文件夹选择框
@@ -3917,8 +4022,8 @@ if __name__ == '__main__':
     # bt_setting=ttk.Button(frameBtm,text='设置')#,command=show_window_setting)
     # bt_setting.pack(side=tk.LEFT,expand=0,padx=5,pady=10)#,fill=tk.X) # 
 
-    bt_folder_add = ttk.Button(frameFolderCtl, text='添加文件夹')  # state=tk.DISABLED,,command=setting_fun
-    bt_folder_add.pack(side=tk.LEFT, expand=0, padx=20, pady=10, fill=tk.X)  #
+    bt_folder_add = ttk.Button(frame0, text='添加关注的文件夹')  # state=tk.DISABLED,,command=setting_fun
+    
 
     bt_folder_drop = ttk.Button(frameFolderCtl, text='移除文件夹')  # state=tk.DISABLED,,command=setting_fun
     bt_folder_drop.pack(side=tk.RIGHT, expand=0, padx=20, pady=10, fill=tk.X)  #
@@ -3940,7 +4045,7 @@ if __name__ == '__main__':
                                     yscrollcommand=bar_folder_v.set)  # , height=18)
         bar_folder_v.config(command=tree_lst_folder.yview)
 
-        tree_lst_folder.heading("folders", text="关注的文件夹", anchor='w')
+        tree_lst_folder.heading("folders", text="已关注的文件夹", anchor='w')
         tree_lst_folder.column('folders', width=300, anchor='w')
         #
         tree_lst_folder.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=0)
@@ -4072,44 +4177,62 @@ if __name__ == '__main__':
     vPDX = 10#10
     vPDY = 5#5
 
+    bt_clear = ttk.Button(frame0, text='清空', command=exec_clear_search_items)
+    
+    # bt_search=tk.Button(frame0,text='搜索', command=exec_search,bd=0,activebackground='red')
+    bt_search = ttk.Button(frame0, text='搜索', command=exec_search)  # ,bd=0,activebackground='red')
+    
+
     if True:  # 子文件夹搜索
         lable_sub_folders = tk.Label(frame0, text='子文件夹')
         if TREE_SUB_SHOW=='tag':
-            lable_sub_folders.pack(side=tk.LEFT,expand=0,padx=0,pady=vPDY) # 
+            pass
 
         v_sub_folders['value'] = [''] + lst_sub_path
         v_sub_folders['state'] = 'readonly'
-        if TREE_SUB_SHOW=='tag':
-            v_sub_folders.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY) # 
+        
         v_sub_folders.bind('<<ComboboxSelected>>', exec_after_sub_folders_choose)
-
-    if TREE_SUB_SHOW=='sub_folder':
-        lable_tag = tk.Label(frame0, text='标签')
-        lable_tag.pack(side=tk.LEFT, expand=0, padx=2, pady=vPDY)  #
+    
 
     set_search_tag_values(lst_tags)
+    
     v_tag['state'] = 'readonly'  # 只读
-    if TREE_SUB_SHOW=='sub_folder':
-        v_tag.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
     v_tag.bind('<<ComboboxSelected>>', exec_search)
     v_tag.bind('<Return>', exec_search)  # 绑定回车键
 
     lable_search = tk.Label(frame0, text='关键词')
-    lable_search.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
-
-    v_search.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
     v_search.bind('<Return>', exec_search)  # 绑定回车键
 
-    # bt_search=tk.Button(frame0,text='搜索', command=exec_search,bd=0,activebackground='red')
-    bt_search = ttk.Button(frame0, text='搜索', command=exec_search)  # ,bd=0,activebackground='red')
-    bt_search.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
-
-    bt_clear = ttk.Button(frame0, text='清空', command=exec_clear_search_items)
-    bt_clear.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
+    #
+    # 布局： #####
+    #    
+    nx=1
+    bt_search.pack(side=tk.RIGHT, expand=0, padx=0 if nx%2==0 else vPDX, pady=vPDY)  #
+    nx+=1
+    bt_clear.pack(side=tk.RIGHT, expand=0, padx=0 if nx%2==0 else vPDX, pady=vPDY)  #
+    #
+    nx+=1
+    v_search.pack(side=tk.RIGHT, expand=0, padx=0 if nx%2==0 else vPDX, pady=vPDY)  #
+    nx+=1
+    lable_search.pack(side=tk.RIGHT, expand=0, padx=0 if nx%2==0 else vPDX, pady=vPDY)  #
+    #
+    if TREE_SUB_SHOW=='tag':
+        nx+=1
+        v_sub_folders.pack(side=tk.RIGHT,expand=0,padx=0 if nx%2==0 else vPDX,pady=vPDY) # 
+        nx+=1
+        lable_sub_folders.pack(side=tk.RIGHT,expand=0,padx=0 if nx%2==0 else vPDX,pady=vPDY) # 
+    elif TREE_SUB_SHOW=='sub_folder':
+        nx+=1
+        lable_tag = tk.Label(frame0, text='标签')
+        v_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx%2==0 else vPDX,pady=vPDY)  #
+        nx+=1
+        lable_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx%2==0 else vPDX, pady=vPDY)  #
+    
+    
 
     bt_test = ttk.Button(frame0, text='测试功能', command=exec_fun_test)
     if DEVELOP_MODE:
-        bt_test.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
+        bt_test.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
     # 布局
     bar_tree_h.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=2, pady=1)  # 用pack 可以实现自适应side=tk.LEFTanchor=tk.E
@@ -4130,17 +4253,21 @@ if __name__ == '__main__':
     lable_sum = tk.Label(frameBtm, text=str_btm, textvariable=str_btm)
     lable_sum.pack(side=tk.LEFT, expand=0, padx=2, pady=vPDY)  #
 
-    bt_settings = ttk.Button(frameBtm, text='菜单')  # ,command=show_online_help)
-    bt_settings.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
+    bt_settings = ttk.Button(frame0, text='菜单')  # ,command=show_online_help)
+    bt_settings.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
+    bt_folder_add.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
+    bt_new = ttk.Button(frame0, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
+    bt_new.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
+    
 
     bt_reload = ttk.Button(frameBtm, text='刷新', command=update_main_window)
     bt_reload.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
-    bt_new = ttk.Button(frameBtm, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
-    bt_new.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
-
     bt_add_tag = ttk.Button(frameBtm, text='添加标签',command=exec_input_new_tag_via_dialog)#, command=input_new_tag
-    bt_add_tag.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
+    bt_add_tag.pack(side=tk.RIGHT, expand=0, padx=0, pady=vPDY)  #
+
+    
+    
 
     # 新标签的输入框
     v_inp = ttk.Combobox(frameBtm, width=16)

@@ -14,6 +14,7 @@ from tkinter import ttk
 import json
 from tkinter import filedialog
 from tkinter import simpledialog
+from tkinter.constants import NORMAL
 # from tkinter import font
 # from tkinter.constants import INSERT
 import windnd
@@ -36,10 +37,12 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.18.2.0'  # 版本号
+VER = 'v0.18.3.0'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.18.3.0 2021年8月23日
+增加「拿起放下」功能，算是程序内的剪切粘贴。
 #### v0.18.2.0 2021年8月23日
 增加只看当前文件夹的功能。
 #### v0.18.1.2 2021年8月22日
@@ -246,13 +249,18 @@ def exec_safe_rename(old_name, new_name):
         pass
 
 
-def safe_copy(old_name, new_name, opt_type='copy'):
+def exec_safe_copy(old_name, new_name, opt_type='copy'):
     '''
     安全复制或移动文件。
     参数 opt_type 是 'copy' 或 'move'。
     '''
     old_name = old_name.replace('\\', '/')
     new_name = new_name.replace('\\', '/')
+    #
+    if old_name == new_name:
+        print('原始路径和新路径一致，跳过')
+        return (old_name)
+    #
     tmp_new_full_name = safe_get_name(new_name)
     print('开始安全复制')
     print(old_name)
@@ -3176,15 +3184,23 @@ def exec_tree_drag_enter(files,drag_type=None):
     '''
     以拖拽的方式将文件拖动到tree范围内，将执行复制命令。
     注意，不是移动，只是复制。
-    safe_copy 的参数 opt_type = copy 是复制， = move 是移动。
+    exec_safe_copy 的参数可以强制指定，也可以读取系统值。
+    drag_type = copy 是复制， = move 是移动。
     '''
     global flag_file_changed
+    #
+    print('files=',files)
+    #
+    arg_change_glob = False
+    if arg_change_glob:
+        if drag_type is not None:
+            global FILE_DRAG_MOVE
+            FILE_DRAG_MOVE=drag_type # 并不会生效
+    
+    if not drag_type in ['copy', 'move']:
+        drag_type = 'copy'
 
-    if drag_type is not None:
-        global FILE_DRAG_MOVE
-        FILE_DRAG_MOVE=drag_type
-
-    # 确定目录
+    # 确定目录（目标）
     short_name = get_folder_short()
     print(short_name)
     if short_name == '':
@@ -3192,7 +3208,7 @@ def exec_tree_drag_enter(files,drag_type=None):
         str_btm.set('未指定目标目录，取消复制')
         return
     else:
-        if len(get_sub_folder_selected()) > 0:
+        if len(get_sub_folder_selected()) > 0: # 【注意】这个处理不太好
             long_name = lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
         else:
             long_name = lst_my_path_long_selected[0]
@@ -3208,10 +3224,16 @@ def exec_tree_drag_enter(files,drag_type=None):
     #
     new_file_lst=[]
     for item in files:
-        item = item.decode('gbk')
+        # [item_path, item_name] = os.path.split(item)
+        #
+        try:
+            item = item.decode('gbk') # 因为拖进来的时候，files是b'xxx'编码的。需要转码。
+        except:
+            print('转码失败，',item,'不能被转码为gbk')
+            pass
         if not isfile(item):
             print(item,'不是文件，所以跳过')
-            continue
+            continue # 跳过
 
         print(item)
         # 先安全复制
@@ -3228,8 +3250,8 @@ def exec_tree_drag_enter(files,drag_type=None):
             ffname=fname+fename
         #
         new_name = long_name + '/' + ffname
-        if FILE_DRAG_MOVE in ['copy', 'move']:
-            res = safe_copy(old_name, new_name, opt_type=FILE_DRAG_MOVE)
+        if drag_type in ['copy', 'move']:
+            res = exec_safe_copy(old_name, new_name, opt_type=drag_type)
             str_btm.set('拖动添加文件成功')
         #     res=safe_move(old_name, new_name, opt_type='copy')
         #     str_btm.set('文件拖拽成功')
@@ -3736,8 +3758,14 @@ def show_popup_menu_file(event):
         menu_file.add_command(label="重命名", state=tk.DISABLED, command=exec_file_rename, accelerator='F2')
     menu_file.add_command(label="删除", command=exec_tree_file_delete)
     menu_file.add_separator()
+    menu_file.add_command(label="拿起", command=exec_file_pick_up,accelerator='Ctrl+X')
+    menu_file.add_command(label="取消拿起", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_file_pick_nothing)
+    menu_file.add_command(label="放下", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_file_put_down,accelerator='Ctrl+V')
+    menu_file.add_separator()
     menu_file.add_command(label="刷新", command=update_main_window)
-
+    #
+    # 没有选中项目的时候
+    #
     menu_file_no_selection = tk.Menu(window, tearoff=0)
     # menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=exec_tree_file_open)
     menu_file_no_selection.add_command(label="打开当前文件夹", command=tree_open_current_folder)
@@ -3750,9 +3778,13 @@ def show_popup_menu_file(event):
     # menu_file_no_selection.add_command(label="重命名",state=tk.DISABLED)#,command=exec_folder_add_click)
     # menu_file_no_selection.add_command(label="添加收藏",state=tk.DISABLED)#,command=exec_folder_add_click)
     menu_file_no_selection.add_separator()
+    menu_file_no_selection.add_command(label="拿起", state=tk.DISABLED, command=exec_file_pick_up,accelerator='Ctrl+X')
+    menu_file_no_selection.add_command(label="取消拿起", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_file_pick_nothing)
+    menu_file_no_selection.add_command(label="放下", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_file_put_down,accelerator='Ctrl+V')
+    menu_file_no_selection.add_separator()
     menu_file_no_selection.add_command(label="刷新", command=update_main_window)
 
-    
+
     if n_selection ==1:  # 如果有选中项目的话，
         
         # tmp_file_name=get_split_path(tmp_full_name)[-1]
@@ -3913,6 +3945,55 @@ def set_style(style):
     pass
     
     # style.tag_configure('line1',background="#EEEEEE")
+
+
+def exec_file_pick_up(event=None, need_clear = False):
+    '''
+    将选中的文件拿起来
+    '''
+    global lst_pick_up_files
+    global lst_pick_up_items
+    if need_clear:
+        lst_pick_up_files = []
+        lst_pick_up_items = []
+    #
+    # 添加到列表中：
+    for item in app.tree.selection():
+        #
+        item_text = tree.item(item, "values")
+        tmp_full_name = item_text[-1]
+        #
+        item_tags = tree.item(item,'tags')
+        if not 'pick_up' in list(item_tags):
+            new_item_tags = list(item_tags)+['pick_up']
+        tree.item(item,tags = new_item_tags)
+        #
+        if not tmp_full_name in lst_pick_up_files:
+            lst_pick_up_files.append(tmp_full_name)
+        if not item in lst_pick_up_items:
+            lst_pick_up_items.append(item)
+
+
+def exec_file_pick_nothing(event=None):
+    global lst_pick_up_files
+    global lst_pick_up_items
+    for item in lst_pick_up_items:
+        try:
+            new_item_tags = list(tree.item(item,'tags'))
+            new_item_tags.remove('pick_up')
+            tree.item(item, tags = new_item_tags)
+        except:
+            pass
+    lst_pick_up_files = []
+    lst_pick_up_items = []
+
+def exec_file_put_down(event=None):
+    '''
+    将选中的文件放下
+    '''
+    global lst_pick_up_files
+    exec_tree_drag_enter(lst_pick_up_files,'move')
+    lst_pick_up_files=[]
 
 
 # %%
@@ -4296,6 +4377,7 @@ class main_app:
             tar.tag_configure('line1',background="#F2F2F2")
             tar.tag_configure('folder1',background="#FFFFFF")
             tar.tag_configure('folder2',background="#F2F2F2")
+            tar.tag_configure('pick_up',foreground="blue")
         self.window.iconbitmap(LOGO_PATH)  # 左上角图标
 
     
@@ -4339,6 +4421,8 @@ class main_app:
         # 程序内快捷键
         self.window.bind_all('<Control-n>', exec_create_note)  # 绑定添加笔记的功能。
         self.window.bind_all('<Control-f>', jump_to_search)  # 跳转到搜索框。
+        self.window.bind_all('<Control-x>', exec_file_pick_up)  # 拿起。
+        self.window.bind_all('<Control-v>', exec_file_put_down)  # 放下。
         self.window.bind_all('<F2>', exec_file_rename)  # 跳转到搜索框。
         #
         # window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
@@ -4377,6 +4461,9 @@ if __name__ == '__main__':
     #
     lst_sub_path = [] # 子文件夹得到全局变量
     lst_sub_path_selected = []
+    #
+    lst_pick_up_files = [] # 程序内剪切板
+    lst_pick_up_items = [] # 程序内剪切板
     #
     dict_path = dict()  # 用于列表简写和实际值
     #

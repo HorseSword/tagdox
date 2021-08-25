@@ -37,10 +37,16 @@ import queue
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.18.3.0'  # 版本号
+VER = 'v0.18.3.3'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.18.3.3 2021年8月25日
+将删除修改为隐藏。
+#### v0.18.3.2 2021年8月23日
+增加「新建子文件夹」功能。
+#### v0.18.3.1 2021年8月23日
+强化「拿起」之后的视觉效果。
 #### v0.18.3.0 2021年8月23日
 增加「拿起放下」功能，算是程序内的剪切粘贴。
 #### v0.18.2.0 2021年8月23日
@@ -178,7 +184,7 @@ def safe_get_name(new_name) -> str:
     return (tmp_new_full_name)
 
 
-def remove_to_trash(filename, remove=True):
+def remove_to_trash(filename, remove=False):
     '''
     删除文件，remove=True就直接删除，否则移动到回收站。
     但是移动到回收站的功能尚未调试成功，所以没有启用。参数只能是 True。
@@ -188,6 +194,10 @@ def remove_to_trash(filename, remove=True):
         os.remove(filename)
     else:
         print('删除到回收站')
+        (fp,fn) = os.path.split(filename)
+        newname = fp+'/'+'~~'+fn
+        final_name = exec_safe_rename(filename, newname)
+        print(final_name)
         # send2trash.send2trash(filename) 
 
 
@@ -2078,11 +2088,12 @@ def exec_tree_file_delete(tar=None):
         # 再次确认
         if not isfile(tmp_full_path):
             print('并不存在文件：' + str(tmp_full_path))
-        elif tk.messagebox.askokcancel("删除确认", "真的要【永久删除】以下文件吗？" + str(tmp_full_path)):
+            #
+        elif tk.messagebox.askokcancel("删除确认", "真的要【隐藏】以下文件吗？" + str(tmp_full_path)):
             flag_deleted=1
             try:
-                # os.remove(tmp_full_path)
                 remove_to_trash(tmp_full_path)
+                #
                 if len(tree.selection())==1:
                     update_main_window(0)
             except:
@@ -2261,39 +2272,49 @@ def exec_sub_folder_new(event=None):
     '''
     # 
     # 获取名称
-    path=show_window_input('新建文件夹','请输入文件夹名称')
-    if path is None:
-        return
+    new_folder_name=''
+    lp=1
     #
-    # 补充完整路径
-    if len(lst_my_path_long_selected)==1:
-        tmp_path = lst_my_path_long_selected[0] + '/' + path
-    else:
-        t = tk.messagebox.showerror(title='ERROR', message='未选中唯一文件夹')
-        return
-    #
-    # 新路径是否存在
-    isExists=os.path.exists(tmp_path)
-    # 判断结果
-    if not isExists:
-        # 如果不存在则创建目录
-        # 创建目录操作函数
-        try:
-            os.makedirs(tmp_path) 
- 
-            print (tmp_path+' 创建成功')
-            #
-            # 创建之后刷新一次
-            update_sub_folder_list(refresh=False)
-            update_main_window(0,fast_mode=True)
-            # update_main_window(reload_setting=2)
-            return True
-        except:
-            t = tk.messagebox.showerror(title='ERROR', message='文件夹创建失败')
-    else:
-        # 如果目录存在则不创建，并提示目录已存在
-        t = tk.messagebox.showerror(title='ERROR', message=(tmp_path+' 目录已存在'))
-        return False
+    while lp:
+        path=show_window_input('新建文件夹','请输入文件夹名称',new_folder_name)
+        if path is None:
+            return False
+        else:
+            new_folder_name=path
+        #
+        # 补充完整路径
+        if len(lst_my_path_long_selected)==1:
+            tmp_path = lst_my_path_long_selected[0] + '/' + path
+        else:
+            t = tk.messagebox.showerror(title='ERROR', message='未选中唯一文件夹')
+            return False
+        #
+        # 新路径是否存在
+        isExists=os.path.exists(tmp_path)
+        # 判断结果
+        if not isExists:
+            # 如果不存在则创建目录
+            # 创建目录操作函数
+            try:
+                os.makedirs(tmp_path) 
+    
+                print (tmp_path+' 创建成功')
+                lp=0
+                #
+                # 创建之后刷新一次
+                update_sub_folder_list(refresh=False)
+                update_main_window(0,fast_mode=True)
+                # update_main_window(reload_setting=2)
+                if FOLDER_TYPE ==2:
+                    update_folder_list()
+                return True
+            except:
+                t = tk.messagebox.showerror(title='ERROR', message='文件夹创建失败，当前位置可能不允许创建文件夹')
+                lp=0
+        else:
+            # 如果目录存在则不创建，并提示目录已存在
+            t = tk.messagebox.showerror(title='ERROR', message=(tmp_path+' 目录已存在，请重新设定文件夹名称'))
+            # return False
 
 
 def exec_sub_folder_rename(event=None):
@@ -3173,13 +3194,17 @@ def exec_tree_drag_enter(files,drag_type=None):
     drag_type = copy 是复制， = move 是移动。
     '''
     global flag_file_changed
+    global FILE_DRAG_MOVE
     #
     print('files=',files)
     #
     arg_change_glob = False
-    if arg_change_glob:
-        if drag_type is not None:
-            global FILE_DRAG_MOVE
+    #
+    if drag_type is None:
+        drag_type = FILE_DRAG_MOVE
+        pass
+    else:
+        if arg_change_glob:
             FILE_DRAG_MOVE=drag_type # 并不会生效
     
     if not drag_type in ['copy', 'move']:
@@ -3592,9 +3617,13 @@ def show_popup_menu_folder(event):
     if vtype==1:menu_folder.add_command(label="向上移动", command=exec_folder_move_up)
     if vtype==1:menu_folder.add_command(label="向下移动",command=exec_folder_move_down)
     if vtype>=1:menu_folder.add_separator()
-    menu_folder.add_command(label="添加关注文件夹…", command=exec_folder_add_click)
-    if vtype==1:menu_folder.add_command(label="取消关注所选文件夹",command=exec_folder_drop)
+    menu_folder.add_command(label="添加文件夹到关注列表…", command=exec_folder_add_click)
+    if vtype==1:menu_folder.add_command(label="将所选文件夹从关注列表移除",command=exec_folder_drop)
     menu_folder.add_separator()
+    if vtype>=1:menu_folder.add_command(label="新建子文件夹", command=exec_sub_folder_new)
+    if vtype>1:menu_folder.add_command(label="重命名文件夹", state=tk.DISABLED, command=exec_sub_folder_new)
+    if vtype>1:menu_folder.add_command(label="删除文件夹",  state=tk.DISABLED, command=exec_sub_folder_new)
+    if vtype>=1:menu_folder.add_separator()
     menu_folder.add_command(label="刷新文件夹列表", command=update_folder_list)
     menu_folder.post(event.x_root, event.y_root)
     
@@ -4080,7 +4109,7 @@ class main_app:
         self.frameBtm = ttk.Frame(self.frame_window, height=120,padding=(0,0,0,0),relief='flat')
         self.frameBtm.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=0, pady=0)
 
-        self.bt_folder_add = ttk.Button(self.frame0, text='添加关注的文件夹')  # state=tk.DISABLED,,command=setting_fun
+        self.bt_folder_add = ttk.Button(self.frame0, text='添加文件夹到关注列表')  # state=tk.DISABLED,,command=setting_fun
         self.bt_folder_drop = ttk.Button(self.frameFolderCtl, text='移除文件夹') 
             
         self.v_sub_folders = ttk.Combobox(self.frame0)  # 子文件夹选择框
@@ -4362,7 +4391,7 @@ class main_app:
             tar.tag_configure('line1',background="#F2F2F2")
             tar.tag_configure('folder1',background="#FFFFFF")
             tar.tag_configure('folder2',background="#F2F2F2")
-            tar.tag_configure('pick_up',foreground="blue")
+            tar.tag_configure('pick_up',foreground="#2d7d9a",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
         self.window.iconbitmap(LOGO_PATH)  # 左上角图标
 
     
@@ -4426,6 +4455,29 @@ class main_app:
 
 ###########################################################
 
+# 检查是否已经运行；
+'''
+import win32gui 
+import win32con
+wd_name = TAR + ' ' + VER
+pr_name = '我的文库.exe'
+have_exe = 0
+try:
+    win =win32gui.FindWindow(wd_name,None)
+    print(win)
+    if win:
+        have_exe = 1
+        win.ShowWindow(win32con.SW_SHOWNORMAL)
+        print('\n已经存在打开的实例\n')
+    else:
+        print('\n不存在打开的实例\n')
+except Exception as e:
+    print(e)
+    have_exe = 0
+
+# from tendo import singleton
+# me = singleton.SingleInstance() # will sys.exit(-1) if other instance is running
+'''
 
 if __name__ == '__main__':
     # if True:

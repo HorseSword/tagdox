@@ -27,7 +27,7 @@ from multiprocessing import Pool # 进程
 from multiprocessing import Process
 # from docx import Document# 用于创建word文档
 # import ctypes # 用于调整分辨率 #
-
+from win32com.shell import shell,shellcon
 import shutil
 import queue
 
@@ -36,11 +36,20 @@ import queue
 
 URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
+URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases' # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.18.4.1'  # 版本号
+VER = 'v0.18.6.2'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.18.6.2 2021年9月3日
+子文件夹删除或移动时，取消文件的粘贴功能。
+#### v0.18.6.1 2021年9月3日
+增加子文件夹删除的功能。
+#### v0.18.6.0 2021年9月3日
+增加子文件夹移动的功能；增加检查更新的功能。
+#### v0.18.5.0 2021年9月3日
+将删除修改为删除到回收站。
 #### v0.18.4.1 2021年9月2日
 实现了文件的复制剪切功能。
 #### v0.18.4.0 2021年9月2日
@@ -192,17 +201,27 @@ def safe_get_name(new_name) -> str:
 
 def remove_to_trash(filename, remove=False):
     '''
-    删除文件，remove=True就直接删除，False移动到回收站。
+    删除文件，
+    参数filename 可以是文件，也可以是文件夹。
+    参数remove=True就直接删除，False移动到回收站（默认）。
     '''
     if remove:
         print('直接删除')
         os.remove(filename)
     else:
         print('删除到回收站')
-        (fp,fn) = os.path.split(filename)
-        newname = fp+'/'+'~~'+fn
-        final_name = exec_safe_rename(filename, newname)
-        print(final_name)
+        print('deltorecyclebin', filename)
+        res = shell.SHFileOperation((0,shellcon.FO_DELETE,filename,None, shellcon.FOF_SILENT | shellcon.FOF_ALLOWUNDO | shellcon.FOF_NOCONFIRMATION,None,None))  #删除文件到回收站
+        print(res)
+        if not res[1]:
+            # tk.messagebox.showerror(title='ERROR', message='删除失败，文件可能被占用！'+ str(filename))
+            print('请检查删除操作的返回值')
+            # os.system('del '+filename)
+
+        # (fp,fn) = os.path.split(filename)
+        # newname = fp+'/'+'~~'+fn
+        # final_name = exec_safe_rename(filename, newname)
+        # print(final_name)
         # send2trash.send2trash(filename) 
 
 
@@ -2077,8 +2096,9 @@ def get_folder_long():
 
 def get_folder_long_v2():
     '''
-    优化架构下的文件夹列表获取方法。
+    树架构下的文件夹列表获取方法。
     这种架构下，文件夹列表的-1列就是长路径名。
+    返回值：文件夹完整路径。
     '''
     for item in tree_lst_folder.selection():
         path_long = tree_lst_folder.item(item, "values")[-1]
@@ -2161,35 +2181,49 @@ def exec_file_rename(tar=None):  # 对文件重命名
                 pass
 
 
+def del_to_recyclebin(filename):
+    '''
+    删除到回收站
+    '''
+    print('deltorecyclebin', filename)
+    # os.remove(filename) #直接删除文件，不经过回收站
+    if True:
+        res = shell.SHFileOperation((0,shellcon.FO_DELETE,filename,None, shellcon.FOF_SILENT | shellcon.FOF_ALLOWUNDO | shellcon.FOF_NOCONFIRMATION,None,None))  #删除文件到回收站
+        if not res[1]:
+            os.system('del '+filename)
+
+
 def exec_tree_file_delete(tar=None):
     '''
     删除tree选中项对应的文件。
     兼容多文件，但是每个文件要确认一次，可能体验不太好。
     '''
     flag_deleted=0
-    for item in tree.selection():
-        # 获取文件全路径
-        item_text = tree.item(item, "values")
-        tmp_full_path = item_text[-1]
-        # 再次确认
-        if not isfile(tmp_full_path):
-            print('并不存在文件：' + str(tmp_full_path))
-            #
-        elif tk.messagebox.askokcancel("删除确认", "真的要【隐藏】以下文件吗？" + str(tmp_full_path)):
-            flag_deleted=1
-            try:
-                remove_to_trash(tmp_full_path)
+    if tk.messagebox.askokcancel("删除确认", "要将选中项删除到回收站吗？" ):
+    #
+        for item in tree.selection():
+            # 获取文件全路径
+            item_text = tree.item(item, "values")
+            tmp_full_path = item_text[-1]
+            # 再次确认
+            if not isfile(tmp_full_path):
+                print('并不存在文件：' + str(tmp_full_path))
                 #
-                if len(tree.selection())==1:
-                    update_main_window(0)
-            except:
-                t = tk.messagebox.showerror(title='ERROR', message='删除失败，文件可能被占用！')
-                print('删除失败，文件可能被占用')
-            # 刷新
+            else:
+                flag_deleted=1
+                try:
+                    remove_to_trash(tmp_full_path)
+                    #
+                    if len(tree.selection())==1:
+                        update_main_window(0)
+                except:
+                    t = tk.messagebox.showerror(title='ERROR', message='删除失败，文件可能被占用！'+ str(tmp_full_path))
+                    print('删除失败，文件可能被占用')
+                # 刷新
 
-    if len(tree.selection())>1:
-        if flag_deleted:
-            update_main_window(0)
+        if len(tree.selection())>1:
+            if flag_deleted:
+                update_main_window(0)
 
 
 def exec_fun_test(event=None):  #
@@ -2401,6 +2435,20 @@ def exec_sub_folder_new(event=None):
             # 如果目录存在则不创建，并提示目录已存在
             t = tk.messagebox.showerror(title='ERROR', message=(tmp_path+' 目录已存在，请重新设定文件夹名称'))
             # return False
+
+
+def exec_folder_del(event=None):
+    '''
+    将文件夹删掉（移动到回收站）
+    '''
+    fd = get_folder_long_v2()
+    fd = fd.replace('\\','/')
+    if tk.messagebox.askokcancel("删除确认", "要将选中的文件夹删除到回收站吗？" ):
+        # 删除操作
+        remove_to_trash(fd)
+        update_folder_list()
+        # 清空文件剪切板
+        exec_file_pick_nothing()
 
 
 def exec_folder_rename(event=None):
@@ -2775,6 +2823,13 @@ def show_online_advice(event=None):
     在线反馈
     '''
     exec_run(URL_ADV)
+
+
+def show_online_check_update(event=None):
+    '''
+    在线反馈
+    '''
+    exec_run(URL_CHK_UPDATE)
 
 
 def show_window_closing(need_asking=True):
@@ -3442,6 +3497,87 @@ def update_folder_and_json_file(ind=None,need_update=True):  # 刷新左侧的�
         exec_after_folder_choose()
 
 
+def exec_folder_cut(event=None):
+    '''
+    文件夹拿起来（剪切）
+    '''
+    fd = get_folder_long_v2()
+    global folder_to_move
+    folder_to_move = fd
+    # 清空文件剪切板
+    exec_file_pick_nothing()
+
+
+def exec_folder_paste(event=None):
+    '''
+    文件夹粘贴（放下）
+    '''
+    global folder_to_move
+    #
+    fd_to = get_folder_long_v2()
+    fd_from = folder_to_move
+    # 
+    # 检查目标位置是否已经有同名文件夹；
+    (old_head,old_tail) = os.path.split(fd_from)
+    new_path_full = fd_to + '/' + old_tail
+    new_path_full = new_path_full.replace('\\','/')
+    #
+    # 先检查原始位置和新位置是否完全一致；
+    if old_head.replace('\\','/') == fd_to.replace('\\','/'):
+        tk.messagebox.showerror(title = '错误',
+            message='原始位置和目标位置完全相同，操作无效。')
+        print('原始位置和目标位置一致，不移动文件夹')
+        # folder_to_move=''
+        return None
+    # 然后检查目标位置是否是原始位置的子文件夹：
+    # 算法是，检查新位置是否包括原位置的完整路径
+    if (fd_to.replace('\\','/')+'/').startswith(fd_from.replace('\\','/')+'/'):
+        tk.messagebox.showerror(title = '错误',
+            message='目标位置是原位置的子文件夹，不允许这样操作。')
+        print('目标位置是原位置的子文件夹，不允许这样操作',fd_to.replace('\\','/'),fd_from.replace('\\','/'))
+        # folder_to_move=''
+        return None
+    #
+    tmp_todo = 1
+    tmp_rename = 0 # 是否需要重命名
+    while isdir(new_path_full) and tmp_todo:
+        tmp_rename = 1
+        print('目标位置已存在同名文件夹')
+        if tk.messagebox.askokcancel("请注意", "目标位置存在同名文件夹。需要改变文件夹的名称后继续移动文件夹吗？"):
+            # 输入新文件名
+            res = show_window_input('重命名','请输入新的文件夹名称',old_tail,True)
+            if res is None:
+                tmp_todo = 0
+            else:
+                new_path_full = fd_to + '/' + res
+                new_path_full = new_path_full.replace('\\','/')
+        else:
+            tmp_todo = 0
+    #
+    if tmp_todo == 0:
+        return None
+    #
+    # 移动
+    try:
+        if tmp_rename:
+            os.rename(fd_from, new_path_full)
+        else:
+            shutil.move(fd_from,fd_to)
+        folder_to_move=''
+        try:
+            # 清空文件剪切板
+            exec_file_pick_nothing()
+        except Exception as e:
+            print(e)
+        update_folder_list()
+        update_main_window(fast_mode=True)
+
+    except Exception as e:
+        tk.messagebox.showerror(title = '错误',
+            message='文件夹移动失败！错误代码：'+str(e))
+        print('\n文件夹移动失败！错误代码：',e)
+
+
 def exec_folder_add(tar_list):
     '''
     添加关注的目录,输入必须是列表。
@@ -3713,6 +3849,7 @@ def show_popup_menu_main(event):
     # menu_main.add_command(label='使用说明')#,command=show_online_help)
     menu_main.add_command(label='访问主页（联网）', command=show_online_help)
     menu_main.add_command(label='建议和反馈（联网）', command=show_online_advice)
+    menu_main.add_command(label='检查更新（联网）', command=show_online_check_update)
     menu_main.add_command(label='关于…', command=show_window_info)
     menu_main.add_separator()
     menu_main.add_command(label='退出', command=show_window_closing)
@@ -3745,7 +3882,10 @@ def show_popup_menu_folder(event):
     menu_folder.add_separator()
     if vtype>=1:menu_folder.add_command(label="新建子文件夹", command=exec_sub_folder_new)
     if vtype>1:menu_folder.add_command(label="重命名文件夹",  command=exec_folder_rename)
-    if vtype>1:menu_folder.add_command(label="删除文件夹",  state=tk.DISABLED, command=exec_sub_folder_new)
+    if vtype>1:menu_folder.add_command(label="删除文件夹", command=exec_folder_del)
+    if vtype>=1:menu_folder.add_separator()
+    if vtype>1:menu_folder.add_command(label="剪切文件夹",  command=exec_folder_cut)
+    if vtype>=1:menu_folder.add_command(label="粘贴为子文件夹",  state=tk.DISABLED if len(folder_to_move)<1 else tk.NORMAL, command=exec_folder_paste)
     if vtype>=1:menu_folder.add_separator()
     menu_folder.add_command(label="刷新文件夹列表", command=update_folder_list)
     menu_folder.post(event.x_root, event.y_root)
@@ -4700,6 +4840,7 @@ if __name__ == '__main__':
     lst_pick_up_files = [] # 程序内剪切板
     lst_pick_up_items = [] # 程序内剪切板
     state_pick_up = 'move'
+    folder_to_move = '' # 待移动的文件夹
     #
     dict_path = dict()  # 用于列表简写和实际值
     #

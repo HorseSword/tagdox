@@ -38,10 +38,12 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases' # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.18.6.2'  # 版本号
+VER = 'v0.18.6.3'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.18.6.3 2021年9月4日
+优化剪切逻辑，统一部分函数命名规则。
 #### v0.18.6.2 2021年9月3日
 子文件夹删除或移动时，取消文件的粘贴功能。
 #### v0.18.6.1 2021年9月3日
@@ -199,7 +201,7 @@ def safe_get_name(new_name) -> str:
     return (tmp_new_full_name)
 
 
-def remove_to_trash(filename, remove=False):
+def exec_remove_to_trash(filename, remove=False):
     '''
     删除文件，
     参数filename 可以是文件，也可以是文件夹。
@@ -1924,7 +1926,7 @@ def get_search_items_sub_folder(event=None,res_lst=False):
         return res_tag,res_keyword,res_path
 
 
-def exec_add_tree_item(tree, dT) -> None:
+def exec_tree_add_items(tree, dT) -> None:
     '''
     关键函数：增加主框架的内容
     先获得搜索项目以及 tag
@@ -2145,7 +2147,7 @@ def exec_file_duplicate(tar=None): #文件原地建立副本
     pass
 
 
-def exec_file_rename(tar=None):  # 对文件重命名
+def exec_tree_file_rename(tar=None):  # 对文件重命名
     '''
     重命名tree选中的文件。需要有tree的选中项目。
     每个文件重命名一次，按理说兼容多文件，但是这个命令不应该给多文件执行。
@@ -2212,7 +2214,7 @@ def exec_tree_file_delete(tar=None):
             else:
                 flag_deleted=1
                 try:
-                    remove_to_trash(tmp_full_path)
+                    exec_remove_to_trash(tmp_full_path)
                     #
                     if len(tree.selection())==1:
                         update_main_window(0)
@@ -2226,7 +2228,7 @@ def exec_tree_file_delete(tar=None):
                 update_main_window(0)
 
 
-def exec_fun_test(event=None):  #
+def function_for_testing(event=None):  #
     ''' 
     用于调试一些测试性的功能，
     为了避免 event 输入，所以套了一层。
@@ -2445,10 +2447,10 @@ def exec_folder_del(event=None):
     fd = fd.replace('\\','/')
     if tk.messagebox.askokcancel("删除确认", "要将选中的文件夹删除到回收站吗？" ):
         # 删除操作
-        remove_to_trash(fd)
+        exec_remove_to_trash(fd)
         update_folder_list()
         # 清空文件剪切板
-        exec_file_pick_nothing()
+        exec_tree_file_pick_nothing()
 
 
 def exec_folder_rename(event=None):
@@ -2566,7 +2568,7 @@ def input_new_tag(event=None, tag_name=None):
         # tree.yview_moveto(b1)
 
 
-def exec_input_new_tag_via_dialog(event=None):
+def exec_tree_add_tag_via_dialog(event=None):
     '''
     以输入框的方式添加标签。
 
@@ -3064,11 +3066,11 @@ def exec_search(event=None):
     if TREE_SUB_SHOW =='sub_folder':
         v_tag.configure(state=tk.DISABLED)
     exec_tree_clear(tree)
-    # exec_add_tree_item(tree,dT,tag=tmp_tag)
+    # exec_tree_add_items(tree,dT,tag=tmp_tag)
     # if flag_sub_folders_changed == 1:
         # get_data(get_sub_folder_selected())
         # (dT, lst_tags) =get_dt()
-    exec_add_tree_item(tree, dT)
+    exec_tree_add_items(tree, dT)
     tree.update()
     if TREE_SUB_SHOW =='sub_folder':
         v_tag.configure(state='readonly')
@@ -3497,15 +3499,22 @@ def update_folder_and_json_file(ind=None,need_update=True):  # 刷新左侧的�
         exec_after_folder_choose()
 
 
+def exec_folder_clear_clipoard(event=None):
+    global folder_to_move
+    folder_to_move = ''
+
+
 def exec_folder_cut(event=None):
     '''
     文件夹拿起来（剪切）
     '''
+    exec_folder_clear_clipoard()
+    #
     fd = get_folder_long_v2()
     global folder_to_move
     folder_to_move = fd
     # 清空文件剪切板
-    exec_file_pick_nothing()
+    exec_tree_file_pick_nothing()
 
 
 def exec_folder_paste(event=None):
@@ -3527,7 +3536,7 @@ def exec_folder_paste(event=None):
         tk.messagebox.showerror(title = '错误',
             message='原始位置和目标位置完全相同，操作无效。')
         print('原始位置和目标位置一致，不移动文件夹')
-        # folder_to_move=''
+        # exec_folder_clear_clipoard()
         return None
     # 然后检查目标位置是否是原始位置的子文件夹：
     # 算法是，检查新位置是否包括原位置的完整路径
@@ -3535,7 +3544,7 @@ def exec_folder_paste(event=None):
         tk.messagebox.showerror(title = '错误',
             message='目标位置是原位置的子文件夹，不允许这样操作。')
         print('目标位置是原位置的子文件夹，不允许这样操作',fd_to.replace('\\','/'),fd_from.replace('\\','/'))
-        # folder_to_move=''
+        # exec_folder_clear_clipoard()
         return None
     #
     tmp_todo = 1
@@ -3563,12 +3572,8 @@ def exec_folder_paste(event=None):
             os.rename(fd_from, new_path_full)
         else:
             shutil.move(fd_from,fd_to)
-        folder_to_move=''
-        try:
-            # 清空文件剪切板
-            exec_file_pick_nothing()
-        except Exception as e:
-            print(e)
+        exec_folder_clear_clipoard()
+        #
         update_folder_list()
         update_main_window(fast_mode=True)
 
@@ -3924,7 +3929,7 @@ def show_popup_menu_sub_folder(event):
         menu_sub_folder.post(event.x_root, event.y_root)
 
 
-def exec_file_drop_tag(event=None):
+def exec_tree_file_drop_tag(event=None):
     '''
     删除标签
     '''
@@ -4000,7 +4005,7 @@ def show_popup_menu_file(event):
         for i in QUICK_TAGS:
             menu_tags_to_add.add_command(label=i, command=lambda x=i: exec_fast_add_tag(x))
         menu_tags_to_add.add_separator()
-    menu_tags_to_add.add_command(label='自定义标签…', command=exec_input_new_tag_via_dialog)
+    menu_tags_to_add.add_command(label='自定义标签…', command=exec_tree_add_tag_via_dialog)
     #
     menu_file = tk.Menu(window, tearoff=0)
     menu_file.add_command(label="打开文件", command=exec_tree_file_open, accelerator='Enter')
@@ -4018,27 +4023,27 @@ def show_popup_menu_file(event):
     # menu_file.add_command(label="打开选中项所在文件夹并选中文件（有点慢）",command=tree_open_folder_select)
     menu_file.add_command(label="打开当前文件夹", command=tree_open_current_folder)
     menu_file.add_separator()
-    menu_file.add_command(label='添加标签 ', command=exec_input_new_tag_via_dialog, accelerator='Ctrl+T')
+    menu_file.add_command(label='添加标签 ', command=exec_tree_add_tag_via_dialog, accelerator='Ctrl+T')
     menu_file.add_cascade(label="快速添加标签", menu=menu_tags_to_add)
     if n_selection==1:
         menu_file.add_cascade(label="移除标签", menu=menu_tags_to_drop)
     elif n_selection>1:
         menu_file.add_cascade(label="移除标签", menu=menu_tags_to_drop)
     menu_file.add_separator()
-    # menu_file.add_command(label="发送无标签副本到桌面（开发中）",state=tk.DISABLED)#,command=exec_file_rename)
-    # menu_file.add_command(label="复制到剪切板（开发中）",state=tk.DISABLED)#,command=exec_file_rename)
-    # menu_file.add_command(label="移动到文件夹（开发中）",state=tk.DISABLED)#,command=exec_file_rename)
-    # menu_file.add_command(label="粘贴（开发中）",state=tk.DISABLED)#,command=exec_file_rename)
+    # menu_file.add_command(label="发送无标签副本到桌面（开发中）",state=tk.DISABLED)#,command=exec_tree_file_rename)
+    # menu_file.add_command(label="复制到剪切板（开发中）",state=tk.DISABLED)#,command=exec_tree_file_rename)
+    # menu_file.add_command(label="移动到文件夹（开发中）",state=tk.DISABLED)#,command=exec_tree_file_rename)
+    # menu_file.add_command(label="粘贴（开发中）",state=tk.DISABLED)#,command=exec_tree_file_rename)
     if n_selection==1:
-        menu_file.add_command(label="重命名", command=exec_file_rename, accelerator='F2')
+        menu_file.add_command(label="重命名", command=exec_tree_file_rename, accelerator='F2')
     elif n_selection>1:
-        menu_file.add_command(label="重命名", state=tk.DISABLED, command=exec_file_rename, accelerator='F2')
+        menu_file.add_command(label="重命名", state=tk.DISABLED, command=exec_tree_file_rename, accelerator='F2')
     menu_file.add_command(label="删除", command=exec_tree_file_delete)
     menu_file.add_separator()
-    menu_file.add_command(label="剪切", command=exec_file_cut,accelerator='Ctrl+X')
-    menu_file.add_command(label="复制", command=exec_file_copy,accelerator='Ctrl+C')
-    menu_file.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_file_pick_nothing)
-    menu_file.add_command(label="粘贴", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_file_put_down,accelerator='Ctrl+V')
+    menu_file.add_command(label="剪切", command=exec_tree_file_cut,accelerator='Ctrl+X')
+    menu_file.add_command(label="复制", command=exec_tree_file_copy,accelerator='Ctrl+C')
+    menu_file.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_tree_file_pick_nothing)
+    menu_file.add_command(label="粘贴", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_tree_file_put_down,accelerator='Ctrl+V')
     menu_file.add_separator()
     menu_file.add_command(label="刷新", command=update_main_window)
     #
@@ -4056,10 +4061,10 @@ def show_popup_menu_file(event):
     # menu_file_no_selection.add_command(label="重命名",state=tk.DISABLED)#,command=exec_folder_add_click)
     # menu_file_no_selection.add_command(label="添加收藏",state=tk.DISABLED)#,command=exec_folder_add_click)
     menu_file_no_selection.add_separator()
-    menu_file_no_selection.add_command(label="剪切", state=tk.DISABLED, command=exec_file_cut,accelerator='Ctrl+X')
-    menu_file_no_selection.add_command(label="复制", state=tk.DISABLED, command=exec_file_copy,accelerator='Ctrl+C')
-    menu_file_no_selection.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_file_pick_nothing)
-    menu_file_no_selection.add_command(label="粘贴", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_file_put_down,accelerator='Ctrl+V')
+    menu_file_no_selection.add_command(label="剪切", state=tk.DISABLED, command=exec_tree_file_cut,accelerator='Ctrl+X')
+    menu_file_no_selection.add_command(label="复制", state=tk.DISABLED, command=exec_tree_file_copy,accelerator='Ctrl+C')
+    menu_file_no_selection.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_tree_file_pick_nothing)
+    menu_file_no_selection.add_command(label="粘贴", state=tk.DISABLED if len(lst_pick_up_files)==0 else tk.NORMAL, command=exec_tree_file_put_down,accelerator='Ctrl+V')
     menu_file_no_selection.add_separator()
     menu_file_no_selection.add_command(label="刷新", command=update_main_window)
 
@@ -4087,7 +4092,7 @@ def show_popup_menu_file(event):
             else:
                 # menu_tags_to_drop.add_separator()
                 for i in tmp_tags:
-                    menu_tags_to_drop.add_command(label=i, command=lambda x=i: exec_file_drop_tag(x))
+                    menu_tags_to_drop.add_command(label=i, command=lambda x=i: exec_tree_file_drop_tag(x))
 
             if len(tmp_tags_all) > len(tmp_tags):
                 if len(tmp_tags) > 0:
@@ -4141,7 +4146,7 @@ def show_popup_menu_file(event):
         if len(tmp_tags_from_files) > 0:
             tmp_tags_from_files=list(set(tmp_tags_from_files))
             for i in tmp_tags_from_files:
-                menu_tags_to_drop.add_command(label=i, command=lambda x=i: exec_file_drop_tag(x))
+                menu_tags_to_drop.add_command(label=i, command=lambda x=i: exec_tree_file_drop_tag(x))
         else:
             menu_tags_to_drop.add_command(label='无可移除的共有标签', state=tk.DISABLED)
             pass
@@ -4226,7 +4231,7 @@ def set_style(style):
     # style.tag_configure('line1',background="#EEEEEE")
 
 
-def exec_file_pick_up(event=None, need_clear = False):
+def exec_tree_file_pick_up(event=None, need_clear = False):
     '''
     将选中的文件拿起来
     '''
@@ -4237,11 +4242,14 @@ def exec_file_pick_up(event=None, need_clear = False):
     # if state_pick_up =='copy':
     #     state_pick_up = 'move'
     #     need_clear = True
-
+    #
+    # 每次复制或剪切的时候，文件夹的清理总是需要的
+    exec_folder_clear_clipoard()
+    #
     if need_clear:
-        exec_file_pick_nothing()
-        lst_pick_up_files = []
-        lst_pick_up_items = []
+        exec_tree_file_pick_nothing()
+        # lst_pick_up_files = []
+        # lst_pick_up_items = []
     #
     # 添加到列表中：
     for item in app.tree.selection():
@@ -4268,70 +4276,71 @@ def exec_file_pick_up(event=None, need_clear = False):
             lst_pick_up_items.append(item)
 
 
-def exec_file_cut_ctn(event=None):
+def exec_tree_file_cut_ctn(event=None):
     '''
     连续剪切
     '''
     global state_pick_up
     if state_pick_up=='copy':
         state_pick_up = 'move'
-        exec_file_pick_up(need_clear=True)
+        exec_tree_file_pick_up(need_clear=True)
     else:
-        exec_file_pick_up(need_clear=False)
+        exec_tree_file_pick_up(need_clear=False)
 
 
-def exec_file_cut(event=None):
+def exec_tree_file_cut(event=None):
     '''
     剪切
     '''
     global state_pick_up
     state_pick_up = 'move'
-    exec_file_pick_up(need_clear=True)
+    exec_tree_file_pick_up(need_clear=True)
 
 
-def exec_file_copy_cnt(event=None):
+def exec_tree_file_copy_cnt(event=None):
     '''
     连续复制
     '''
     global state_pick_up
     if state_pick_up=='move':
         state_pick_up = 'copy'
-        exec_file_pick_up(need_clear=True)
+        exec_tree_file_pick_up(need_clear=True)
     else:
-        exec_file_pick_up(need_clear=False)
+        exec_tree_file_pick_up(need_clear=False)
 
 
-def exec_file_copy(event=None):
+def exec_tree_file_copy(event=None):
     '''
     选中的文件复制
     '''
     global state_pick_up
     state_pick_up = 'copy'
-    exec_file_pick_up(need_clear=True)
+    exec_tree_file_pick_up(need_clear=True)
 
 
-def exec_file_pick_nothing(event=None):
+def exec_tree_file_pick_nothing(event=None,fastmode=False):
     '''
     清空pick列表
     '''
 
     global lst_pick_up_files
     global lst_pick_up_items
-    for item in lst_pick_up_items:
-        try:
-            new_item_tags = list(tree.item(item,'tags'))
-            if 'pick_up' in new_item_tags:
-                new_item_tags.remove('pick_up')
-            if 'pick_copy' in new_item_tags:
-                new_item_tags.remove('pick_copy')
-            tree.item(item, tags = new_item_tags)
-        except:
-            pass
+    if not fastmode:
+        for item in lst_pick_up_items:
+            try:
+                new_item_tags = list(tree.item(item,'tags'))
+                if 'pick_up' in new_item_tags:
+                    new_item_tags.remove('pick_up')
+                if 'pick_copy' in new_item_tags:
+                    new_item_tags.remove('pick_copy')
+                tree.item(item, tags = new_item_tags)
+            except:
+                pass
     lst_pick_up_files = []
     lst_pick_up_items = []
 
 
-def exec_file_put_down(event=None):
+def exec_tree_file_put_down(event=None):
     '''
     将选中的文件放下
     '''
@@ -4339,8 +4348,9 @@ def exec_file_put_down(event=None):
     global lst_pick_up_items
     # state_pick_up = 'move' 默认
     exec_tree_drag_enter(lst_pick_up_files, drag_type= state_pick_up)
-    lst_pick_up_files=[]
-    lst_pick_up_items = []
+    # lst_pick_up_files=[]
+    # lst_pick_up_items = []
+    exec_tree_file_pick_nothing(fastmode=True)
 
 
 # %%
@@ -4662,7 +4672,7 @@ class main_app:
             self.this_folder.pack(side=tk.RIGHT, expand=0, padx=0 if nx%2==0 else vPDX,pady=vPDY)
         #
         
-        self.bt_test = ttk.Button(self.frame0, text='测试功能', command=exec_fun_test)
+        self.bt_test = ttk.Button(self.frame0, text='测试功能', command=function_for_testing)
         if DEVELOP_MODE:
             self.bt_test.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
@@ -4695,7 +4705,7 @@ class main_app:
         self.bt_reload = ttk.Button(self.frameBtm, text='刷新', command=update_main_window)
         self.bt_reload.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
-        self.bt_add_tag = ttk.Button(self.frameBtm, text='添加标签',command=exec_input_new_tag_via_dialog)#, command=input_new_tag
+        self.bt_add_tag = ttk.Button(self.frameBtm, text='添加标签',command=exec_tree_add_tag_via_dialog)#, command=input_new_tag
         self.bt_add_tag.pack(side=tk.RIGHT, expand=0, padx=0, pady=vPDY)  #
 
         # 新标签的输入框
@@ -4770,20 +4780,20 @@ class main_app:
         self.window.bind_all('<Control-n>', exec_create_note)  # 绑定添加笔记的功能。
         self.window.bind_all('<Control-f>', jump_to_search)  # 跳转到搜索框。
         #
-        self.window.bind_all('<Control-X>', exec_file_cut_ctn)  # 拿起。
-        self.window.bind_all('<Control-x>', exec_file_cut)  # 拿起。
-        self.window.bind_all('<Control-C>', exec_file_copy_cnt)  # 拿起。
-        self.window.bind_all('<Control-c>', exec_file_copy)  # 拿起。
-        self.window.bind_all('<Control-v>', exec_file_put_down)  # 放下。
-        self.window.bind_all('<F2>', exec_file_rename)  # 重命名
+        self.window.bind_all('<Control-X>', exec_tree_file_cut_ctn)  # 拿起。
+        self.window.bind_all('<Control-x>', exec_tree_file_cut)  # 拿起。
+        self.window.bind_all('<Control-C>', exec_tree_file_copy_cnt)  # 拿起。
+        self.window.bind_all('<Control-c>', exec_tree_file_copy)  # 拿起。
+        self.window.bind_all('<Control-v>', exec_tree_file_put_down)  # 放下。
+        self.window.bind_all('<F2>', exec_tree_file_rename)  # 重命名
         #
         # window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
-        self.window.bind_all('<Control-t>', exec_input_new_tag_via_dialog)  # 快速输入标签。
+        self.window.bind_all('<Control-t>', exec_tree_add_tag_via_dialog)  # 快速输入标签。
         #
         # 按钮功能绑定
         # bt_setting.configure(command=show_window_setting) # 
         
-        # bt_folder_drop.configure(command=exec_input_new_tag_via_dialog)  # 加标签
+        # bt_folder_drop.configure(command=exec_tree_add_tag_via_dialog)  # 加标签
         # bt_settings.configure(command=show_popup_menu_main)  # 菜单按钮
         self.bt_settings.bind("<ButtonRelease-1>", show_popup_menu_main)  # 菜单按钮
         self.bt_new.configure(command=exec_create_note)
@@ -4957,7 +4967,7 @@ if __name__ == '__main__':
     set_search_tag_values(lst_tags) # 标签内容
     #
     try:
-        exec_add_tree_item(tree, dT) # 主要内容
+        exec_tree_add_items(tree, dT) # 主要内容
     except Exception as e:
         print(e)
         print('初始化主列表发生错误')

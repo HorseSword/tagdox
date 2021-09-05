@@ -38,10 +38,14 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases' # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.19.0.1'  # 版本号
+VER = 'v0.19.0.3'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.19.0.3 2021年9月5日
+修复文件夹刷新后的定位异常。
+#### v0.19.0.2 2021年9月4日
+修复文件拖拽到分组的异常。
 #### v0.19.0.1 2021年9月4日
 优化文件夹分组，增加置顶分组功能。
 #### v0.19.0.0 2021年9月4日
@@ -296,6 +300,8 @@ def exec_safe_copy(old_name, new_name, opt_type='copy'):
             # os.rename(old_name,tmp_new_full_name)
             return (tmp_new_full_name)
         except:
+            tk.messagebox.showerror(title = '错误',
+                message='文件复制失败。')
             print('对以下文件复制失败！')
             print(old_name)
             return (old_name)
@@ -308,6 +314,8 @@ def exec_safe_copy(old_name, new_name, opt_type='copy'):
             # os.rename(old_name,tmp_new_full_name)
             return (tmp_new_full_name)
         except:
+            tk.messagebox.showerror(title = '错误',
+                message='文件移动失败。')
             print('对以下文件移动失败！')
             print(old_name)
             return (old_name)
@@ -1355,45 +1363,71 @@ def update_folder_list(event=None,need_select=True):
     # if DEFAULT_GROUP_NAME in lst_root_text: # 默认文件夹分组永远在前
     #     lst_root_text.remove(DEFAULT_GROUP_NAME)
     #     lst_root_text = [DEFAULT_GROUP_NAME] + lst_root_text
+    #
     lst_root_text = get_folder_group_list()
     lst_my_path_short = exec_list_sort(lst_my_path_short)
 
+
+    def find_node_pos_by_text(node,text):
+        '''
+        返回对应的位置编号
+        '''
+        find_succ=0
+        pos=0
+        if node is None:
+            items = tree_lst_folder.get_children()
+        else:
+            items = tree_lst_folder.get_children(node)
+        for i in items:
+            if tree_lst_folder.item(i,'text') == text:
+                find_succ =1
+                break
+            pos+=1
+        if find_succ:
+            return pos
+        else:
+            return -1
+
     #
-    # 保存当前的根文件夹的顺位
+    # 保存当前的根文件夹（分组）的名称、顺位
     try:
-        tmp_root = get_folder_root_node()
-        tmp_node_text = tree_lst_folder.item(tmp_root,'text')
-        root_pos = lst_root_text.index(tmp_node_text)
+        tmp_group = get_folder_root_node()
+        tmp_group_text = tree_lst_folder.item(tmp_group,'text')
+        group_pos = find_node_pos_by_text(None,tmp_group_text)
+        #
+        tmp_folder1 = get_folder_root_node(1)
+        tmp_folder1_text = tree_lst_folder.item(tmp_folder1,'text')
+        # folder1_pos=0
+        # for i in tree_lst_folder.get_children(tmp_group):
+        #     if tree_lst_folder.item(i,'text') == tmp_folder1_text:
+        #         break
+        #     folder1_pos+=1
     except:
-        root_pos=0
+        group_pos=0
+        folder1_pos=0
     #
     # 保存现在选中的主文件夹；
     v_method=2
-    tmp_lst_open = []
+    tmp_lst_open = [] # 保存一路上来的文件夹名称
     if flag_inited:
         (b1, b2) = app.bar_folder_v.get()
     try:
         tmp_folder1=0
         tmp_n=0
-        tmp_root = tree_lst_folder.get_children()[0]
+        tmp_root = tmp_group
 
-        if v_method==1:
-            for i in tree_lst_folder.get_children(tmp_root):
-                if tree_lst_folder.item(i,"open"):
-                    tmp_folder1 = tmp_n
-                    break
-                else:
-                    tmp_n+=1
-        #
-        else:
-            for tmp_s in tree_lst_folder.selection():
-                #
-                tmp_lst_open.append(tree_lst_folder.item(tmp_s,"values")[-1])
-                tmp_p = tree_lst_folder.parent(tmp_s)
-                if tree_lst_folder.item(tmp_p,"values")[1] ==0:
-                    break
-                else:
-                    tmp_s=tmp_p
+        for tmp_s in tree_lst_folder.selection():
+            pass
+            #
+        for _ in range(1000): # 不可能有1000层的文件夹吧
+            tmp_lst_open.append(tree_lst_folder.item(tmp_s,"text"))
+            tmp_p = tree_lst_folder.parent(tmp_s)
+            need_debug = tree_lst_folder.item(tmp_p,"values")
+            if int(tree_lst_folder.item(tmp_p,"values")[1]) <=1:
+                break
+            else:
+                tmp_s=tmp_p
+
     except Exception as e:
         print(e)
         tmp_folder1=0
@@ -1469,35 +1503,44 @@ def update_folder_list(event=None,need_select=True):
     # 刷新后，选中第几个项目：
     #
     if v_method==2 and flag_inited:
-        print("tmp_lst_open=",tmp_lst_open)
+        # print("\n\n\ntmp_lst_open=",tmp_lst_open,'\n\n\n')
+        tmp_lst_open.reverse()
         #
-        root = tree_lst_folder.get_children()[root_pos]
-        tree_lst_folder.item(root,open=True)
-        tree_lst_folder.selection_set(root)
-        tmp_i = root
+        # 判断位置
+        group_pos = find_node_pos_by_text(None,tmp_group_text)
+        if group_pos<0:
+            group_pos = 0
+        item_group = tree_lst_folder.get_children()[group_pos] # 分组结点（0级目录）
+        #
+        folder1_pos = find_node_pos_by_text(item_group,tmp_folder1_text)
+        if folder1_pos<0:
+            folder1_pos = 0
+        item_folder1 = tree_lst_folder.get_children(item_group)[folder1_pos] # 根结点（1级目录）
+        tree_lst_folder.item(item_folder1,open=True) # 展开1级节点
+        tree_lst_folder.selection_set(item_folder1) # 选中
+        tmp_i = item_folder1
         try:
-            for tmp_n in range(len(tmp_lst_open)):
-                tmp_p = tmp_lst_open[-1-tmp_n]
-                print('tmp_p=',tmp_p)
+            for tmp_text in tmp_lst_open:
+
+                print('tmp_text=',tmp_text)
                 #
-                res_find = 0
-                for i in tree_lst_folder.get_children(tmp_i):
-                    if tree_lst_folder.item(i,"values")[-1]==tmp_p:
-                        tree_lst_folder.item(i,open=True)
-                        tree_lst_folder.selection_set(i) # 选中
-                        tmp_i = i
-                        res_find = 1
-                        break
-                if res_find==0:
+                folder2_pos = find_node_pos_by_text(tmp_i,tmp_text)
+                if folder2_pos<0:
+                    print('\n没有找到：',tmp_text,', 退出')
                     break
+                tmp_i = tree_lst_folder.get_children(tmp_i)[folder2_pos] # 根结点（1级目录）
+                tree_lst_folder.item(tmp_i,open=True) # 展开节点
+                tree_lst_folder.selection_set(tmp_i) # 选中
+                
             try:
                 tree_lst_folder.update()
                 tree_lst_folder.yview_moveto(b1)
             except:
                 pass
             exec_after_folder_choose()
+            #
         except Exception as e:
-            print(1416,e)
+            print(e)
             pass
 
     else: # 如果没有 flag_inited 的话，默认选中第一个文件夹
@@ -1505,8 +1548,8 @@ def update_folder_list(event=None,need_select=True):
         print('刷新文件夹：选中的文件夹是：',tmp_folder1)
         if need_select:
             try:
-                root = tree_lst_folder.get_children()[0]
-                to_selct = tree_lst_folder.get_children(root)[tmp_folder1]
+                item_group = tree_lst_folder.get_children()[group_pos]
+                to_selct = tree_lst_folder.get_children(item_group)[tmp_folder1]
                 tree_lst_folder.selection_set(to_selct) # 选中第一个文件夹
                 #
                 exec_after_folder_choose() # 右边也重载一次
@@ -2130,13 +2173,14 @@ def get_folder_long():
     return res
         
 
-def get_folder_root_node():
+def get_folder_root_node(depth=0):
     '''
-    获取选中项的根节点 item
+    获取选中项的根节点 item（文件夹分组）
+    输入参数为数字，可以获取指定深度的结点。
     '''
     itm = tree_lst_folder.selection()[0]
     the_item = itm
-    while get_folder_depth(the_item)>0:
+    while get_folder_depth(the_item)>depth:
         the_item = tree_lst_folder.parent(the_item)
     #
     return(the_item)
@@ -2157,7 +2201,7 @@ def get_folder_group():
 
 def get_folder_group_list():
     '''
-    获取排序后的文件夹分组列表
+    获取排序后的文件夹分组列表。这里已经排序完成。
     '''
     # 根目录的名称列表
     lst_root_text = list(set(dict_folder_groups.values()))
@@ -3459,6 +3503,7 @@ def exec_tree_drag_enter(files,drag_type=None):
     '''
     global flag_file_changed
     global FILE_DRAG_MOVE
+    v_method=2 # 树形架构下，采用方案2
     #
     print('files=',files)
     #
@@ -3475,20 +3520,45 @@ def exec_tree_drag_enter(files,drag_type=None):
         drag_type = 'copy'
 
     # 确定目录（目标）
-    short_name = get_folder_short()
-    print(short_name)
-    if short_name == '':
-        # print('未指定目标目录，取消复制')
-        str_btm.set('未指定目标目录，取消复制')
+    if len(tree_lst_folder.selection())==0:
+        tk.messagebox.showerror(title = '错误',
+            message='必须在左侧选定文件夹后，才能执行拖拽操作。')
+        # 如果没有任何文件夹被选中
         return
-    else:
-        if len(get_sub_folder_selected()) > 0: # 【注意】这个处理不太好
-            long_name = lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
+
+    if v_method ==1:
+        short_name = get_folder_short()
+        print(short_name)
+        if short_name == '':
+            # print('未指定目标目录，取消复制')
+            str_btm.set('未指定目标目录，取消复制')
+            return
         else:
-            long_name = lst_my_path_long_selected[0]
-        # long_name=get_folder_s2l(short_name) #将文件夹的显示值转换为实际值
-        print('long_name=')
-        print(long_name)
+            if len(get_sub_folder_selected()) > 0: # 【注意】这个处理不太好
+                long_name = lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
+            else:
+                long_name = lst_my_path_long_selected[0]
+            # long_name=get_folder_s2l(short_name) #将文件夹的显示值转换为实际值
+            print('long_name=')
+            print(long_name)
+            #
+    elif v_method ==2:
+        if get_folder_depth() ==0: # 选中的是文件夹分组。而不是文件夹
+            if tk.messagebox.askokcancel("注意", "当前选中的是文件夹分组（而不是文件夹），因此拖拽目标默认为当前分组第一个文件夹。是否继续？" ):
+                try:
+                    tmp_root_node = tree_lst_folder.selection()[0]
+                    tmp_f1_node = tree_lst_folder.get_children(tmp_root_node)[0]
+                    long_name = tree_lst_folder.item(tmp_f1_node,"values")[-1]
+                    # 默认存到第一个子文件夹中；
+                except:
+                    tk.messagebox.showerror(title = '错误',
+                        message='拖拽操作执行不成功。请检查文件夹访问是否正常。')
+                    return
+            else:
+                return 
+        elif get_folder_depth() >=1:
+            long_name = get_folder_long_v2()
+        pass
     #
     # 获取对象（k已经没什么用）
     k = len(tree.get_children())

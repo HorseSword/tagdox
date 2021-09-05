@@ -31,6 +31,9 @@ from win32com.shell import shell,shellcon
 import shutil
 import queue
 
+from my_gui_adds import my_progress_window,my_input_window
+from common_funcs import *
+
 # import my_logger
 # import send2trash # 回收站（目前作废）
 
@@ -38,10 +41,12 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases' # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.19.0.4'  # 版本号
+VER = 'v0.19.0.5 beta'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.19.0.5 2021年9月5日
+代码拆分成多个文件，首先拆分进度条和弹窗类。
 #### v0.19.0.4 2021年9月5日
 修复初始化时定位文件夹错误的bug。
 #### v0.19.0.3 2021年9月5日
@@ -122,7 +127,8 @@ OPT_DEFAULT = {
 # %%
 #######################################################################
 
-def get_split_path(full_path) -> list:
+
+def get_split_path_XXX(full_path) -> list:
     '''
     通用函数：    
     将完整路径按照斜杠拆分，得到每个文件夹到文件名的列表。
@@ -1072,7 +1078,7 @@ def show_window_info():
 
 
 # 自制输入窗体
-class my_input_window:
+class my_input_window_XXX:
     '''
     输入窗体类。
     实现了一个居中的模态窗体。
@@ -1188,16 +1194,16 @@ class my_input_window:
         return ''
 
 
-class my_progress_window:
+class my_progress_window_XXX:
     '''
-    一个出现在主窗口中间的进度条
+    # 一个出现在主窗口中间的进度条
     '''
 
     # input_window = ''  # =tk.Toplevel(self.form0)
 
     def __init__(self, parent, prog_value=0, prog_text='') -> None:
         '''
-        进度条，输入进度数值
+        # 进度条，输入进度数值
         '''
 
         # 变量设置

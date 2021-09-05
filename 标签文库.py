@@ -38,10 +38,12 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases' # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.19.0.3'  # 版本号
+VER = 'v0.19.0.4'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.19.0.4 2021年9月5日
+修复初始化时定位文件夹错误的bug。
 #### v0.19.0.3 2021年9月5日
 修复文件夹刷新后的定位异常。
 #### v0.19.0.2 2021年9月4日
@@ -1350,7 +1352,7 @@ def show_window_input(title_value, body_value='', init_value='', is_file_name=Tr
 
 def update_folder_list(event=None,need_select=True):
     '''
-    根据 lst_my_path_s，将文件夹列表刷新一次。
+    根据 lst_my_path_short ，将文件夹列表刷新一次。
     作用是：刷新主文件夹列表。暂不包括子文件夹刷新。
     没有输入输出。
     '''
@@ -3805,6 +3807,8 @@ def exec_folder_add(tar_list):
                 json_data['folders'].append(tmp)
     # 刷新目录
     update_folder_and_json_file()
+    # 刷新之后应该再刷新文件一次；
+    update_main_window(fast_mode=True)
 
 
 def exec_folder_drop():  # 删除关注的目录
@@ -5160,7 +5164,7 @@ if __name__ == '__main__':
     # ###########################################################
     #
     # 数据初始化
-    if ALL_FOLDERS == 1:  # 对应是否带有“所有文件夹”这个功能的开关
+    '''if ALL_FOLDERS == 1:  # 对应是否带有“所有文件夹”这个功能的开关
         lst_my_path_long_selected = lst_my_path_long.copy()  # 用这个变量修复添加文件夹之后定位不准确的问题。
         lst_files_to_go = get_data(lst_my_path_long_selected)
     else:
@@ -5170,7 +5174,7 @@ if __name__ == '__main__':
         except:
             lst_files_to_go = get_data()  # 此处有隐患，还没条件测试
     #
-    (dT, lst_tags) = get_dt()
+    (dT, lst_tags) = get_dt()'''
     # 
     # 增加排序方向的可视化（三角形）
     show_tree_order()
@@ -5187,7 +5191,20 @@ if __name__ == '__main__':
     #
     # 运行
     update_folder_list() # 文件夹列表
-    update_sub_folder_list(lst_sub_path) # 填充子文件夹内容
+    #
+    try:
+        tmp_itm_sel = tree_lst_folder.get_children()[0]
+        tmp_itm_sel = tree_lst_folder.get_children(tmp_itm_sel)[0]
+        tmp_path_long = tree_lst_folder.item(tmp_itm_sel,"values")[-1]
+        lst_my_path_long_selected = [tmp_path_long] # 默认加载第一个文件夹的内容
+        lst_files_to_go = get_data(lst_my_path_long_selected)
+    except:
+        lst_files_to_go = get_data()  # 此处有隐患，还没条件测试
+    #
+    (dT, lst_tags) = get_dt()
+    #
+    
+    # update_sub_folder_list(lst_sub_path) # 填充子文件夹内容
     set_search_tag_values(lst_tags) # 标签内容
     #
     try:

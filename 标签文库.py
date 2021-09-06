@@ -30,6 +30,7 @@ from multiprocessing import Process
 from win32com.shell import shell,shellcon
 import shutil
 import queue
+# 
 
 from my_gui_adds import my_progress_window,my_input_window
 from common_funcs import *
@@ -41,10 +42,14 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases' # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.19.0.5 beta'  # 版本号
+VER = 'v0.20.0.0'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.20.0.0 2021年9月6日
+美化UI，增加主题配色。
+#### v0.19.1.0 2021年9月6日
+允许拖拽文件夹到主窗口；修复文件夹列表可能被多选的bug。
 #### v0.19.0.5 2021年9月5日
 代码拆分成多个文件，首先拆分进度条和弹窗类。
 #### v0.19.0.4 2021年9月5日
@@ -3326,13 +3331,13 @@ def show_window_setting():  #
     #
     # 设置主要框架
     frame_setting1 = ttk.Frame(form_setting, padding=(0,10,0,0))
-    frame_setting1.pack(expand=0, fill=tk.BOTH)
+    frame_setting1.pack(expand=1, fill=tk.BOTH)
     frame_setting1.columnconfigure(0, weight=1)
     frame_setting1.columnconfigure(1, weight=1)
 
     # frame_setting2.grid_configure()
 
-    lable_set_sep = tk.Label(frame_setting1, text='标签分隔符')
+    lable_set_sep = ttk.Label(frame_setting1, text='标签分隔符')
     lable_set_sep.grid(row=0, column=0, padx=10, pady=5, sticky=tk.W)
 
     v_inp_sep = ttk.Entry(frame_setting1, width=16, text=V_SEP)
@@ -3340,7 +3345,7 @@ def show_window_setting():  #
     v_inp_sep.insert(0, V_SEP)
     v_inp_sep.grid(row=0, column=1, padx=10, pady=5, sticky=tk.EW)
 
-    lable_set_folder_depth = tk.Label(frame_setting1, text='识别为标签的文件夹层数')
+    lable_set_folder_depth = ttk.Label(frame_setting1, text='识别为标签的文件夹层数')
     lable_set_folder_depth.grid(row=1, column=0, padx=10, pady=5, sticky=tk.W)
 
     v_inp_folder_depth = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
@@ -3355,7 +3360,7 @@ def show_window_setting():  #
     #
     # 是否将最后的目录视为标签
     nr += 1
-    lable_ = tk.Label(frame_setting1, text='将最后一层文件夹作为标签 *')
+    lable_ = ttk.Label(frame_setting1, text='将最后一层文件夹作为标签 *')
     lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
     #
     v_last_folder_as_tag = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
@@ -3371,7 +3376,7 @@ def show_window_setting():  #
     # 笔记类型
     
     nr += 1
-    lable_set_note_type = tk.Label(frame_setting1, text='笔记类型')
+    lable_set_note_type = ttk.Label(frame_setting1, text='笔记类型')
     lable_set_note_type.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
 
     v_inp_note_type = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
@@ -3385,7 +3390,7 @@ def show_window_setting():  #
     # 拖动是移动还是复制
     nr += 1
     # lable_drag_type
-    lable_ = tk.Label(frame_setting1, text='拖拽添加文件的操作')
+    lable_ = ttk.Label(frame_setting1, text='拖拽添加文件的操作')
     lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
     #
     v_inp_drag_type = ttk.Combobox(frame_setting1, width=16)  
@@ -3404,7 +3409,7 @@ def show_window_setting():  #
     # 拖动是移动还是复制
     nr += 1
     # lable_drag_type
-    lable_ = tk.Label(frame_setting1, text='标签搜索模式')
+    lable_ = ttk.Label(frame_setting1, text='标签搜索模式')
     lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
     #
     v_tag_easy = ttk.Combobox(frame_setting1, width=16)  
@@ -3439,7 +3444,7 @@ def show_window_setting():  #
 
     # 布局是标签模式还是子文件夹模式
     nr += 1
-    lable_ = tk.Label(frame_setting1, text='（注意：标*的项目需要重启生效）')
+    lable_ = ttk.Label(frame_setting1, text='（注意：标*的项目需要重启生效）')
     lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
 
     # 下面的设置区域
@@ -3510,6 +3515,7 @@ def exec_tree_drag_enter(files,drag_type=None):
     drag_type = copy 是复制， = move 是移动。
     '''
     global flag_file_changed
+    flag_folder_changed=0
     global FILE_DRAG_MOVE
     v_method=2 # 树形架构下，采用方案2
     #
@@ -3534,23 +3540,7 @@ def exec_tree_drag_enter(files,drag_type=None):
         # 如果没有任何文件夹被选中
         return
 
-    if v_method ==1:
-        short_name = get_folder_short()
-        print(short_name)
-        if short_name == '':
-            # print('未指定目标目录，取消复制')
-            str_btm.set('未指定目标目录，取消复制')
-            return
-        else:
-            if len(get_sub_folder_selected()) > 0: # 【注意】这个处理不太好
-                long_name = lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
-            else:
-                long_name = lst_my_path_long_selected[0]
-            # long_name=get_folder_s2l(short_name) #将文件夹的显示值转换为实际值
-            print('long_name=')
-            print(long_name)
-            #
-    elif v_method ==2:
+    if v_method ==2:
         if get_folder_depth() ==0: # 选中的是文件夹分组。而不是文件夹
             if tk.messagebox.askokcancel("注意", "当前选中的是文件夹分组（而不是文件夹），因此拖拽目标默认为当前分组第一个文件夹。是否继续？" ):
                 try:
@@ -3584,8 +3574,14 @@ def exec_tree_drag_enter(files,drag_type=None):
             print('转码失败，',item,'不能被转码为gbk')
             pass
         if not isfile(item):
-            print(item,'不是文件，所以跳过')
-            continue # 跳过
+            print(item,'不是文件')
+            if isdir(item):
+                exec_folder_paste(tar_folder_from=item,tar_folder_to=long_name,need_update=False)
+                flag_folder_changed = 1
+                flag_file_changed = 1
+                continue
+            else:
+                continue # 跳过
 
         print(item)
         # 先安全复制
@@ -3619,8 +3615,13 @@ def exec_tree_drag_enter(files,drag_type=None):
         flag_file_changed = 1
 
     # 刷新：
+    if flag_folder_changed:
+        update_folder_list()
+        # update_main_window(fast_mode=True)
+        pass
+
     if flag_file_changed:
-        update_main_window(0)  # 这里不刷新的话，后面排序或者筛选都会出错。
+        update_main_window(0,fast_mode=True)  # 这里不刷新的话，后面排序或者筛选都会出错。
         # 高亮文件
         try:
             exec_tree_find_lst(new_file_lst)
@@ -3679,14 +3680,23 @@ def exec_folder_cut(event=None):
     exec_tree_file_pick_nothing()
 
 
-def exec_folder_paste(event=None):
+def exec_folder_paste(event=None, tar_folder_from=None, 
+        tar_folder_to = None, need_update=True):
     '''
     文件夹粘贴（放下）
+
     '''
-    global folder_to_move
+    if tar_folder_from is None:
+        global folder_to_move
+        fd_from = folder_to_move
+    else:
+        fd_from = tar_folder_from
     #
-    fd_to = get_folder_long_v2()
-    fd_from = folder_to_move
+    if tar_folder_to is None:
+        fd_to = get_folder_long_v2() 
+    else:
+        fd_to = tar_folder_to
+    
     # 
     # 检查目标位置是否已经有同名文件夹；
     (old_head,old_tail) = os.path.split(fd_from)
@@ -3736,8 +3746,9 @@ def exec_folder_paste(event=None):
             shutil.move(fd_from,fd_to)
         exec_folder_clear_clipoard()
         #
-        update_folder_list()
-        update_main_window(fast_mode=True)
+        if need_update:
+            update_folder_list()
+            update_main_window(fast_mode=True)
 
     except Exception as e:
         tk.messagebox.showerror(title = '错误',
@@ -4407,14 +4418,31 @@ def fixed_map_v2(tar,option):
 
 
 def set_style(style):
+    '''
+    显示的样式
+    '''
     # style = ttk.Style()
     # 修复 treeview 背景色的bug；
     style.map('Treeview', foreground=fixed_map('foreground'), background=fixed_map('background'))
     style.map('TFrame', foreground=fixed_map_v2('Frame','foreground'), background=fixed_map_v2('Frame','background'))
-    
-    MY_THEME=False
-    if MY_THEME:
-        style.theme_use('alt') #  winnative
+    style.map('TButton', foreground=fixed_map_v2('TButton','foreground'), background=fixed_map_v2('TButton','background'))
+    #
+    MY_THEME='me'
+
+    if MY_THEME =='third_party':
+        '''
+        第三方主题
+        '''
+        app.window.tk.call('lappend', 'auto_path', './styles/awthemes-10.4.0')
+        app.window.tk.call('package', 'require', 'awdark')
+        style.theme_use('awdark')
+
+        # app.window.tk.call('source', './styles/ttk-Breeze-master/breeze.tcl')
+        # style.theme_use('Breeze') # 
+
+    elif MY_THEME =='built-in':
+
+        style.theme_use('clam') #  winnative clam
         #
         # treeview
         style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
@@ -4435,33 +4463,30 @@ def set_style(style):
             borderwidth=0, relief='flat')
         # 
         # 按钮
-        style.configure("TButton",fieldbackground='#666666',background='#999900', \
+        style.configure("TButton",fieldbackground='#666666',
+            background='#999900', 
             activeforeground=" #ff0000",activebackground="#00ff00",
-            height=20,
+            height=16,
             borderwidth=1,relief='flat')
         #
         style.configure("TEntry",fieldbackground='#FFFFFF',background='#EEEEEE', \
             borderwidth=1,relief='solid')
         
-
     else:
         style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
                         rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4))
         style.configure("Treeview", font=FONT_TREE_BODY, \
                         rowheight=int(MON_FONTSIZE * 3.5),relief='flat',borderwidth=0)
-        # style.configure("Dark.TFrame", fieldbackground='#333333',background='#666666',
-        #     foreground='white')
-        # style.configure("Dark.Treeview", fieldbackground='#333333',background='#666666',
-        #     foreground='white')
-        # style.configure("Dark.Treeview.Heading", fieldbackground='blue', \
-        #     background='#888800',foreground='#999999')
-        style.configure("Dark.TFrame")
-        style.configure("Dark.Treeview")
-        style.configure("Dark.Treeview.Heading")
+        style.configure("Vertical.TScrollbar", width=8)
 
-    pass
-    
-    # style.tag_configure('line1',background="#EEEEEE")
+        for tar in [app.tree_lst_folder,app.tree_lst_sub_folder,app.tree_lst_sub_tag,app.tree]:
+            tar.tag_configure('line1',background="#F2F2F2")
+            # tar.tag_configure('line1',background="#F8F8F8")
+            # tar.tag_configure('line1',background="#FFFFFF")
+            # tar.tag_configure('folder2',background="#FFFFFF")
+            tar.tag_configure('folder2',background="#F2F2F2")
+            tar.tag_configure('pick_up',foreground="#f37625",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
+            tar.tag_configure('pick_copy',foreground="#2d7d9a",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
 
 
 def exec_tree_file_pick_up(event=None, need_clear = False):
@@ -4640,7 +4665,7 @@ class main_app:
         # 框架设计 ############################################
         #
         self.frame_window=ttk.Frame(self.window,padding=(1,1,1,1),relief='flat',borderwidth=0) 
-        self.frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=3, pady=3)
+        self.frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=2, pady=2)
         # 上面功能区
         self.frame0 = ttk.Frame(self.frame_window, relief='flat', height=120)#, borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
         self.frame0.pack(expand=0, fill=tk.X, padx=0, pady=0)# padx=10, pady=5)
@@ -4693,12 +4718,14 @@ class main_app:
         self.v_search = ttk.Entry(self.frame0)  # 搜索框
         self.v_folders = ttk.Combobox(self.frameFolder)  # 文件夹选择框
 
-        self.bar_tree_v = tk.Scrollbar(self.frameMain, width=16)  # 右侧滚动条
-        self.bar_tree_h = tk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL, width=16)  # 底部滚动条
+        # self.bar_tree_v = tk.Scrollbar(self.frameMain, width=16)  # 右侧滚动条
+        self.bar_tree_v = ttk.Scrollbar(self.frameMain)  # 右侧滚动条
+        # self.bar_tree_h = tk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL, width=16)  # 底部滚动条
+        self.bar_tree_h = ttk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL)  # 底部滚动条
 
         # 文件夹列表
 
-        if FOLDER_TYPE==1:
+        if FOLDER_TYPE==1: # 不再允许
             self.bar_folder_v = tk.Scrollbar(self.frameFolder, width=16)
             self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
             #
@@ -4721,11 +4748,13 @@ class main_app:
 
             # update_folder_list(self.tree_lst_folder)
             #
-        elif FOLDER_TYPE==2:
-            self.bar_folder_v = tk.Scrollbar(self.frameFolder, width=16)
+        elif FOLDER_TYPE==2: # 
+            # self.bar_folder_v = tk.Scrollbar(self.frameFolder, width=16)
+            self.bar_folder_v = ttk.Scrollbar(self.frameFolder)#, width=16)
             self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
             #
             self.tree_lst_folder = ttk.Treeview(self.frameFolder,
+                                        selectmode=tk.BROWSE,
                                         show="tree",
                                         yscrollcommand=self.bar_folder_v.set)  # , height=18)
             self.bar_folder_v.config(command=self.tree_lst_folder.yview)
@@ -4844,7 +4873,9 @@ class main_app:
         self.bt_clear = ttk.Button(self.frame0, text='清空', command=exec_clear_search_items)
         
         # bt_search=tk.Button(frame0,text='搜索', command=exec_search,bd=0,activebackground='red')
-        self.bt_search = ttk.Button(self.frame0, text='搜索', command=exec_search)  # ,bd=0,activebackground='red')
+        self.bt_search = ttk.Button(self.frame0, 
+            text='搜索', 
+            command=exec_search)  # ,bd=0,activebackground='red')
         
 
         if True:  # 子文件夹搜索
@@ -4864,7 +4895,7 @@ class main_app:
         self.v_tag.bind('<<ComboboxSelected>>', exec_search)
         self.v_tag.bind('<Return>', exec_search)  # 绑定回车键
 
-        self.lable_search = tk.Label(self.frame0, text='关键词')
+        self.lable_search = ttk.Label(self.frame0, text='关键词')
         self.v_search.bind('<Return>', exec_search)  # 绑定回车键
 
         #
@@ -4888,7 +4919,7 @@ class main_app:
             self.lable_sub_folders.pack(side=tk.RIGHT,expand=0,padx=0 if nx%2==0 else vPDX,pady=vPDY) # 
         elif TREE_SUB_SHOW=='sub_folder':
             nx+=1
-            self.lable_tag = tk.Label(self.frame0, text='标签')
+            self.lable_tag = ttk.Label(self.frame0, text='标签')
             self.v_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx%2==0 else vPDX,pady=vPDY)  #
             nx+=1
             self.lable_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx%2==0 else vPDX, pady=vPDY)  #
@@ -4926,10 +4957,17 @@ class main_app:
         self.progressbar_file.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY)
 
         # self.lable_sum = tk.Label(self.frameBtm, text=str_btm, textvariable=str_btm)
-        self.lable_sum = tk.Label(self.frameBtm, text=self.str_btm, textvariable=self.str_btm)
+        self.lable_sum = ttk.Label(self.frameBtm, text=self.str_btm, textvariable=self.str_btm)
         self.lable_sum.pack(side=tk.LEFT, expand=0, padx=2, pady=vPDY)  #
 
-        self.bt_settings = ttk.Button(self.frame0, text='菜单')  # ,command=show_online_help)
+        self.bt_settings = ttk.Button(self.frame0, 
+            style='Menu.TButton',
+            # image =tk.PhotoImage(file="./src/龙猫.gif"),
+            # compound=tk.LEFT, 
+            # background='green',
+            # relief='flat',
+            text='菜单')  # ,command=show_online_help)
+
         self.bt_settings.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
         self.bt_folder_add.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
         self.bt_new = ttk.Button(self.frame0, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
@@ -4963,12 +5001,15 @@ class main_app:
         self.bar_tree_v.config(command=self.tree.yview)
         self.bar_tree_h.config(command=self.tree.xview)
         # 样式
+        '''
         for tar in [self.tree_lst_folder,self.tree_lst_sub_folder,self.tree_lst_sub_tag,self.tree]:
             tar.tag_configure('line1',background="#F2F2F2")
-            tar.tag_configure('folder1',background="#FFFFFF")
+            # tar.tag_configure('line1',background="#F8F8F8")
+            # tar.tag_configure('line1',background="#FFFFFF")
+            # tar.tag_configure('folder2',background="#FFFFFF")
             tar.tag_configure('folder2',background="#F2F2F2")
             tar.tag_configure('pick_up',foreground="#f37625",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
-            tar.tag_configure('pick_copy',foreground="#2d7d9a",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
+            tar.tag_configure('pick_copy',foreground="#2d7d9a",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))'''
         self.window.iconbitmap(LOGO_PATH)  # 左上角图标 #
 
     
@@ -5110,7 +5151,11 @@ if __name__ == '__main__':
     # %%
     #
     # 样式
+    
+    # from ttkbootstrap import Style as TB_Style
+    # style = TB_Style(theme='yeti')
     style = ttk.Style()
+    
     set_style(style)
 
     # str_btm = tk.StringVar()  # 最下面显示状态用的

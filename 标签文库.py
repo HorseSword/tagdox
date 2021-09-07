@@ -42,10 +42,12 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases' # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.20.1.1'  # 版本号
+VER = 'v0.20.2.0'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.20.2.0 2021年9月6日
+文件列表增加常用的小图标。
 #### v0.20.1.1 2021年9月6日
 修复文件夹重复添加的bug，增加快速添加子目录到关注列表的功能。
 #### v0.20.1.0 2021年9月6日
@@ -63,8 +65,8 @@ cALL_FILES = ''  # 标签为空的表达方式，默认是空字符串
 PROG_STEP = 500  # 进度条刷新参数
 CLEAR_AFTER_CHANGE_FOLDER = 2  # 切换文件夹后，是否清除筛选。0 是保留，其他是清除。
 DIR_LST = ['▲', '▼']  # 列排序标题行
-HEADING_LST = ['file', 'tags', 'modify_time', 'size', 'file0']
-HEADING_LST_TXT = ['文件名', '标签', '修改时间', '文件大小(kB)', '完整路径']
+HEADING_LST = ['#0', 'tags', 'modify_time', 'size', 'file0']
+HEADING_LST_TXT = ['名称', '标签', '修改时间', '文件大小(kB)', '完整路径']
 MULTI_PROC = 1  # 并发进程数，设置为1或更低就单独进程。
 MULTI_FILE_COUNT = 400
 DEFAULT_GROUP_NAME = '默认文件夹分组'
@@ -865,7 +867,13 @@ def update_data(lst1):
             pass
         else:
             tmp = get_file_part(one_file)
-            tmp_v = (str(tmp['fname_0']), tmp['ftags'], str(tmp['file_mdf_time']), tmp['fsize'], str(tmp['full_path']))
+            tmp_v = (str(tmp['fname_0']), 
+                    tmp['ftags'], 
+                    str(tmp['file_mdf_time']), 
+                    tmp['fsize'], 
+                    tmp['fename'],
+                    str(tmp['full_path']))
+            # tmp_v = (str(tmp['fname_0']), tmp['ftags'], str(tmp['file_mdf_time']), tmp['fsize'], str(tmp['full_path']))
             try:
                 dicT[one_file]=tmp_v
             except Exception as e:
@@ -979,7 +987,12 @@ def get_dt(lst_file0=None,need_set_prog=True,FAST_MODE=True):
                 # 增加检查重复项的逻辑：
                 # tmp_v=[tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['full_path']]
                 # tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['full_path'])
-                tmp_v = (str(tmp['fname_0']), tmp['ftags'], str(tmp['file_mdf_time']), tmp['fsize'], str(tmp['full_path']))
+                tmp_v = (str(tmp['fname_0']), 
+                    tmp['ftags'], 
+                    str(tmp['file_mdf_time']), 
+                    tmp['fsize'], 
+                    tmp['fename'],
+                    str(tmp['full_path']))
                 try:
                     dicT[one_file]=tmp_v
                 except Exception as e:
@@ -2007,6 +2020,33 @@ def get_search_items_sub_folder(event=None,res_lst=False):
         return res_tag,res_keyword,res_path
 
 
+def get_icon_ext(dot_ext):
+    '''
+    根据扩展名，返回图标
+    '''
+    ext = str.lower(dot_ext)
+    #
+    if ext in ['.docx','.doc','.wps']:
+        tmp_imag = app.PIC_DICT['word']
+    elif ext in ['.xlsx','.xls','xlsm','.et']:
+        tmp_imag = app.PIC_DICT['excel']
+    elif ext in ['.pptx','.ppt']:
+        tmp_imag = app.PIC_DICT['ppt']
+    elif ext in ['.jpg','.jpeg','.png','.webp','.gif','.bmp','.svg']:
+        tmp_imag = app.PIC_DICT['img']
+    elif ext in ['.7z','.zip','.rar']:
+        tmp_imag = app.PIC_DICT['zip']
+    elif ext in ['.md']:
+        tmp_imag = app.PIC_DICT['md']
+    elif ext in ['.html','.mht','.url','.htm']:
+        tmp_imag = app.PIC_DICT['html']
+    elif ext in ['.pdf']:
+        tmp_imag = app.PIC_DICT['pdf']
+    else:
+        tmp_imag = app.PIC_DICT['file']
+    return tmp_imag
+
+
 def exec_tree_add_items(tree, dT) -> None:
     '''
     关键函数：增加主框架的内容
@@ -2101,11 +2141,22 @@ def exec_tree_add_items(tree, dT) -> None:
                         break # 有这句话就是 and 关系。
 
         if canadd == 1:
+            ext = tmp[4]
+            tmp_imag = get_icon_ext(ext)
             k += 1
-            if k % 2 == 1:
-                tree.insert('', k, values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]), tags=['line1'])
-            else:
-                tree.insert('', k, values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]), tags=['line2'])
+            tree.insert('', k, 
+                    text = '  '+tmp[0],
+                    image = tmp_imag,
+                    tags=['line1'] if k%2==1 else ['line2'],
+                    values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[-1]))
+
+            # if k % 2 == 1:
+            #     tree.insert('', k, 
+            #         values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]), 
+            #         tags=['line1'] if k%2==1 else ['line2'],
+            #         text = tmp[0])
+            # else:
+            #     tree.insert('', k, values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]), tags=['line2'])
     
         
         if True:
@@ -4706,6 +4757,22 @@ class main_app:
             SCREEN_HEIGHT = self.window.winfo_screenheight()
         pass
         #
+        self.PIC_DICT = {"龙猫":tk.PhotoImage(file="./src/龙猫.gif"),
+            #
+            "word":tk.PhotoImage(file="./src/word.png"),
+            "excel":tk.PhotoImage(file="./src/excel.png"),
+            "ppt":tk.PhotoImage(file="./src/ppt.png"),
+            "pdf":tk.PhotoImage(file="./src/pdf.png"),
+            "zip":tk.PhotoImage(file="./src/zip.png"),
+            "img":tk.PhotoImage(file="./src/img.png"),
+            "html":tk.PhotoImage(file="./src/html.png"),
+            "md":tk.PhotoImage(file="./src/md.png"),
+            "file":tk.PhotoImage(file="./src/file.png"),
+            #
+            "folder_100_20":tk.PhotoImage(file="./src/folder_100_20.png"),
+            "folder_75_20":tk.PhotoImage(file="./src/folder_75_20.png"),
+            "folder_50_20":tk.PhotoImage(file="./src/folder_50_20.png"),
+            "folder_25_20":tk.PhotoImage(file="./src/folder_25_20.png")}
         self.SCREEN_WIDTH=SCREEN_WIDTH
         self.SCREEN_HEIGHT=SCREEN_HEIGHT
         #
@@ -4867,7 +4934,7 @@ class main_app:
         # 主文件列表
         columns = ("index", "file", "tags", "modify_time", "size", "file0")
         column_text = ("序号", "文件名", "标签", "修改时间", "文件大小(kB)", "完整路径")
-        tree_displaycolumns = ["file", "tags", "modify_time", "size"]
+        tree_displaycolumns = [ "tags", "modify_time", "size"] #"file",
         col_dic={
             "序号":{
                 "name":"index",
@@ -4889,19 +4956,24 @@ class main_app:
             }
         }
         #
-        self.tree = ttk.Treeview(self.frameMain, show="headings", columns=columns, \
+        self.tree = ttk.Treeview(self.frameMain, 
+                            # show="headings",  # 如果有这句话，就不能显示图标
+                            columns=columns,
                             displaycolumns=tree_displaycolumns, \
                             # selectmode=tk.BROWSE, \
                             selectmode='extended', \
-                            yscrollcommand=self.bar_tree_v.set, xscrollcommand=self.bar_tree_h.set)  # , height=18)
-
+                            yscrollcommand=self.bar_tree_v.set, 
+                            xscrollcommand=self.bar_tree_h.set)  # , height=18)
+        #
+        self.tree.column('#0',width=700,anchor='w')#,stretch=tk.NO)
         self.tree.column('index', width=30, anchor='center')
         self.tree.column('file', width=700,minwidth=100, anchor='w')
         self.tree.column('tags', width=200, minwidth=100,anchor='w')
         self.tree.column('modify_time', width=18, minwidth=120,anchor='w')#,stretch=tk.NO)
         self.tree.column('size', width=14, minwidth=80, anchor='w')#,stretch=tk.NO)
         self.tree.column('file0', width=80, anchor='w')
-
+        #
+        self.tree.heading('#0', text = '名称',anchor='w', command=tree_order_filename)
         self.tree.heading("index", text="序号", anchor='center')
         self.tree.heading("file", text="文件名", anchor='w', command=tree_order_filename)
         self.tree.heading("tags", text="标签", anchor='w', command=tree_order_tag)

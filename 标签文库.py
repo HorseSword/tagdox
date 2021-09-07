@@ -42,26 +42,16 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases' # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.20.0.0'  # 版本号
+VER = 'v0.20.1.1'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.20.1.1 2021年9月6日
+修复文件夹重复添加的bug，增加快速添加子目录到关注列表的功能。
+#### v0.20.1.0 2021年9月6日
+全面优化界面UI和配色。
 #### v0.20.0.0 2021年9月6日
 美化UI，增加主题配色。
-#### v0.19.1.0 2021年9月6日
-允许拖拽文件夹到主窗口；修复文件夹列表可能被多选的bug。
-#### v0.19.0.5 2021年9月5日
-代码拆分成多个文件，首先拆分进度条和弹窗类。
-#### v0.19.0.4 2021年9月5日
-修复初始化时定位文件夹错误的bug。
-#### v0.19.0.3 2021年9月5日
-修复文件夹刷新后的定位异常。
-#### v0.19.0.2 2021年9月4日
-修复文件拖拽到分组的异常。
-#### v0.19.0.1 2021年9月4日
-优化文件夹分组，增加置顶分组功能。
-#### v0.19.0.0 2021年9月4日
-实现文件夹分组等功能；文件夹按照名称排序；移除文件夹顺序自定义功能。
 
 '''
 # %%
@@ -398,7 +388,7 @@ def load_json_file_data(load_settings=True, load_folders=True):
     global json_data
     global V_SEP, V_FOLDERS
     global NOTE_EXT, FILE_DRAG_MOVE
-    global lst_my_path_long
+    global lst_my_path_long # 所有文件夹长路径；
     global lst_my_path_short
     global lst_my_path_long_selected
     global TREE_SUB_SHOW
@@ -2521,6 +2511,12 @@ def tree_open_current_folder(event=None):
         t = tk.messagebox.showerror(title='ERROR', message='打开文件夹失败！')
 
 
+def exec_folder_from_menu(event=None):
+    '''通过菜单添加关注的文件夹'''
+    folder_path = get_folder_long_v2()
+    exec_folder_add([folder_path])
+
+
 def exec_folder_add_from_sub(event=None):
     '''
     通过子文件夹的方式添加关注文件夹
@@ -3814,18 +3810,28 @@ def exec_folder_rename_group(event=None):
 def exec_folder_add(tar_list):
     '''
     添加关注的目录,输入必须是列表。
+    列表内是文件夹完整路径。
     '''
     global json_data
-    for tar in tar_list:
-        if len(tar) > 0:  # 用于避免空白项目，虽然不知道哪里来的
-            tar = str(tar).replace("\\", '/')
-            tmp = {"pth": tar}
-            if not tmp in json_data['folders']:  # 此处判断条件有漏洞，因为加入short参数之后就不对了
-                json_data['folders'].append(tmp)
+    need_update = 0
+    for tmp_path_long in tar_list:
+        if len(tmp_path_long) > 0:  # 用于避免空白项目，虽然不知道哪里来的
+            tmp_path_long = str(tmp_path_long).replace("\\", '/')
+            tmp_tar = {"pth": tmp_path_long}
+            #
+            # 判断是否已经存在
+            if not tmp_path_long in lst_my_path_long:  
+                json_data['folders'].append(tmp_tar)
+                need_update = 1
+            else:
+                tk.messagebox.showerror(title = '错误',
+                    message='以下路径已存在，不需要添加：'+tmp_path_long)
+                print('以下路径已存在，不需要添加：',tmp_path_long)
     # 刷新目录
-    update_folder_and_json_file()
-    # 刷新之后应该再刷新文件一次；
-    update_main_window(fast_mode=True)
+    if need_update:
+        update_folder_and_json_file()
+        # 刷新之后应该再刷新文件一次；
+        update_main_window(fast_mode=True)
 
 
 def exec_folder_drop():  # 删除关注的目录
@@ -4118,23 +4124,27 @@ def show_popup_menu_folder(event):
     #
     menu_folder = tk.Menu(window, tearoff=0)
     if vtype>=1:menu_folder.add_command(label="打开所选文件夹", command=exec_folder_open)
-    if vtype==1:menu_folder.add_separator()
     # if vtype==1:menu_folder.add_command(label="置顶",command=exec_folder_move_top)
     # if vtype==1:menu_folder.add_command(label="向上移动", command=exec_folder_move_up)
     # if vtype==1:menu_folder.add_command(label="向下移动",command=exec_folder_move_down)
-    # if vtype>=1:menu_folder.add_separator()
-    
-    if vtype==1:menu_folder.add_command(label="将所选文件夹从关注列表移除",command=exec_folder_drop)
-    if vtype==1:menu_folder.add_cascade(label="设置文件夹分组", menu=menu_folder_group)
+    # if vtype>=1:menu_folder.add_separator()    
     if vtype>=1:menu_folder.add_separator()
+    
     if vtype>=1:menu_folder.add_command(label="新建子文件夹", command=exec_sub_folder_new)
     if vtype>1:menu_folder.add_command(label="重命名文件夹",  command=exec_folder_rename)
     if vtype>1:menu_folder.add_command(label="删除文件夹", command=exec_folder_del)
     if vtype>=1:menu_folder.add_separator()
+
     if vtype>1:menu_folder.add_command(label="剪切文件夹",  command=exec_folder_cut)
     if vtype>=1:menu_folder.add_command(label="粘贴为子文件夹",  state=tk.DISABLED if len(folder_to_move)<1 else tk.NORMAL, command=exec_folder_paste)
     if vtype ==0:menu_folder.add_command(label="重命名分组", command=exec_folder_rename_group)
     menu_folder.add_separator()
+
+    if vtype >1:menu_folder.add_command(label="添加当前选中文件夹到关注列表", command=exec_folder_from_menu)
+    if vtype==1:menu_folder.add_command(label="将所选文件夹从关注列表移除",command=exec_folder_drop)
+    if vtype==1:menu_folder.add_cascade(label="设置文件夹分组", menu=menu_folder_group)
+    if vtype >=1:menu_folder.add_separator()
+    
     menu_folder.add_command(label="添加文件夹到关注列表…", command=exec_folder_add_click)
     menu_folder.add_command(label="刷新文件夹列表", command=update_folder_list)
     menu_folder.post(event.x_root, event.y_root)
@@ -4425,20 +4435,74 @@ def set_style(style):
     # 修复 treeview 背景色的bug；
     style.map('Treeview', foreground=fixed_map('foreground'), background=fixed_map('background'))
     style.map('TFrame', foreground=fixed_map_v2('Frame','foreground'), background=fixed_map_v2('Frame','background'))
-    style.map('TButton', foreground=fixed_map_v2('TButton','foreground'), background=fixed_map_v2('TButton','background'))
+    # style.map('TButton', foreground=fixed_map_v2('TButton','foreground'), background=fixed_map_v2('TButton','background'))
     #
-    MY_THEME='me'
+    MY_THEME='third_party'
 
     if MY_THEME =='third_party':
         '''
         第三方主题
         '''
         app.window.tk.call('lappend', 'auto_path', './styles/awthemes-10.4.0')
+        app.window.tk.call('package', 'require', 'awlight')
+        # app.window.tk.call('package', 'require', 'awarc')
+        # app.window.tk.call('package', 'require', 'awbreeze')
         app.window.tk.call('package', 'require', 'awdark')
-        style.theme_use('awdark')
+        style.theme_use('awlight')
+        LIGHT_THEME = True
+        if LIGHT_THEME:
+            for tar in [app.tree_lst_folder,app.tree_lst_sub_folder,app.tree_lst_sub_tag,app.tree]:
+                tar.tag_configure('line1',background="#F2F2F2")
+                # tar.tag_configure('line1',background="#F8F8F8")
+                # tar.tag_configure('line1',background="#FFFFFF")
+                # tar.tag_configure('folder2',background="#FFFFFF")
+                tar.tag_configure('folder2',background="#1e1e1e")
+                tar.tag_configure('pick_up',foreground="#f37625",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
+                tar.tag_configure('pick_copy',foreground="#2d7d9a",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
+        else:
+            for tar in [app.tree_lst_folder,app.tree_lst_sub_folder,app.tree_lst_sub_tag,app.tree]:
+                tar.tag_configure('line1',background="#343a40")
+                # tar.tag_configure('line1',background="#F8F8F8")
+                # tar.tag_configure('line1',background="#FFFFFF")
+                # tar.tag_configure('folder2',background="#FFFFFF")
+                # tar.tag_configure('folder2',background="#1e1e1e")
+                tar.tag_configure('pick_up',foreground="#f37625",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
+                tar.tag_configure('pick_copy',foreground="#2d7d9a",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
 
         # app.window.tk.call('source', './styles/ttk-Breeze-master/breeze.tcl')
         # style.theme_use('Breeze') # 
+
+        style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
+                        rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4), \
+                        background='white',
+                        relief='flat',borderwidth=0)
+
+        style.configure("Treeview", font=FONT_TREE_BODY, \
+                        rowheight=int(MON_FONTSIZE * 3.5), \
+                        # fieldbackground='white',
+                        # background='#666666', \
+                        relief='flat',borderwidth=0)
+        
+        style.configure("Dark.Treeview", font=FONT_TREE_BODY, \
+                        rowheight=int(MON_FONTSIZE * 3.5), \
+                        fieldbackground='#2a333c', # 没有行部分的颜色
+                        background='#2a333c', \
+                        foreground='white',
+                        relief='flat',borderwidth=0)
+
+        style.configure("TButton",relief='flat',
+            background='#3a92c5',foreground='white') # 静态
+
+        style.map('TButton', background=[('active','#2EB8AC'),
+            ('pressed','#37373d'),
+            ('disabled','#bfbfbf')])
+
+        style.configure("Menu.TButton", background='#21a366')
+        style.map('Menu.TButton', background=[('active','#107c41'),
+            ('pressed','#185c37')])
+
+        style.configure("Horizontal.TProgressbar",background='#3a92c5')
+
 
     elif MY_THEME =='built-in':
 
@@ -4477,7 +4541,7 @@ def set_style(style):
                         rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4))
         style.configure("Treeview", font=FONT_TREE_BODY, \
                         rowheight=int(MON_FONTSIZE * 3.5),relief='flat',borderwidth=0)
-        style.configure("Vertical.TScrollbar", width=8)
+        # style.configure("Vertical.TScrollbar", width=8)
 
         for tar in [app.tree_lst_folder,app.tree_lst_sub_folder,app.tree_lst_sub_tag,app.tree]:
             tar.tag_configure('line1',background="#F2F2F2")
@@ -4665,7 +4729,7 @@ class main_app:
         # 框架设计 ############################################
         #
         self.frame_window=ttk.Frame(self.window,padding=(1,1,1,1),relief='flat',borderwidth=0) 
-        self.frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=2, pady=2)
+        self.frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=0, pady=0)
         # 上面功能区
         self.frame0 = ttk.Frame(self.frame_window, relief='flat', height=120)#, borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
         self.frame0.pack(expand=0, fill=tk.X, padx=0, pady=0)# padx=10, pady=5)
@@ -4683,9 +4747,9 @@ class main_app:
         # for i in range(2):
         # frameLeft.rowconfigure(i,weight=1)
 
-        self.frameFolder = ttk.Frame(self.frameLeft,relief='flat', borderwidth=0,)
+        self.frameFolder = ttk.Frame(self.frameLeft,style='Dark.TFrame',relief='flat', borderwidth=0,)
             # height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
-        self.frameFolder.pack(side=tk.TOP, expand=1, fill=tk.BOTH, padx=0, pady=2)  # padx=10,pady=5)
+        self.frameFolder.pack(side=tk.TOP, expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10,pady=5)
         # frameFolder.grid(column=0,row=0)
         #
         # 子文件夹区
@@ -4718,43 +4782,21 @@ class main_app:
         self.v_search = ttk.Entry(self.frame0)  # 搜索框
         self.v_folders = ttk.Combobox(self.frameFolder)  # 文件夹选择框
 
-        # self.bar_tree_v = tk.Scrollbar(self.frameMain, width=16)  # 右侧滚动条
-        self.bar_tree_v = ttk.Scrollbar(self.frameMain)  # 右侧滚动条
-        # self.bar_tree_h = tk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL, width=16)  # 底部滚动条
-        self.bar_tree_h = ttk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL)  # 底部滚动条
+        self.bar_tree_v = tk.Scrollbar(self.frameMain, width=16)  # 右侧滚动条
+        # self.bar_tree_v = tk.Scrollbar(self.frameMain)  # 右侧滚动条
+        self.bar_tree_h = tk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL, width=16)  # 底部滚动条
+        # self.bar_tree_h = tk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL)  # 底部滚动条
 
         # 文件夹列表
 
-        if FOLDER_TYPE==1: # 不再允许
+        if True:
             self.bar_folder_v = tk.Scrollbar(self.frameFolder, width=16)
-            self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
-            #
-            self.tree_lst_folder = ttk.Treeview(self.frameFolder,
-                                        columns=['folders'],
-                                        # columns = ['index','type','folders','folder_path'],
-                                        displaycolumns=['folders'],
-                                        selectmode=tk.BROWSE,
-                                        show="headings",
-                                        # show="tree",
-                                        # cursor='hand2',
-                                        # pady=0,padx=0,
-                                        yscrollcommand=self.bar_folder_v.set)  # , height=18)
-            self.bar_folder_v.config(command=self.tree_lst_folder.yview)
-
-            self.tree_lst_folder.heading("folders", text="已关注的文件夹", anchor='w')
-            self.tree_lst_folder.column('folders', width=300, anchor='w')
-            #
-            self.tree_lst_folder.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=0)
-
-            # update_folder_list(self.tree_lst_folder)
-            #
-        elif FOLDER_TYPE==2: # 
-            # self.bar_folder_v = tk.Scrollbar(self.frameFolder, width=16)
-            self.bar_folder_v = ttk.Scrollbar(self.frameFolder)#, width=16)
+            # self.bar_folder_v = ttk.Scrollbar(self.frameFolder)#, width=16)
             self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
             #
             self.tree_lst_folder = ttk.Treeview(self.frameFolder,
                                         selectmode=tk.BROWSE,
+                                        style='Dark.Treeview',
                                         show="tree",
                                         yscrollcommand=self.bar_folder_v.set)  # , height=18)
             self.bar_folder_v.config(command=self.tree_lst_folder.yview)
@@ -4968,7 +5010,7 @@ class main_app:
             # relief='flat',
             text='菜单')  # ,command=show_online_help)
 
-        self.bt_settings.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
+        self.bt_settings.pack(side=tk.LEFT, expand=0, padx=2, pady=vPDY)  #
         self.bt_folder_add.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
         self.bt_new = ttk.Button(self.frame0, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
         self.bt_new.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #

@@ -32,7 +32,10 @@ import shutil
 import queue
 # 
 
-from my_gui_adds import my_progress_window,my_input_window
+from my_gui_adds import my_progress_window
+from my_gui_adds import my_input_window
+from my_gui_adds import my_space_window
+
 from common_funcs import *
 
 # import my_logger
@@ -42,10 +45,18 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases' # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.20.2.0'  # 版本号
+VER = 'v0.20.3.3'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.20.3.3 2021年9月10日
+增加空格查看文件信息的功能；增加Insert键快速插入txt笔记的功能。
+#### v0.20.3.2 2021年9月9日
+修复：复制粘贴快捷键在输入弹窗中与输入框冲突的问题。
+#### v0.20.3.1 2021年9月9日
+优化界面布局和间距，调整按钮等。
+#### v0.20.3.0 2021年9月6日
+优化界面。
 #### v0.20.2.0 2021年9月6日
 文件列表增加常用的小图标。
 #### v0.20.1.1 2021年9月6日
@@ -806,7 +817,7 @@ def sub_get_dt(lst_file_in):
     return tmp_dt
 
 
-def update_data(lst1):
+def update_data_process(lst1):
     '''
     用于后台加载数据
     '''
@@ -4004,9 +4015,18 @@ def exec_folder_open(tar=None):  # 打开目录
             pass
 
 
-def exec_create_note(event=None):  # 添加笔记
+def exec_create_txt_note(event=None):
+    exec_create_note(my_ext='.txt')
+
+
+def exec_create_note(event=None, my_ext=None):  # 添加笔记
     global lst_my_path_long_selected
-    global NOTE_NAME, NOTE_EXT
+    global NOTE_NAME
+    if my_ext is None:
+        global NOTE_EXT
+    else:
+        NOTE_EXT = my_ext
+
     tags = ['笔记']
     if not get_search_tag_selected() == '': # 新笔记自动增加选中的标签
         tags+=[get_search_tag_selected()]
@@ -4136,7 +4156,9 @@ def show_popup_menu_main(event):
     设置菜单的弹出
     '''
     menu_main = tk.Menu(window, tearoff=0)
-    menu_main.add_command(label='参数设置…', command=show_window_setting)
+    menu_main.add_command(label='设置…', command=show_window_setting)
+    menu_main.add_separator()
+    menu_main.add_command(label="添加文件夹到关注列表…", command=exec_folder_add_click)
     menu_main.add_separator()
     # menu_main.add_command(label='使用说明')#,command=show_online_help)
     menu_main.add_command(label='访问主页（联网）', command=show_online_help)
@@ -4484,8 +4506,14 @@ def set_style(style):
     '''
     # style = ttk.Style()
     # 修复 treeview 背景色的bug；
-    style.map('Treeview', foreground=fixed_map('foreground'), background=fixed_map('background'))
-    style.map('TFrame', foreground=fixed_map_v2('Frame','foreground'), background=fixed_map_v2('Frame','background'))
+    style.map('Treeview', 
+        foreground=fixed_map('foreground'), 
+        background=fixed_map('background')
+        )
+    style.map('TFrame', 
+        foreground=fixed_map_v2('Frame','foreground'), 
+        background=fixed_map_v2('Frame','background'),
+        )
     # style.map('TButton', foreground=fixed_map_v2('TButton','foreground'), background=fixed_map_v2('TButton','background'))
     #
     MY_THEME='third_party'
@@ -4499,7 +4527,9 @@ def set_style(style):
         # app.window.tk.call('package', 'require', 'awarc')
         # app.window.tk.call('package', 'require', 'awbreeze')
         app.window.tk.call('package', 'require', 'awdark')
-        style.theme_use('awlight')
+        #
+        style.theme_use('awlight') # awlight awdark
+        #
         LIGHT_THEME = True
         if LIGHT_THEME:
             for tar in [app.tree_lst_folder,app.tree_lst_sub_folder,app.tree_lst_sub_tag,app.tree]:
@@ -4523,36 +4553,91 @@ def set_style(style):
         # app.window.tk.call('source', './styles/ttk-Breeze-master/breeze.tcl')
         # style.theme_use('Breeze') # 
 
-        style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
-                        rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4), \
-                        background='white',
-                        relief='flat',borderwidth=0)
+        style.configure("Treeview.Heading", 
+            font=FONT_TREE_HEADING, \
+            rowheight=int(LARGE_FONT * 4), 
+            height=int(LARGE_FONT * 4), \
+            background='white',
+            foreground='black',
+            relief='flat',
+            borderwidth=0,
+            padding=(int(LARGE_FONT/2),int(LARGE_FONT/2),0,int(LARGE_FONT/2)),
+            )
 
-        style.configure("Treeview", font=FONT_TREE_BODY, \
-                        rowheight=int(MON_FONTSIZE * 3.5), \
-                        # fieldbackground='white',
-                        # background='#666666', \
-                        relief='flat',borderwidth=0)
+        style.configure("Treeview", 
+            font=FONT_TREE_BODY, 
+            rowheight=int(MON_FONTSIZE * 4), 
+            fieldbackground='#e8e8e7',
+            background='#e8e8e7', 
+            foreground='black',
+            relief='flat',
+            borderwidth=0,
+            )
+        style.layout("Treeview", [('Dark.Treeview.treearea', {'sticky': 'nswe'})]) # Remove the borders
         
-        style.configure("Dark.Treeview", font=FONT_TREE_BODY, \
-                        rowheight=int(MON_FONTSIZE * 3.5), \
-                        fieldbackground='#2a333c', # 没有行部分的颜色
-                        background='#2a333c', \
-                        foreground='white',
-                        relief='flat',borderwidth=0)
+        style.configure("Dark.Treeview", 
+            # font=FONT_TREE_BODY, 
+            # fontsize=-15, 
+            # rowheight=int(MON_FONTSIZE * 3.5), \
+            fieldbackground=app.COLOR_DICT['darkback_1'], # 没有行部分的颜色
+            background='#2a333c', 
+            foreground='white',
+            # relief='flat',
+            # borderwidth=0,
+            )
+        style.layout("Dark.Treeview", [('Dark.Treeview.treearea', {'sticky': 'nswe'})]) # Remove the borders
+        
+        style.configure("TCombobox",
+            relief='flat',
+            background= "#e8e8e7",
+            foreground='black',
+            )
+        style.configure("TEntry",
+            relief='flat',
+            background= "#e8e8e7",
+            foreground='black',
+            )
 
-        style.configure("TButton",relief='flat',
-            background='#3a92c5',foreground='white') # 静态
+        style.configure("TFrame",
+            relief='flat',
+            background= "#e8e8e7",
+            foreground='black',
+            ) # 静态
+        
+        style.configure("Dark.TFrame",
+            relief='flat',
+            background= "#2a333c",
+            foreground='white',
+            ) # 静态
+        
+        style.configure("TButton",
+            relief='flat',
+            font = FONT_TREE_BODY,
+            background= app.COLOR_DICT['blue'],# '#3a92c5',
+            foreground='white',
+            ) # 静态
 
-        style.map('TButton', background=[('active','#2EB8AC'),
-            ('pressed','#37373d'),
-            ('disabled','#bfbfbf')])
+        style.map('TButton', 
+            background=[('active',app.COLOR_DICT['cyan']),
+                ('pressed',app.COLOR_DICT['blue']),
+                ('disabled','#bfbfbf')
+                ]
+            )
 
-        style.configure("Menu.TButton", background='#21a366')
-        style.map('Menu.TButton', background=[('active','#107c41'),
-            ('pressed','#185c37')])
+        style.configure("Menu.TButton", 
+            background='#2a333c')#app.COLOR_DICT['#2a333c'])
 
-        style.configure("Horizontal.TProgressbar",background='#3a92c5')
+        style.map('Menu.TButton', 
+            background=[
+                ('active','#5f6368'),
+                ('pressed','#414141'),
+                ]
+            )#
+
+        style.configure("TProgressbar", # Horizontal.
+            relief='flat',
+            background=app.COLOR_DICT['blue'],#'#3a92c5',
+            )
 
 
     elif MY_THEME =='built-in':
@@ -4757,7 +4842,12 @@ class main_app:
             SCREEN_HEIGHT = self.window.winfo_screenheight()
         pass
         #
-        self.PIC_DICT = {"龙猫":tk.PhotoImage(file="./src/龙猫.gif"),
+        self.PIC_DICT = {
+            "龙猫":tk.PhotoImage(file="./src/龙猫.gif"),
+            #
+            "menu":tk.PhotoImage(file="./src/menu.png"),
+            "menu_2":tk.PhotoImage(file="./src/menu_2.png"),
+            "menu_3":tk.PhotoImage(file="./src/menu_3.png"),
             #
             "word":tk.PhotoImage(file="./src/word.png"),
             "excel":tk.PhotoImage(file="./src/excel.png"),
@@ -4772,7 +4862,20 @@ class main_app:
             "folder_100_20":tk.PhotoImage(file="./src/folder_100_20.png"),
             "folder_75_20":tk.PhotoImage(file="./src/folder_75_20.png"),
             "folder_50_20":tk.PhotoImage(file="./src/folder_50_20.png"),
-            "folder_25_20":tk.PhotoImage(file="./src/folder_25_20.png")}
+            "folder_25_20":tk.PhotoImage(file="./src/folder_25_20.png"),
+            }
+        #
+        self.COLOR_DICT = {
+            "blue":"#3a92c5",
+            "cyan":"#2EB8AC",
+            "gray":"bfbfbf",
+            "green":"#21a366",
+            "green_1":"#107c41",
+            "green_2":"#185c37",
+            "darkback_1":"2a333c",
+            "darkback_2":"1e1e1e",
+            }
+        #
         self.SCREEN_WIDTH=SCREEN_WIDTH
         self.SCREEN_HEIGHT=SCREEN_HEIGHT
         #
@@ -4795,11 +4898,20 @@ class main_app:
         #
         # 框架设计 ############################################
         #
-        self.frame_window=ttk.Frame(self.window,padding=(1,1,1,1),relief='flat',borderwidth=0) 
+        self.frame_window=ttk.Frame(self.window,padding=(0,0,0,0),relief='flat',borderwidth=0) 
         self.frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=0, pady=0)
         # 上面功能区
         self.frame0 = ttk.Frame(self.frame_window, relief='flat', height=120)#, borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
         self.frame0.pack(expand=0, fill=tk.X, padx=0, pady=0)# padx=10, pady=5)
+
+        self.frameMenu = ttk.Frame(self.frame0, 
+            relief='flat', 
+            style = 'Dark.TFrame',
+            width = 320-16, 
+            borderwidth=0,
+            )#, borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
+        self.frameMenu.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)# padx=10, pady=5)
+        self.frameMenu.pack_propagate(0) 
 
         # 文件夹区
         self.frameLeft = ttk.Frame(self.frame_window, 
@@ -4851,7 +4963,7 @@ class main_app:
 
         self.bar_tree_v = tk.Scrollbar(self.frameMain, width=16)  # 右侧滚动条
         # self.bar_tree_v = tk.Scrollbar(self.frameMain)  # 右侧滚动条
-        self.bar_tree_h = tk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL, width=16)  # 底部滚动条
+        self.bar_tree_h = tk.Scrollbar(self.frameBtm, orient=tk.HORIZONTAL, width=16)  # 底部滚动条
         # self.bar_tree_h = tk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL)  # 底部滚动条
 
         # 文件夹列表
@@ -5055,7 +5167,7 @@ class main_app:
             self.bt_test.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
         # 布局
-        self.bar_tree_h.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=2, pady=1)  # 用pack 可以实现自适应side=tk.LEFTanchor=tk.E
+        self.bar_tree_h.pack(side=tk.LEFT, expand=1, fill=tk.X, padx=5, pady=2)  # 用pack 可以实现自适应side=tk.LEFTanchor=tk.E
 
         self.tree.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=2, pady=1)
 
@@ -5071,27 +5183,36 @@ class main_app:
         self.progressbar_file.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY)
 
         # self.lable_sum = tk.Label(self.frameBtm, text=str_btm, textvariable=str_btm)
-        self.lable_sum = ttk.Label(self.frameBtm, text=self.str_btm, textvariable=self.str_btm)
-        self.lable_sum.pack(side=tk.LEFT, expand=0, padx=2, pady=vPDY)  #
+        self.lable_sum = ttk.Label(self.frame0, text=self.str_btm, textvariable=self.str_btm)
+        self.lable_sum.pack(side=tk.LEFT, expand=0, padx=20, pady=vPDY)  #
 
-        self.bt_settings = ttk.Button(self.frame0, 
+        self.bt_settings = ttk.Button(self.frameMenu, 
             style='Menu.TButton',
-            # image =tk.PhotoImage(file="./src/龙猫.gif"),
+            # width=304,
+            image =self.PIC_DICT['menu_3'],
             # compound=tk.LEFT, 
             # background='green',
             # relief='flat',
-            text='菜单')  # ,command=show_online_help)
+            padding = (10,4,10,4),
+            text='菜单',
+            )  # ,command=show_online_help)
 
-        self.bt_settings.pack(side=tk.LEFT, expand=0, padx=2, pady=vPDY)  #
-        self.bt_folder_add.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
-        self.bt_new = ttk.Button(self.frame0, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
-        self.bt_new.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
+        self.bt_settings.pack(side=tk.LEFT, expand=0, padx=5, pady=vPDY)  #
+        # self.bt_folder_add.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
+        # self.bt_new = ttk.Button(self.frame0, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
+        # self.bt_new.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
         #
-        self.bt_reload = ttk.Button(self.frameBtm, text='刷新', command=update_main_window)
+        self.bt_reload = ttk.Button(self.frameBtm, 
+            text='刷新', 
+            command=update_main_window,
+            )
         self.bt_reload.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
         self.bt_add_tag = ttk.Button(self.frameBtm, text='添加标签',command=exec_tree_add_tag_via_dialog)#, command=input_new_tag
         self.bt_add_tag.pack(side=tk.RIGHT, expand=0, padx=0, pady=vPDY)  #
+        
+        self.bt_new = ttk.Button(self.frameBtm, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
+        self.bt_new.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
         # 新标签的输入框
         self.v_inp = ttk.Combobox(self.frameBtm, width=16)
@@ -5126,7 +5247,57 @@ class main_app:
             tar.tag_configure('pick_copy',foreground="#2d7d9a",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))'''
         self.window.iconbitmap(LOGO_PATH)  # 左上角图标 #
 
-    
+
+    def call_space(self,event=None):
+        '''
+            {'fname_0': fname_0,  # 去掉标签之后的文件名
+            'ftags': ftags,
+            'ffname': ffname,  # 原始文件名，带标签的
+            'filename_origional': ffname,  # 原始文件名，带标签、扩展名的
+            'fpath': fpath,
+            'f_path_only': fpath,
+            'fname': fname,
+            'filename_no_ext': fname,  # 去掉扩展名的文件名
+            'fename': fename,  # 扩展名
+            'file_ext': fename,  # 扩展名
+            'full_path': tar, # 全路径
+            'fsize': fsize_k, # 
+            'file_full_path': tar,  # 完整路径，和输入参数完全一样
+            'file_mdf_time': file_modify_time,
+            'file_crt_time': file_create_time
+            }
+        '''
+        
+        if len(self.tree.selection())==1:
+            try:
+                t=self.tree.selection()[0]
+                pth = self.tree.item(t,"values")[-1]
+                res = get_file_part(pth)
+                
+                msg_lst = ["完整文件名：\n    ",
+                    str(res['ffname']),
+                    '\n\n',
+                    "文件名（去标签）：\n    ",
+                    str(res['fname_0']),
+                    '\n\n',
+                    '标签：\n    ',
+                    res['ftags'],
+                    '\n\n',
+                    '修改日期：\n    ',
+                    res['file_mdf_time'],
+                    '\n\n',
+                    '大小（kB）：\n    ',
+                    res['fsize'],
+                    '\n\n',
+                    '完整路径：\n    ',
+                    str(res['full_path']),
+                    ]
+                msg = map(str,msg_lst)
+                my_space_window(self.window,'详情',''.join(msg))
+            except:
+                my_space_window(self.window,'错误','文件加载异常')
+
+
     def bind_funcs(self):
         # 功能绑定
         #
@@ -5156,27 +5327,30 @@ class main_app:
 
         # tree.tag_configure('line1', background='#EEEEEE')  # 灰色底纹
         #
-        self.tree.bind('<Double-Button-1>', exec_tree_file_open)
-        self.tree.bind('<Return>', exec_tree_file_open)
-        self.tree.bind("<Button-3>", show_popup_menu_file)  # 绑定文件夹区域的功能
-        self.tree.bind('<F5>', update_main_window)  # 刷新。
-        #
         self.tree_lst_folder.bind("<Button-3>", show_popup_menu_folder)  # 绑定文件夹区域的右键功能
         self.tree_lst_sub_folder.bind("<Button-3>", show_popup_menu_sub_folder)  # 绑定文件夹区域的右键功能
         #
         # 程序内快捷键
         self.window.bind_all('<Control-n>', exec_create_note)  # 绑定添加笔记的功能。
         self.window.bind_all('<Control-f>', jump_to_search)  # 跳转到搜索框。
+        self.window.bind_all('<Control-t>', exec_tree_add_tag_via_dialog)  # 快速输入标签。
         #
-        self.window.bind_all('<Control-X>', exec_tree_file_cut_ctn)  # 拿起。
-        self.window.bind_all('<Control-x>', exec_tree_file_cut)  # 拿起。
-        self.window.bind_all('<Control-C>', exec_tree_file_copy_cnt)  # 拿起。
-        self.window.bind_all('<Control-c>', exec_tree_file_copy)  # 拿起。
-        self.window.bind_all('<Control-v>', exec_tree_file_put_down)  # 放下。
-        self.window.bind_all('<F2>', exec_tree_file_rename)  # 重命名
+        self.tree.bind('<Control-X>', exec_tree_file_cut_ctn)  # 拿起。
+        self.tree.bind('<Control-x>', exec_tree_file_cut)  # 拿起。
+        self.tree.bind('<Control-C>', exec_tree_file_copy_cnt)  # 拿起。
+        self.tree.bind('<Control-c>', exec_tree_file_copy)  # 拿起。
+        self.tree.bind('<Control-v>', exec_tree_file_put_down)  # 放下。
+        self.tree.bind('<F2>', exec_tree_file_rename)  # 重命名
+
+        self.tree.bind('<Double-Button-1>', exec_tree_file_open)
+        self.tree.bind('<Return>', exec_tree_file_open)
+        self.tree.bind("<Button-3>", show_popup_menu_file)  # 绑定文件夹区域的功能
+        self.tree.bind('<F5>', update_main_window)  # 刷新。
+        self.tree.bind('<space>', self.call_space)  # 刷新。
+        #
+        self.window.bind_all('<Insert>', exec_create_txt_note)  # 快速新建txt笔记
         #
         # window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
-        self.window.bind_all('<Control-t>', exec_tree_add_tag_via_dialog)  # 快速输入标签。
         #
         # 按钮功能绑定
         # bt_setting.configure(command=show_window_setting) # 
@@ -5218,6 +5392,15 @@ except Exception as e:
 if __name__ == '__main__':
     # if True:
     # 变量 ###########################################################
+    # from tendo import singleton
+    # import sys
+    # try:
+    #     me = singleton.SingleInstance() # will sys.exit(-1) if other instance is running
+    # except:
+    #     t = tk.messagebox.showerror(title='ERROR', 
+    #     message='文件夹重命名失败，可能是有内部文件正在被访问，或没有操作权限。')
+    #     sys.exit(-1)
+    #
     q = queue.Queue()
     #
     #
@@ -5385,7 +5568,7 @@ if __name__ == '__main__':
     set_prog_bar(0)
     #
     if True:
-        sub_task=threading.Thread(target=update_data,args=(lst_my_path_long,))
+        sub_task=threading.Thread(target=update_data_process,args=(lst_my_path_long,))
         sub_task.start()
     #
     window.mainloop()

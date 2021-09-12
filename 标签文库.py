@@ -4538,11 +4538,9 @@ def set_style(style):
         """
         app.window.tk.call('lappend', 'auto_path', './styles/awthemes-10.4.0')
         app.window.tk.call('package', 'require', 'awlight')
-        # app.window.tk.call('package', 'require', 'awarc')
-        # app.window.tk.call('package', 'require', 'awbreeze')
         app.window.tk.call('package', 'require', 'awdark')
         #
-        style.theme_use('awlight')  # awlight awdark
+        style.theme_use('awlight')  # awlight awdark clam X
         #
         LIGHT_THEME = True
         if LIGHT_THEME:

@@ -31,7 +31,8 @@ from win32com.shell import shell, shellcon
 import shutil
 import queue
 # 
-
+import subprocess # 用于打开文件所在位置并选中文件
+#
 from my_gui_adds import my_progress_window
 from my_gui_adds import my_input_window
 from my_gui_adds import my_space_window
@@ -45,10 +46,12 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.20.3.4'  # 版本号
+VER = 'v0.20.3.5'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.20.3.5 2021年9月13日
+开放“打开文件夹并选中文件”的功能。
 #### v0.20.3.4 2021年9月12日
 增加只筛选笔记的功能；增加部分快捷键；增加窗口最小尺寸限制。
 #### v0.20.3.3 2021年9月10日
@@ -2545,18 +2548,24 @@ def tree_open_folder(event=None, VMETHOD=1):
         item_text = tree.item(item, "values")
         tmp_file = item_text[-1]
         tmp_file = tmp_file.replace('/', '\\')
-
-        tmp_folder = '/'.join(get_split_path(tmp_file)[0:-1])
-        # tmp_folder=item_text[-2]
-
-        print(tmp_folder)
+        #
         if VMETHOD == 1:  # 打开文件夹
+            tmp_folder = '/'.join(get_split_path(tmp_file)[0:-1])
+            # tmp_folder=item_text[-2]
+            print(tmp_folder)
             exec_run(tmp_folder)  # 打开这个文件
+        #
         elif VMETHOD == 2:  # 打开文件夹并选中文件。
-            tmp = r'explorer /select, ' + tmp_file
+            # 注意，方法2路径必须是\，而且select,后面不能有空格
+            tmp = r'explorer /select,"' + tmp_file+'"'
             print(tmp)
-            os.system(tmp)  # 性能极差，不知道哪的原因
-            # os.system(r'explorer /select,d:\tmp\b.txt') # 这是打开文件夹并选中文件的方法
+            #
+            subprocess.Popen(tmp)
+            # subprocess.Popen("'"+tmp+"', shell=True")
+            #
+            # os.system(tmp)  # 性能极差，不知道哪的原因
+            # os.system(tmp)  # 性能极差，不知道哪的原因
+            # os.system(r'explorer /select,d:\hello.txt') # 这是打开文件夹并选中文件的方法
 
     pass
 
@@ -3583,6 +3592,7 @@ def exec_tree_drag_enter(files, drag_type=None):
     exec_safe_copy 的参数可以强制指定，也可以读取系统值。
     drag_type = copy 是复制， = move 是移动。
     """
+    # 变量定义
     global flag_file_changed
     flag_folder_changed = 0
     global FILE_DRAG_MOVE
@@ -3601,7 +3611,7 @@ def exec_tree_drag_enter(files, drag_type=None):
 
     if not drag_type in ['copy', 'move']:
         drag_type = 'copy'
-
+    #
     # 确定目录（目标）
     if len(tree_lst_folder.selection()) == 0:
         tk.messagebox.showerror(title='错误',
@@ -4356,9 +4366,9 @@ def show_popup_menu_file(event):
     menu_file.add_separator()
     if n_selection == 1:
         menu_file.add_command(label="打开选中项所在文件夹", command=tree_open_folder)
+        menu_file.add_command(label="打开选中项所在文件夹并选中文件（有点慢）",command=tree_open_folder_select)
     elif n_selection > 1:
         menu_file.add_command(label="打开选中项所在文件夹", state=tk.DISABLED, command=tree_open_folder)
-    # menu_file.add_command(label="打开选中项所在文件夹并选中文件（有点慢）",command=tree_open_folder_select)
     menu_file.add_command(label="打开当前文件夹", command=tree_open_current_folder)
     menu_file.add_separator()
     menu_file.add_command(label='添加标签 ', command=exec_tree_add_tag_via_dialog, accelerator='Ctrl+T')
@@ -4640,6 +4650,9 @@ def set_style(style):
                               ]
                   )
 
+        # style.configure("Light.TButton",
+        #                 background='#e8e8e7')  # app.COLOR_DICT['#2a333c'])
+
         style.configure("Menu.TButton",
                         background='#2a333c')  # app.COLOR_DICT['#2a333c'])
 
@@ -4865,6 +4878,10 @@ class main_app:
             "menu": tk.PhotoImage(file="./src/menu.png"),
             "menu_2": tk.PhotoImage(file="./src/menu_2.png"),
             "menu_3": tk.PhotoImage(file="./src/menu_3.png"),
+            "search_20": tk.PhotoImage(file="./src/search_20.png"),
+            "search_black": tk.PhotoImage(file="./src/search_20_black.png"),
+            "cancel_20": tk.PhotoImage(file="./src/cancel_20.png"),
+            "cancel_black": tk.PhotoImage(file="./src/cancel_20_black.png"),
             #
             "word": tk.PhotoImage(file="./src/word.png"),
             "excel": tk.PhotoImage(file="./src/excel.png"),
@@ -5113,11 +5130,17 @@ class main_app:
         vPDX = 10  # 10
         vPDY = 5  # 5
 
-        self.bt_clear = ttk.Button(self.frame0, text='清空', command=exec_clear_search_items)
+        self.bt_clear = ttk.Button(self.frame0,
+                                   # style='Light.TButton',
+                                   text='清空',
+                                   # image=self.PIC_DICT['cancel_20'],
+                                   command=exec_clear_search_items)
 
         # bt_search=tk.Button(frame0,text='搜索', command=exec_search,bd=0,activebackground='red')
         self.bt_search = ttk.Button(self.frame0,
+                                    # style='Light.TButton',
                                     text='搜索',
+                                    # image=self.PIC_DICT['search_20'],
                                     command=exec_search)  # ,bd=0,activebackground='red')
 
         if True:  # 子文件夹搜索
@@ -5374,7 +5397,8 @@ class main_app:
         self.tree.bind('<F5>', update_main_window)  # 刷新。
         self.tree.bind('<space>', self.call_space)  # 刷新。
         #
-        self.window.bind_all('<Insert>', exec_create_txt_note)  # 快速新建txt笔记
+        self.tree.bind('<Insert>', exec_create_txt_note)  # 快速新建txt笔记
+        self.tree_lst_folder.bind('<Insert>', exec_create_txt_note)  # 快速新建txt笔记
         #
         # window.bind_all('<Control-t>',jump_to_tag) # 跳转到标签框。
         #

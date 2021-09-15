@@ -46,10 +46,12 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.20.3.5'  # 版本号
+VER = 'v0.20.3.6'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.20.3.6 2021年9月15日
+修复新建笔记时错误影响存储的笔记类型的bug。
 #### v0.20.3.5 2021年9月13日
 开放“打开文件夹并选中文件”的功能。
 #### v0.20.3.4 2021年9月12日
@@ -4043,9 +4045,11 @@ def exec_create_txt_note(event=None):
 def exec_create_note(event=None, my_ext=None):  # 添加笔记
     global lst_my_path_long_selected
     global NOTE_NAME
+    global NOTE_EXT
     if my_ext is None:
-        global NOTE_EXT
+        pass
     else:
+        old_ext = NOTE_EXT
         NOTE_EXT = my_ext
 
     tags = ['笔记']
@@ -4122,6 +4126,11 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
     else:
         pass
     #
+    # 恢复笔记扩展名
+    if my_ext is None:
+        pass
+    else:
+        NOTE_EXT = old_ext
 
 
 def exec_create_note_here(event=None):

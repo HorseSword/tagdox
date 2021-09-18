@@ -46,10 +46,12 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.20.3.6'  # 版本号
+VER = 'v0.20.3.7'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.20.3.7 2021年9月18日
+优化了分组的颜色，调整为浅蓝色；调整菜单按钮颜色为浅蓝色。
 #### v0.20.3.6 2021年9月15日
 修复新建笔记时错误影响存储的笔记类型的bug。
 #### v0.20.3.5 2021年9月13日
@@ -1502,7 +1504,7 @@ def update_folder_list(event=None, need_select=True):
     n_root = 0
     lst_root_item = []
     for root_text in lst_root_text:
-        lst_root_item.append(tree_lst_folder.insert('', n_root, text=root_text, values=("（全部）",), open=True))
+        lst_root_item.append(tree_lst_folder.insert('', n_root, text=root_text, tags=['folder0'], values=("（全部）",), open=True))
         n_root += 1
     # root1=tree_lst_folder.insert('',1,text='新建分组',values=("（全部）",),open=True)
     #
@@ -4568,6 +4570,7 @@ def set_style(style):
                 # tar.tag_configure('line1',background="#F8F8F8")
                 # tar.tag_configure('line1',background="#FFFFFF")
                 # tar.tag_configure('folder2',background="#FFFFFF")
+                tar.tag_configure('folder0', foreground=app.COLOR_DICT['blue_light'])
                 tar.tag_configure('folder2', background="#1e1e1e")
                 tar.tag_configure('pick_up', foreground="#f37625",
                                   font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
@@ -4880,13 +4883,14 @@ class main_app:
             SCREEN_WIDTH = self.window.winfo_screenwidth()
             SCREEN_HEIGHT = self.window.winfo_screenheight()
         pass
+
         #
         self.PIC_DICT = {
             "龙猫": tk.PhotoImage(file="./src/龙猫.gif"),
             #
             "menu": tk.PhotoImage(file="./src/menu.png"),
             "menu_2": tk.PhotoImage(file="./src/menu_2.png"),
-            "menu_3": tk.PhotoImage(file="./src/menu_3.png"),
+            "menu_3": tk.PhotoImage(file="./src/menu_4.png"),
             "search_20": tk.PhotoImage(file="./src/search_20.png"),
             "search_black": tk.PhotoImage(file="./src/search_20_black.png"),
             "cancel_20": tk.PhotoImage(file="./src/cancel_20.png"),
@@ -4910,7 +4914,9 @@ class main_app:
         #
         self.COLOR_DICT = {
             "blue": "#3a92c5",
+            "blue_light": "#8CCDF2",
             "cyan": "#2EB8AC",
+            "cyan_light": "#5cd6cc",
             "gray": "bfbfbf",
             "green": "#21a366",
             "green_1": "#107c41",

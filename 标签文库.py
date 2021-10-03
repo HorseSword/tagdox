@@ -46,10 +46,13 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.20.3.7'  # 版本号
+VER = 'v0.21.0.0'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.21.0.0 2021年10月3日
+优化标签逻辑，采用NTFS流模式，不再影响文件名（测试版）。
+优化右键响应，现在可以正确在被点击的项目处出现右键菜单了。
 #### v0.20.3.7 2021年9月18日
 优化了分组的颜色，调整为浅蓝色；调整菜单按钮颜色为浅蓝色。
 #### v0.20.3.6 2021年9月15日
@@ -115,7 +118,7 @@ QUICK_TAGS = ['@PIN', '@TODO', '@toRead', '@Done']  # 快速添加标签
 FILE_DRAG_MOVE = 'move'  # 文件拖动到列表的时候，是复制，还是移动。// 可修改。
 # 取值：'move' 'copy'。// 可修改
 FOLDER_TYPE = 2
-
+TAG_METHOD = 'FILE_STREAM'  #或者 FILENAME
 #
 try:
     if isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
@@ -725,6 +728,14 @@ def get_file_part(tar):  #
     lst_sp = fname.split(V_SEP)  # 拆分为多个片段
     fname_0 = lst_sp[0] + fename  # fname_0 去掉标签之后的文件名
     ftags = lst_sp[1:]  # ftags 标签部分
+    #
+    # 增加NTFS流的标签解析
+    if TAG_METHOD == 'FILE_STREAM':
+        try:
+            with open(tar + ":tags", "r", encoding="utf8") as f:
+                ftags+=(set(list(map(lambda x: x.strip(), f.readlines()))))
+        except FileNotFoundError as e:
+            pass
 
     mtime = os.stat(tar).st_mtime  # 修改时间
     file_modify_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))
@@ -884,6 +895,7 @@ def update_data_process(lst1):
 
     for one_file in lst_files_to_go:
         # 先查字典，这样可以显著加速查询
+        one_file = one_file.replace('\\','/')
         if one_file in dicT.keys():
             pass
         else:
@@ -982,7 +994,7 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
     else:  # 单线程
 
         for one_file in lst_file0:
-
+            one_file = one_file.replace('\\','/')
             # 更新进度条
             n += 1
             if flag_inited == 1 and n % PROG_STEP == 0:
@@ -1002,6 +1014,7 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
                 # tmp_v=tuple(tmp_v)
 
             else:
+
                 tmp = get_file_part(one_file)
                 # dT.append([tmp['fname_0'],tmp['ftags'],tmp['fpath'],tmp['full_path']])
                 # 增加检查重复项的逻辑：
@@ -1014,6 +1027,7 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
                          tmp['fename'],
                          str(tmp['full_path']))
                 try:
+
                     dicT[one_file] = tmp_v
                 except Exception as e:
                     print(e)
@@ -1357,9 +1371,13 @@ def X_show_my_input_window(title='未命名', msg='未定义', default_value='')
 def show_window_input(title_value, body_value='', init_value='', is_file_name=True):
     """
     接管输入框的过程，以后可以将自定义输入框替换到这里。
+
     目前的用法：输入参数 1 标题，2 正文，3 默认值；
+
     返回输入框的结果。如果输入内容为空，返回 None。
+
     参数 is_file_name 为 True 的时候，将文件名不能带的特殊字符自动去掉。
+
     """
     # 获得输入值
     res = str(my_input_window(window, title=title_value, msg=body_value, default_value=init_value)).strip()
@@ -1387,7 +1405,9 @@ def show_window_input(title_value, body_value='', init_value='', is_file_name=Tr
 def update_folder_list(event=None, need_select=True):
     """
     根据 lst_my_path_short ，将文件夹列表刷新一次。
+
     作用是：刷新主文件夹列表。暂不包括子文件夹刷新。
+
     没有输入输出。
     """
     global tree_lst_folder, lst_my_path_short
@@ -2755,10 +2775,10 @@ def exec_sub_folder_rename(event=None):
 
 
 def input_new_tag(event=None, tag_name=None):
-    '''
+    """
     输入新的标签，为选中项添加标签。
     tag_name 是输入的标签。
-    '''
+    """
     # new_name=''
     if tag_name is None:  # 默认从输入框获取
         new_tag = v_inp.get()
@@ -2795,10 +2815,10 @@ def input_new_tag(event=None, tag_name=None):
 
 
 def exec_tree_add_tag_via_dialog(event=None):
-    '''
+    """
     以输入框的方式添加标签。
 
-    '''
+    """
     # 没有选中项的时候，直接跳过
     if len(tree.selection()) == 0:
         t = tk.messagebox.showerror(title='错误', message='添加标签之前，请先选中至少一个文件。')
@@ -2815,35 +2835,83 @@ def exec_tree_add_tag_via_dialog(event=None):
     input_new_tag(tag_name=new_tag)
 
 
-def exec_file_add_tag(filename, tag0):
-    '''
+def update_one_of_dicT(filename):
+    """
+    更新dicT中的一项，
+    包括对文件名斜杠的处理。
+
+
+    :return:
+    """
+    global dicT
+    filename = filename.replace('\\','/')
+    tmp = get_file_part(filename)
+    tmp_v = (str(tmp['fname_0']),
+             tmp['ftags'],
+             str(tmp['file_mdf_time']),
+             tmp['fsize'],
+             tmp['fename'],
+             str(tmp['full_path']))
+    dicT[filename] = tmp_v
+
+
+def exec_file_add_tag(filename, tag0, need_update=True):
+    """
     增加标签
-    '''
+    """
+    filename = filename.replace('\\','/')
     tmp_final_name = filename
+    #
+    # 增加NTFS流的标签解析
+    if TAG_METHOD == 'FILE_STREAM':
+        # 先看有没有这个标签
+        tmp = get_file_part(filename)
+        tags_old = tmp['ftags']
+        if tag0 in tags_old: # 如果已经有的话，直接忽略
+            pass
+        else:
+            #
+            # 增加标签
+            tags_old.append(tag0)
+            tags_old.sort()
+            with open(filename + ":tags", "w", encoding="utf8") as f:
+                f.writelines(list(map(lambda x: x + "\n", tags_old)))
+            #
+            # 更新缓存
+            update_one_of_dicT(filename)
+            # global dicT
+            # tmp_v = (str(tmp['fname_0']),
+            #          tags_old,
+            #          str(tmp['file_mdf_time']),
+            #          tmp['fsize'],
+            #          tmp['fename'],
+            #          str(tmp['full_path']))
+            # dicT[filename] = tmp_v
+        # return tmp_final_name
+    else:
+        tag_list = tag0.split(V_SEP)
+        tag_old = get_file_part(filename)['ftags']  # 已有标签
+        file_old = get_file_part(filename)['ffname']  # 原始的文件名
+        path_old = get_file_part(filename)['fpath']  # 路径
+        [fname, fename] = os.path.splitext(file_old)  # 文件名前半部分，扩展名
 
-    tag_list = tag0.split(V_SEP)
-    tag_old = get_file_part(filename)['ftags']  # 已有标签
-    file_old = get_file_part(filename)['ffname']  # 原始的文件名
-    path_old = get_file_part(filename)['fpath']  # 路径
-    [fname, fename] = os.path.splitext(file_old)  # 文件名前半部分，扩展名
-
-    old_n = path_old + '/' + fname + fename
-    new_n = old_n
-    for i in tag_list:
-        if not i in tag_old:
-            new_n = path_old + os.sep + fname + V_SEP + i + fename
-            print(old_n)
-            print(new_n)
-            try:
-                # os.rename(old_n,new_n)
-                tmp_final_name = exec_safe_rename(old_n, new_n)
-                old_n = new_n  # 多标签时避免重命名错误
-            except:
-                tk.messagebox.showerror(title='ERROR', message='为文件添加标签失败！')
-                print('为文件添加标签失败')
-                pass
-
-    if len(tree.selection()) == 1:
+        old_n = path_old + '/' + fname + fename
+        new_n = old_n
+        for i in tag_list:
+            if not i in tag_old:
+                new_n = path_old + os.sep + fname + V_SEP + i + fename
+                print(old_n)
+                print(new_n)
+                try:
+                    # os.rename(old_n,new_n)
+                    tmp_final_name = exec_safe_rename(old_n, new_n)
+                    old_n = new_n  # 多标签时避免重命名错误
+                except:
+                    tk.messagebox.showerror(title='ERROR', message='为文件添加标签失败！')
+                    print('为文件添加标签失败')
+                    pass
+    # 刷新并选中
+    if len(tree.selection()) == 1 and need_update:
         update_main_window(0, fast_mode=True)  # 此处可以优化，避免完全重载
         try:
             tmp_final_name = tmp_final_name.replace('\\', '/')
@@ -4075,6 +4143,9 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
         else:
             stags = ''
 
+        if TAG_METHOD == 'FILE_STREAM': # 如果流模式，就不通过文件名的方式加标签了；
+            stags = ''
+
         if len(lst_my_path_long_selected) > 1:
             pass
 
@@ -4112,6 +4183,11 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
                         pass
                     # 打开
                     exec_run(fpth)  # 打开这个文件
+
+                    if TAG_METHOD == 'FILE_STREAM': # 流模式下新增标签的方法
+                        for tg in tags:
+                            exec_file_add_tag(fpth,tg,need_update=False)
+
                     # 刷新
                     if event == 'exec_create_note_here':  # 【这里有bug，刷新之后不能显示内容】
                         update_main_window(1, fast_mode=True)
@@ -4289,21 +4365,54 @@ def show_popup_menu_sub_folder(event):
 
 
 def exec_tree_file_drop_tag(event=None):
-    '''
+    """
     删除标签
-    '''
+
+    这里event 就是标签。单一标签。
+    """
     if event is None:
         return
+    #
     tag_value = event
     res_lst = []
+    #
     for item in tree.selection():
         item_text = tree.item(item, "values")
-        tmp_full_name = item_text[-1]
-        #
+        tmp_full_name = item_text[-1] # 完整文件名
+        # NTFS流模式
+        if TAG_METHOD == 'FILE_STREAM':
+            # 读取流中的标签
+            tags_in_st = []
+            try:
+                with open(tmp_full_name + ":tags", "r", encoding="utf8") as f:
+                    tags_in_st = list(set(list(map(lambda x: x.strip(), f.readlines()))))
+            except FileNotFoundError as e:
+                pass
+            #
+            if tag_value in tags_in_st:
+                # 移除标签
+                tags_in_st.remove(tag_value)
+                # 重写流
+                tags_in_st.sort()
+                with open(tmp_full_name + ":tags", "w", encoding="utf8") as f:
+                    f.writelines(list(map(lambda x: x + "\n", tags_in_st)))
+                # 更新缓存
+                update_one_of_dicT(tmp_full_name)
+                #
+        # 删除文件名里面的标签
         res = get_file_part(tmp_full_name)
         file_path = res['f_path_only']
         file_name_ori = res['filename_origional']
         file_ext = res['fename']
+        # 新增：检查一下是否在文件名中
+        file_tags_old = res['ftags']
+        if tag_value in file_tags_old:
+            pass
+        else:
+            # 如果不在，表示已经从流中删除，
+            res_lst.append(tmp_full_name)
+            continue
+
         if file_ext == '':
             print(file_name_ori)
             tmp_rv = list(file_name_ori)
@@ -4348,10 +4457,36 @@ def exec_tree_file_drop_tag(event=None):
     #     exec_tree_find(tmp_final_name)  # 为加标签之后的项目高亮
 
 
+def exec_tree_right_click(event):
+    """
+    右键点击
+
+    :param event:
+    :return:
+    """
+    tmp = app.tree.identify_row(event.y)
+    if tmp not in app.tree.selection():
+        app.tree.selection_set(tmp)
+
+
+def exec_tree_folder_right_click(event):
+    """
+    右键点击
+
+    :param event:
+    :return:
+    """
+    tmp = app.tree_lst_folder.identify_row(event.y)
+    if tmp not in app.tree_lst_folder.selection():
+        app.tree_lst_folder.selection_set(tmp)
+    exec_after_folder_choose()
+    show_popup_menu_folder(event)
+
+
 def show_popup_menu_file(event):
-    '''
+    """
     文件区域的右键菜单
-    '''
+    """
     n_selection = len(tree.selection())
     # for item in tree.selection():
     #     item_text = tree.item(item, "values")
@@ -4442,6 +4577,18 @@ def show_popup_menu_file(event):
         tmp_tags = tmp_file_name.split(V_SEP)
         # print(tmp_res)
         tmp_tags.pop(0)
+        #
+        # 新增：检查流中的标签
+        if TAG_METHOD == 'FILE_STREAM':
+            try:
+                with open(tmp_full_name + ":tags", "r", encoding="utf8") as f:
+                    tags_in_st = list(set(list(map(lambda x: x.strip(), f.readlines()))))
+                for i in tags_in_st:
+                    if i not in tmp_tags:
+                        tmp_tags.append(i)
+            except FileNotFoundError as e:
+                pass
+
         try:
             for i in range(10000):  # 删除已有标签
                 menu_tags_to_drop.delete(0)
@@ -4471,7 +4618,7 @@ def show_popup_menu_file(event):
 
         menu_file.post(event.x_root, event.y_root)
 
-    elif n_selection > 1:
+    elif n_selection > 1: # 选中很多项目的时候
         try:
             for i in range(10000):  # 删除已有标签
                 menu_tags_to_drop.delete(0)
@@ -4489,6 +4636,17 @@ def show_popup_menu_file(event):
             tmp_tags = tmp_file_name.split(V_SEP)  # 选中项自带标签
             # print(tmp_res)
             tmp_tags.pop(0)
+            # 新增：检查流中的标签
+            if TAG_METHOD == 'FILE_STREAM':
+                try:
+                    with open(tmp_full_name + ":tags", "r", encoding="utf8") as f:
+                        tags_in_st = list(set(list(map(lambda x: x.strip(), f.readlines()))))
+                    for i in tags_in_st:
+                        if i not in tmp_tags:
+                            tmp_tags.append(i)
+                except FileNotFoundError as e:
+                    pass
+            #
             if file_checked == 0:
                 tmp_tags_from_files += tmp_tags
             else:
@@ -4854,9 +5012,9 @@ def exec_tree_file_put_down(event=None):
 
 # %%
 class main_app:
-    '''
+    """
     主窗口类
-    '''
+    """
 
     def __init__(self) -> None:
         """
@@ -5389,7 +5547,9 @@ class main_app:
 
         # tree.tag_configure('line1', background='#EEEEEE')  # 灰色底纹
         #
-        self.tree_lst_folder.bind("<Button-3>", show_popup_menu_folder)  # 绑定文件夹区域的右键功能
+        self.tree_lst_folder.bind("<Button-3>", exec_tree_folder_right_click)  # 绑定文件夹区域的右键功能
+        # self.tree_lst_folder.bind("<ButtonRelease-3>", show_popup_menu_folder)  # 绑定文件夹区域的右键功能
+        #
         self.tree_lst_sub_folder.bind("<Button-3>", show_popup_menu_sub_folder)  # 绑定文件夹区域的右键功能
         #
         # 程序内快捷键
@@ -5408,7 +5568,8 @@ class main_app:
 
         self.tree.bind('<Double-Button-1>', exec_tree_file_open)
         self.tree.bind('<Return>', exec_tree_file_open)
-        self.tree.bind("<Button-3>", show_popup_menu_file)  # 绑定文件夹区域的功能
+        self.tree.bind("<Button-3>", exec_tree_right_click)  # 绑定文件夹区域的右键功能
+        self.tree.bind("<ButtonRelease-3>", show_popup_menu_file)  # 绑定文件夹区域的右键起功能
         self.tree.bind('<F5>', update_main_window)  # 刷新。
         self.tree.bind('<space>', self.call_space)  # 刷新。
         #

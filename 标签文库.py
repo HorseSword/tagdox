@@ -46,10 +46,12 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.21.0.0'  # 版本号
+VER = 'v0.21.1.0'  # 版本号
 
 '''
 ## 近期更新说明
+#### v0.21.1.0 2021年10月4日
+为文件列表的鼠标指向增加了高亮效果。
 #### v0.21.0.0 2021年10月3日
 优化标签逻辑，采用NTFS流模式，不再影响文件名（测试版）。
 优化右键响应，现在可以正确在被点击的项目处出现右键菜单了。
@@ -4459,7 +4461,7 @@ def exec_tree_file_drop_tag(event=None):
 
 def exec_tree_right_click(event):
     """
-    右键点击
+    右键点击 tree 区域
 
     :param event:
     :return:
@@ -4467,11 +4469,12 @@ def exec_tree_right_click(event):
     tmp = app.tree.identify_row(event.y)
     if tmp not in app.tree.selection():
         app.tree.selection_set(tmp)
+    exec_tree_mouse_highlight(event,clear_only=True)
 
 
 def exec_tree_folder_right_click(event):
     """
-    右键点击
+    右键点击 folder 区域
 
     :param event:
     :return:
@@ -4693,6 +4696,48 @@ def fixed_map_v2(tar, option):
             elm[:2] != ('!disabled', '!selected')]
 
 
+def exec_tree_mouse_highlight(event,clear_only = False):
+    """
+    鼠标指向的项目加背景色
+    :param event:
+    :return:
+    """
+    _iid = app.tree.identify_row(event.y)
+    # print(event.y)
+
+    def remove_last_tag():
+        if app.last_focus:
+            try:  # 之前的去掉高亮
+                tags_old = list(app.tree.item(app.last_focus, "tags"))
+                tags_old.remove('line_mouse')
+                app.tree.item(app.last_focus, tags=tags_old)
+            except:
+                pass
+
+    if clear_only:
+        remove_last_tag()
+        app.last_focus=None
+        return
+
+    if _iid != app.last_focus:
+        remove_last_tag()
+        """if app.last_focus:
+            try:  # 之前的去掉高亮
+                tags_old = list(app.tree.item(app.last_focus, "tags"))
+                tags_old.remove('line_mouse')
+                app.tree.item(app.last_focus, tags=tags_old)
+            except:
+                pass"""
+        # 新项目加高亮
+        tags_new = list(app.tree.item(_iid, "tags"))
+        tags_new = ['line_mouse'] + tags_new
+        app.tree.item(_iid, tags=tags_new)
+        # print(self.tree.item(_iid,"value"))
+        #
+        # 新项目保存
+        app.last_focus = _iid
+
+
 def set_style(style):
     """
     显示的样式
@@ -4724,6 +4769,8 @@ def set_style(style):
         LIGHT_THEME = True
         if LIGHT_THEME:
             for tar in [app.tree_lst_folder, app.tree_lst_sub_folder, app.tree_lst_sub_tag, app.tree]:
+                # 标签生效顺序是，定义在前面的优先生效，和实际标签列表里面的顺序没有关系
+                tar.tag_configure('line_mouse', background="#dddfe2")
                 tar.tag_configure('line1', background="#F2F2F2")
                 # tar.tag_configure('line1',background="#F8F8F8")
                 # tar.tag_configure('line1',background="#FFFFFF")
@@ -5021,6 +5068,7 @@ class main_app:
         界面部分。
         也就是UI的设计。
         """
+        self.last_focus=None
         self.window = tk.Tk()
         #
         # 调整清晰度 ############################################
@@ -5565,6 +5613,7 @@ class main_app:
         self.tree_lst_folder.bind('<Control-v>', exec_tree_file_put_down)  # 放下，点选文件夹之后仍然可以操作，可以提高用户体验。
         self.tree.bind('<F2>', exec_tree_file_rename)  # 重命名
         self.tree.bind('<Delete>', exec_tree_file_delete)  # 重命名
+        self.tree.bind("<Motion>", exec_tree_mouse_highlight)
 
         self.tree.bind('<Double-Button-1>', exec_tree_file_open)
         self.tree.bind('<Return>', exec_tree_file_open)

@@ -10,7 +10,7 @@
     <img src="https://img.shields.io/badge/Gitee-Click--Me-blue?logo=gitee&style=flat-square&color=c71d23" height="20" alt="Gitee Ready-to-Code">
   </a>
     <!-- Short description: -->
-  <h5>Powered by Python and Tkinter</h5>
+  <div>Powered by Python and Tkinter</div>
 </div>
 
 

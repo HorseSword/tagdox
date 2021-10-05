@@ -25,19 +25,20 @@ import threading  # 多线程
 # import multiprocessing
 from multiprocessing import Pool  # 进程
 from multiprocessing import Process
-# from docx import Document# 用于创建word文档
+# from docx import Document  # 用于创建word文档
 # import ctypes # 用于调整分辨率 #
-from win32com.shell import shell, shellcon
+from win32com.shell import shell, shellcon  # 此处报错是编辑器的问题，可以忽略
 import shutil
 import queue
 # 
-import subprocess # 用于打开文件所在位置并选中文件
+import subprocess  # 用于打开文件所在位置并选中文件
 #
-from my_gui_adds import my_progress_window
-from my_gui_adds import my_input_window
-from my_gui_adds import my_space_window
+# 自建库
+from my_scripts.common_funcs import *
 
-from common_funcs import *
+from my_scripts.widgets.my_tk_widgets import my_progress_window
+from my_scripts.widgets.my_tk_widgets import my_input_window
+from my_scripts.widgets.my_tk_widgets import my_space_window
 
 # import my_logger
 # import send2trash # 回收站（目前作废）
@@ -46,41 +47,20 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.21.1.0'  # 版本号
+VER = 'v0.21.1.1'  # 版本号
 
-'''
+"""
 ## 近期更新说明
+#### v0.21.1.1 2021年10月5日
+文件夹区域也增加了鼠标指向效果。
+修改自建模块位置。
 #### v0.21.1.0 2021年10月4日
 为文件列表的鼠标指向增加了高亮效果。
 #### v0.21.0.0 2021年10月3日
 优化标签逻辑，采用NTFS流模式，不再影响文件名（测试版）。
 优化右键响应，现在可以正确在被点击的项目处出现右键菜单了。
-#### v0.20.3.7 2021年9月18日
-优化了分组的颜色，调整为浅蓝色；调整菜单按钮颜色为浅蓝色。
-#### v0.20.3.6 2021年9月15日
-修复新建笔记时错误影响存储的笔记类型的bug。
-#### v0.20.3.5 2021年9月13日
-开放“打开文件夹并选中文件”的功能。
-#### v0.20.3.4 2021年9月12日
-增加只筛选笔记的功能；增加部分快捷键；增加窗口最小尺寸限制。
-#### v0.20.3.3 2021年9月10日
-增加空格查看文件信息的功能；增加Insert键快速插入txt笔记的功能。
-#### v0.20.3.2 2021年9月9日
-修复：复制粘贴快捷键在输入弹窗中与输入框冲突的问题。
-#### v0.20.3.1 2021年9月9日
-优化界面布局和间距，调整按钮等。
-#### v0.20.3.0 2021年9月6日
-优化界面。
-#### v0.20.2.0 2021年9月6日
-文件列表增加常用的小图标。
-#### v0.20.1.1 2021年9月6日
-修复文件夹重复添加的bug，增加快速添加子目录到关注列表的功能。
-#### v0.20.1.0 2021年9月6日
-全面优化界面UI和配色。
-#### v0.20.0.0 2021年9月6日
-美化UI，增加主题配色。
+"""
 
-'''
 # %%
 #
 # 常量，开发用，不准备进入设置的
@@ -120,7 +100,7 @@ QUICK_TAGS = ['@PIN', '@TODO', '@toRead', '@Done']  # 快速添加标签
 FILE_DRAG_MOVE = 'move'  # 文件拖动到列表的时候，是复制，还是移动。// 可修改。
 # 取值：'move' 'copy'。// 可修改
 FOLDER_TYPE = 2
-TAG_METHOD = 'FILE_STREAM'  #或者 FILENAME
+TAG_METHOD = 'FILE_STREAM'  # 或者 FILENAME
 #
 try:
     if isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
@@ -150,7 +130,7 @@ OPT_DEFAULT = {
 #######################################################################
 
 
-def get_split_path_XXX(full_path) -> list:
+def XXX_get_split_path_XXX(full_path) -> list:
     """
     通用函数：
     将完整路径按照斜杠拆分，得到每个文件夹到文件名的列表。
@@ -428,7 +408,7 @@ def load_json_file_data(load_settings=True, load_folders=True):
 
     need_init_json = 0
     try:
-        with open(OPTIONS_FILE, 'r', encoding='utf8')as fp:
+        with open(OPTIONS_FILE, 'r', encoding='utf8') as fp:
             json_data = json.load(fp)
 
         if load_settings:
@@ -735,7 +715,7 @@ def get_file_part(tar):  #
     if TAG_METHOD == 'FILE_STREAM':
         try:
             with open(tar + ":tags", "r", encoding="utf8") as f:
-                ftags+=(set(list(map(lambda x: x.strip(), f.readlines()))))
+                ftags += (set(list(map(lambda x: x.strip(), f.readlines()))))
         except FileNotFoundError as e:
             pass
 
@@ -897,7 +877,7 @@ def update_data_process(lst1):
 
     for one_file in lst_files_to_go:
         # 先查字典，这样可以显著加速查询
-        one_file = one_file.replace('\\','/')
+        one_file = one_file.replace('\\', '/')
         if one_file in dicT.keys():
             pass
         else:
@@ -996,7 +976,7 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
     else:  # 单线程
 
         for one_file in lst_file0:
-            one_file = one_file.replace('\\','/')
+            one_file = one_file.replace('\\', '/')
             # 更新进度条
             n += 1
             if flag_inited == 1 and n % PROG_STEP == 0:
@@ -1122,7 +1102,7 @@ def show_window_info():
 
 
 # 自制输入窗体
-class my_input_window_XXX:
+class XXX_my_input_window_XXX:
     """
     输入窗体类。
     实现了一个居中的模态窗体。
@@ -1130,11 +1110,11 @@ class my_input_window_XXX:
     input_value = ''
 
     def __init__(self, parent, title='未命名', msg='未定义', default_value='', selection_range=None) -> None:
-        '''
+        """
         自制输入窗体的初始化；
         参数：
         selection_range 是默认选中的范围。
-        '''
+        """
 
         # 变量设置
         self.form0 = parent  # 父窗格
@@ -1238,7 +1218,7 @@ class my_input_window_XXX:
         return ''
 
 
-class my_progress_window_XXX:
+class XXX_my_progress_window:
     """
     # 一个出现在主窗口中间的进度条
     """
@@ -1246,9 +1226,9 @@ class my_progress_window_XXX:
     # input_window = ''  # =tk.Toplevel(self.form0)
 
     def __init__(self, parent, prog_value=0, prog_text='') -> None:
-        '''
+        """
         # 进度条，输入进度数值
-        '''
+        """
 
         # 变量设置
         self.form0 = parent
@@ -1324,10 +1304,10 @@ class my_progress_window_XXX:
 
 
 def X_show_my_input_window(title='未命名', msg='未定义', default_value=''):
-    '''
+    """
     想要做输入框，替代 tkinter 自带的，
     但是并没有启用。
-    '''
+    """
     screenwidth = window.winfo_screenwidth()
     screenheight = window.winfo_screenheight()
     w_width = 500
@@ -1526,7 +1506,8 @@ def update_folder_list(event=None, need_select=True):
     n_root = 0
     lst_root_item = []
     for root_text in lst_root_text:
-        lst_root_item.append(tree_lst_folder.insert('', n_root, text=root_text, tags=['folder0'], values=("（全部）",), open=True))
+        lst_root_item.append(
+            tree_lst_folder.insert('', n_root, text=root_text, tags=['folder0'], values=("（全部）",), open=True))
         n_root += 1
     # root1=tree_lst_folder.insert('',1,text='新建分组',values=("（全部）",),open=True)
     #
@@ -1877,9 +1858,9 @@ def set_search_tag_selected(ind):
 
 
 def exec_after_sub_tag_choose(event=None):
-    '''
+    """
     点击sub_tag之后
-    '''
+    """
     res = ''
     for item in tree_lst_sub_tag.selection():
         res = tree_lst_sub_tag.item(item, "values")[0]
@@ -1893,12 +1874,12 @@ def exec_after_sub_tag_choose(event=None):
 
 
 def get_search_items(event=None, res_lst=False):
-    '''
+    """
     获取标签下拉框里面的标签。
     不过，现在也兼职了对输入框的搜索。
     返回值是列表 res。
     或者参数 True的时候，返回 res_tag,res_keyword,res_path
-    '''
+    """
     res = []
     res_tag = []
     res_keyword = []
@@ -1944,10 +1925,10 @@ def get_search_items(event=None, res_lst=False):
 
 
 def get_sub_folder_selected():
-    '''
+    """
     获取子文件夹名称（没有输入，返回字符串，或者空白）
     【还不完善】
-    '''
+    """
     if TREE_SUB_SHOW == 'sub_folder':  # sub_folder 模式，子文件夹是选项
         METHOD = 2
     elif TREE_SUB_SHOW == 'tag':  # tag模式，子文件夹是下拉框
@@ -2351,9 +2332,9 @@ def get_folder_values_v2():
 
 
 def exec_run(filepath):
-    '''
+    """
     运行文件或路径
-    '''
+    """
     os.startfile(filepath)  # 这个方法好像不太合适，会导致占用。
 
 
@@ -2583,7 +2564,7 @@ def tree_open_folder(event=None, VMETHOD=1):
         #
         elif VMETHOD == 2:  # 打开文件夹并选中文件。
             # 注意，方法2路径必须是\，而且select,后面不能有空格
-            tmp = r'explorer /select,"' + tmp_file+'"'
+            tmp = r'explorer /select,"' + tmp_file + '"'
             print(tmp)
             #
             subprocess.Popen(tmp)
@@ -2846,7 +2827,7 @@ def update_one_of_dicT(filename):
     :return:
     """
     global dicT
-    filename = filename.replace('\\','/')
+    filename = filename.replace('\\', '/')
     tmp = get_file_part(filename)
     tmp_v = (str(tmp['fname_0']),
              tmp['ftags'],
@@ -2861,7 +2842,7 @@ def exec_file_add_tag(filename, tag0, need_update=True):
     """
     增加标签
     """
-    filename = filename.replace('\\','/')
+    filename = filename.replace('\\', '/')
     tmp_final_name = filename
     #
     # 增加NTFS流的标签解析
@@ -2869,7 +2850,7 @@ def exec_file_add_tag(filename, tag0, need_update=True):
         # 先看有没有这个标签
         tmp = get_file_part(filename)
         tags_old = tmp['ftags']
-        if tag0 in tags_old: # 如果已经有的话，直接忽略
+        if tag0 in tags_old:  # 如果已经有的话，直接忽略
             pass
         else:
             #
@@ -4145,7 +4126,7 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
         else:
             stags = ''
 
-        if TAG_METHOD == 'FILE_STREAM': # 如果流模式，就不通过文件名的方式加标签了；
+        if TAG_METHOD == 'FILE_STREAM':  # 如果流模式，就不通过文件名的方式加标签了；
             stags = ''
 
         if len(lst_my_path_long_selected) > 1:
@@ -4186,9 +4167,9 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
                     # 打开
                     exec_run(fpth)  # 打开这个文件
 
-                    if TAG_METHOD == 'FILE_STREAM': # 流模式下新增标签的方法
+                    if TAG_METHOD == 'FILE_STREAM':  # 流模式下新增标签的方法
                         for tg in tags:
-                            exec_file_add_tag(fpth,tg,need_update=False)
+                            exec_file_add_tag(fpth, tg, need_update=False)
 
                     # 刷新
                     if event == 'exec_create_note_here':  # 【这里有bug，刷新之后不能显示内容】
@@ -4380,7 +4361,7 @@ def exec_tree_file_drop_tag(event=None):
     #
     for item in tree.selection():
         item_text = tree.item(item, "values")
-        tmp_full_name = item_text[-1] # 完整文件名
+        tmp_full_name = item_text[-1]  # 完整文件名
         # NTFS流模式
         if TAG_METHOD == 'FILE_STREAM':
             # 读取流中的标签
@@ -4469,7 +4450,7 @@ def exec_tree_right_click(event):
     tmp = app.tree.identify_row(event.y)
     if tmp not in app.tree.selection():
         app.tree.selection_set(tmp)
-    exec_tree_mouse_highlight(event,clear_only=True)
+    exec_tree_mouse_highlight(event, clear_only=True)
 
 
 def exec_tree_folder_right_click(event):
@@ -4515,7 +4496,7 @@ def show_popup_menu_file(event):
     menu_file.add_separator()
     if n_selection == 1:
         menu_file.add_command(label="打开选中项所在文件夹", command=tree_open_folder)
-        menu_file.add_command(label="打开选中项所在文件夹并选中文件（有点慢）",command=tree_open_folder_select)
+        menu_file.add_command(label="打开选中项所在文件夹并选中文件（有点慢）", command=tree_open_folder_select)
     elif n_selection > 1:
         menu_file.add_command(label="打开选中项所在文件夹", state=tk.DISABLED, command=tree_open_folder)
     menu_file.add_command(label="打开当前文件夹", command=tree_open_current_folder)
@@ -4621,7 +4602,7 @@ def show_popup_menu_file(event):
 
         menu_file.post(event.x_root, event.y_root)
 
-    elif n_selection > 1: # 选中很多项目的时候
+    elif n_selection > 1:  # 选中很多项目的时候
         try:
             for i in range(10000):  # 删除已有标签
                 menu_tags_to_drop.delete(0)
@@ -4696,27 +4677,60 @@ def fixed_map_v2(tar, option):
             elm[:2] != ('!disabled', '!selected')]
 
 
-def exec_tree_mouse_highlight(event,clear_only = False):
+def exec_tree_folder_remove_mouse_highlight(event):
+    exec_tree_folder_mouse_highlight(event,clear_only=True)
+
+
+def exec_tree_folder_mouse_highlight(event, clear_only=False):
+    """
+    文件夹树的鼠标悬浮效果。
+    :param event:
+    :param clear_only:
+    :param the_tree:
+    :return:
+    """
+    the_tree = app.tree_lst_folder
+    exec_tree_mouse_highlight(event, clear_only=clear_only, the_tree=the_tree)
+
+
+def exec_tree_mouse_highlight(event, clear_only=False, the_tree=None):
     """
     鼠标指向的项目加背景色
     :param event:
     :return:
     """
-    _iid = app.tree.identify_row(event.y)
+    #
+    # 定义操作目标
+    if the_tree is None:
+        the_tree = app.tree
+    #
+    _iid = the_tree.identify_row(event.y)
+
     # print(event.y)
+    #
 
     def remove_last_tag():
         if app.last_focus:
-            try:  # 之前的去掉高亮
-                tags_old = list(app.tree.item(app.last_focus, "tags"))
-                tags_old.remove('line_mouse')
-                app.tree.item(app.last_focus, tags=tags_old)
-            except:
-                pass
+            if app.the_tree and app.the_tree is not the_tree:
+                #
+                try:  # 之前的去掉高亮
+                    tags_old = list(app.the_tree.item(app.last_focus, "tags"))
+                    tags_old.remove('line_mouse')
+                    app.the_tree.item(app.last_focus, tags=tags_old)
+                except:
+                    pass
+            else:
+                try:  # 之前的去掉高亮
+                    tags_old = list(the_tree.item(app.last_focus, "tags"))
+                    tags_old.remove('line_mouse')
+                    the_tree.item(app.last_focus, tags=tags_old)
+                except:
+                    pass
 
     if clear_only:
         remove_last_tag()
-        app.last_focus=None
+        app.last_focus = None
+        app.the_tree = the_tree
         return
 
     if _iid != app.last_focus:
@@ -4729,13 +4743,14 @@ def exec_tree_mouse_highlight(event,clear_only = False):
             except:
                 pass"""
         # 新项目加高亮
-        tags_new = list(app.tree.item(_iid, "tags"))
+        tags_new = list(the_tree.item(_iid, "tags"))
         tags_new = ['line_mouse'] + tags_new
-        app.tree.item(_iid, tags=tags_new)
+        the_tree.item(_iid, tags=tags_new)
         # print(self.tree.item(_iid,"value"))
         #
         # 新项目保存
         app.last_focus = _iid
+        app.the_tree = the_tree
 
 
 def set_style(style):
@@ -4767,10 +4782,18 @@ def set_style(style):
         style.theme_use('awlight')  # awlight awdark clam X
         #
         LIGHT_THEME = True
+        #
+        # 标签生效顺序是，定义在前面的优先生效，和实际标签列表里面的顺序没有关系
+        #
         if LIGHT_THEME:
+            #
+            # 独立设定效果
+            app.tree.tag_configure('line_mouse', background="#dddfe2")
+            app.tree_lst_folder.tag_configure('line_mouse', background="#242425")
+            #
+            # 通用的
             for tar in [app.tree_lst_folder, app.tree_lst_sub_folder, app.tree_lst_sub_tag, app.tree]:
-                # 标签生效顺序是，定义在前面的优先生效，和实际标签列表里面的顺序没有关系
-                tar.tag_configure('line_mouse', background="#dddfe2")
+                # tar.tag_configure('line_mouse', background="#dddfe2")
                 tar.tag_configure('line1', background="#F2F2F2")
                 # tar.tag_configure('line1',background="#F8F8F8")
                 # tar.tag_configure('line1',background="#FFFFFF")
@@ -4781,6 +4804,7 @@ def set_style(style):
                                   font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
                 tar.tag_configure('pick_copy', foreground="#2d7d9a",
                                   font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
+
         else:
             for tar in [app.tree_lst_folder, app.tree_lst_sub_folder, app.tree_lst_sub_tag, app.tree]:
                 tar.tag_configure('line1', background="#343a40")
@@ -5068,7 +5092,9 @@ class main_app:
         界面部分。
         也就是UI的设计。
         """
-        self.last_focus=None
+        self.last_focus = None
+        self.the_tree = None
+
         self.window = tk.Tk()
         #
         # 调整清晰度 ############################################
@@ -5145,7 +5171,7 @@ class main_app:
         y_pos = (screenheight - w_height) / 2
         self.window.geometry('%dx%d+%d+%d' % (w_width, w_height, x_pos, y_pos))
         # window.resizable(0,0) #限制尺寸
-        self.window.minsize(600,500)
+        self.window.minsize(600, 500)
         self.window.state('zoomed')  # 最大化
         self.str_btm = tk.StringVar()  # 最下面显示状态用的
         self.str_btm.set("加载中")
@@ -5420,7 +5446,7 @@ class main_app:
                                                command=exec_search,
                                                onvalue=1, offvalue=0)
             self.this_folder.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)
-        #
+            #
             # 只看笔记
             self.v_note_only = tk.IntVar()
             self.v_note_only.set(0)
@@ -5583,6 +5609,7 @@ class main_app:
         self.tree_lst_folder.bind('<ButtonRelease-1>', exec_after_folder_choose)
         self.tree_lst_folder.bind('<KeyRelease-Up>', exec_after_folder_choose)
         self.tree_lst_folder.bind('<KeyRelease-Down>', exec_after_folder_choose)
+        self.tree_lst_folder.bind("<Motion>", exec_tree_folder_mouse_highlight)
         #
         # tree_lst_sub_folder.bind('<<TreeviewSelect>>', exec_after_sub_folders_choose) # 会导致重复加载
         self.tree_lst_sub_folder.bind('<ButtonRelease-1>', exec_after_sub_folders_choose)
@@ -5614,6 +5641,8 @@ class main_app:
         self.tree.bind('<F2>', exec_tree_file_rename)  # 重命名
         self.tree.bind('<Delete>', exec_tree_file_delete)  # 重命名
         self.tree.bind("<Motion>", exec_tree_mouse_highlight)
+
+        self.frameMenu.bind("<Motion>", exec_tree_folder_remove_mouse_highlight)
 
         self.tree.bind('<Double-Button-1>', exec_tree_file_open)
         self.tree.bind('<Return>', exec_tree_file_open)

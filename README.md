@@ -1,8 +1,17 @@
-# Tagdox / 标签文库
-
-
-
-![我的文库图标设计0630](_img/%E6%88%91%E7%9A%84%E6%96%87%E5%BA%93%E5%9B%BE%E6%A0%87%E8%AE%BE%E8%AE%A10630.png)
+<div align="center">
+        <img src="_img/%E6%88%91%E7%9A%84%E6%96%87%E5%BA%93%E5%9B%BE%E6%A0%87%E8%AE%BE%E8%AE%A10630.png" height="200">
+    <h1>
+        <a src="https://github.com/HorseSword/tagdox">Tagdox</a> - 标签文库
+    </h1>
+    <a href="https://github.com/HorseSword/tagdox">
+    <img src="https://img.shields.io/badge/Github-Click--Me-blue?logo=github&style=flat-square" height="20" alt="Github Ready-to-Code">
+  </a>
+    <a href="https://gitee.com/horse_sword/my-local-library">
+    <img src="https://img.shields.io/badge/Gitee-Click--Me-blue?logo=gitee&style=flat-square&color=c71d23" height="20" alt="Gitee Ready-to-Code">
+  </a>
+    <!-- Short description: -->
+  <h5>Powered by Python and Tkinter</h5>
+</div>
 
 
 
@@ -53,44 +62,10 @@ Tagdox / 标签文库，是用于对文档进行「标签化管理」的免费�
 #### v0.21.0.0 2021年10月3日
 优化标签逻辑，采用NTFS流模式，不再影响文件名（测试版）。
 优化右键响应，现在可以正确在被点击的项目处出现右键菜单了。
-#### v0.20.3.7 2021年9月18日
-优化了分组的颜色，调整为浅蓝色；调整菜单按钮颜色为浅蓝色。
-#### v0.20.3.6 2021年9月15日
-修复新建笔记时错误影响存储的笔记类型的bug。
-#### v0.20.3.5 2021年9月13日
-开放“打开文件夹并选中文件”的功能。
-#### v0.20.3.4 2021年9月12日
-增加只筛选笔记的功能；增加部分快捷键；增加窗口最小尺寸限制。
-
-#### v0.20.3.3 2021年9月10日
-
-增加空格查看文件信息的功能；增加Insert键快速插入txt笔记的功能。
-#### v0.20.3.2 2021年9月9日
-修复：复制粘贴快捷键在输入弹窗中与输入框冲突的问题。
-#### v0.20.3.1 2021年9月9日
-优化界面布局和间距，调整按钮等。
-#### v0.20.3.0 2021年9月6日
-优化界面。
-
-#### v0.20.2.0 2021年9月6日
-
-文件列表增加常用的小图标。
-
-#### v0.20.1.1 2021年9月6日
-
-修复文件夹重复添加的bug，增加快速添加子目录到关注列表的功能。
-#### v0.20.1.0 2021年9月6日
-全面优化界面UI和配色。
-
-#### v0.20.0.0 2021年9月6日
-
-美化UI，增加主题配色。
 
 
 
-#### 更多更新
-
-详见「 [更新记录.md](更新记录.md) 」。
+**更多更新**，见「 [更新记录.md](更新记录.md) 」。
 
 
 

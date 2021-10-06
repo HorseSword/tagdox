@@ -47,11 +47,12 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.21.1.1'  # 版本号
+VER = 'v0.21.1.2'  # 版本号
 
 """
 ## 近期更新说明
-#### v0.21.1.1 2021年10月5日
+#### v0.21.1.2 2021年10月6日
+修复了在非NTFS磁盘上的兼容性bug。
 文件夹区域也增加了鼠标指向效果。
 修改自建模块位置。
 #### v0.21.1.0 2021年10月4日
@@ -716,7 +717,10 @@ def get_file_part(tar):  #
         try:
             with open(tar + ":tags", "r", encoding="utf8") as f:
                 ftags += (set(list(map(lambda x: x.strip(), f.readlines()))))
-        except FileNotFoundError as e:
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            # print(e)
             pass
 
     mtime = os.stat(tar).st_mtime  # 修改时间
@@ -726,6 +730,8 @@ def get_file_part(tar):  #
 
     fsize = os.path.getsize(tar)  # 文件大小，字节
     fsize_k = fsize / (1024)  # 换算到kB
+    if 0 < fsize_k < 0.1:
+        fsize_k = 0.1
     fsize_k = round(fsize_k, 1)
 
     # 对文件目录的解析算法2：
@@ -2844,6 +2850,7 @@ def exec_file_add_tag(filename, tag0, need_update=True):
     """
     filename = filename.replace('\\', '/')
     tmp_final_name = filename
+    ntfs_error = False
     #
     # 增加NTFS流的标签解析
     if TAG_METHOD == 'FILE_STREAM':
@@ -2857,8 +2864,11 @@ def exec_file_add_tag(filename, tag0, need_update=True):
             # 增加标签
             tags_old.append(tag0)
             tags_old.sort()
-            with open(filename + ":tags", "w", encoding="utf8") as f:
-                f.writelines(list(map(lambda x: x + "\n", tags_old)))
+            try:
+                with open(filename + ":tags", "w", encoding="utf8") as f:
+                    f.writelines(list(map(lambda x: x + "\n", tags_old)))
+            except:
+                ntfs_error = True
             #
             # 更新缓存
             update_one_of_dicT(filename)
@@ -2871,7 +2881,8 @@ def exec_file_add_tag(filename, tag0, need_update=True):
             #          str(tmp['full_path']))
             # dicT[filename] = tmp_v
         # return tmp_final_name
-    else:
+
+    if TAG_METHOD != 'FILE_STREAM' or ntfs_error:
         tag_list = tag0.split(V_SEP)
         tag_old = get_file_part(filename)['ftags']  # 已有标签
         file_old = get_file_part(filename)['ffname']  # 原始的文件名
@@ -2881,7 +2892,7 @@ def exec_file_add_tag(filename, tag0, need_update=True):
         old_n = path_old + '/' + fname + fename
         new_n = old_n
         for i in tag_list:
-            if not i in tag_old:
+            if  i not in tag_old:
                 new_n = path_old + os.sep + fname + V_SEP + i + fename
                 print(old_n)
                 print(new_n)
@@ -4369,7 +4380,7 @@ def exec_tree_file_drop_tag(event=None):
             try:
                 with open(tmp_full_name + ":tags", "r", encoding="utf8") as f:
                     tags_in_st = list(set(list(map(lambda x: x.strip(), f.readlines()))))
-            except FileNotFoundError as e:
+            except Exception as e:
                 pass
             #
             if tag_value in tags_in_st:
@@ -4377,10 +4388,13 @@ def exec_tree_file_drop_tag(event=None):
                 tags_in_st.remove(tag_value)
                 # 重写流
                 tags_in_st.sort()
-                with open(tmp_full_name + ":tags", "w", encoding="utf8") as f:
-                    f.writelines(list(map(lambda x: x + "\n", tags_in_st)))
-                # 更新缓存
-                update_one_of_dicT(tmp_full_name)
+                try:
+                    with open(tmp_full_name + ":tags", "w", encoding="utf8") as f:
+                        f.writelines(list(map(lambda x: x + "\n", tags_in_st)))
+                    # 更新缓存
+                    update_one_of_dicT(tmp_full_name)
+                except:
+                    pass
                 #
         # 删除文件名里面的标签
         res = get_file_part(tmp_full_name)
@@ -4572,6 +4586,8 @@ def show_popup_menu_file(event):
                         tmp_tags.append(i)
             except FileNotFoundError as e:
                 pass
+            except:
+                pass
 
         try:
             for i in range(10000):  # 删除已有标签
@@ -4630,6 +4646,8 @@ def show_popup_menu_file(event):
                             tmp_tags.append(i)
                 except FileNotFoundError as e:
                     pass
+                except:
+                    pass
             #
             if file_checked == 0:
                 tmp_tags_from_files += tmp_tags
@@ -4678,7 +4696,7 @@ def fixed_map_v2(tar, option):
 
 
 def exec_tree_folder_remove_mouse_highlight(event):
-    exec_tree_folder_mouse_highlight(event,clear_only=True)
+    exec_tree_folder_mouse_highlight(event, clear_only=True)
 
 
 def exec_tree_folder_mouse_highlight(event, clear_only=False):

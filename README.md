@@ -1,13 +1,13 @@
 <div align="center">
         <img src="_img/%E6%88%91%E7%9A%84%E6%96%87%E5%BA%93%E5%9B%BE%E6%A0%87%E8%AE%BE%E8%AE%A10630.png" height="200">
     <h1>
-        <a src="https://github.com/HorseSword/tagdox">Tagdox</a> - 标签文库
+        Tagdox - 标签文库
     </h1>
     <a href="https://github.com/HorseSword/tagdox">
-    <img src="https://img.shields.io/badge/Github-Click--Me-blue?logo=github&style=flat-square" height="20" alt="Github Ready-to-Code">
+    <img src="https://img.shields.io/badge/Github-Click--Me-blue?logo=github&style=flat-square"  target ="_blank" height="20" alt="Github Ready-to-Code">
   </a>
     <a href="https://gitee.com/horse_sword/my-local-library">
-    <img src="https://img.shields.io/badge/Gitee-Click--Me-blue?logo=gitee&style=flat-square&color=c71d23" height="20" alt="Gitee Ready-to-Code">
+    <img src="https://img.shields.io/badge/Gitee-Click--Me-blue?logo=gitee&style=flat-square&color=c71d23" height="20"  target ="_blank" alt="Gitee Ready-to-Code">
   </a>
     <!-- Short description: -->
   <div>Powered by Python and Tkinter</div>
@@ -249,4 +249,12 @@ Tagdox / 标签文库，是用于对文档进行「标签化管理」的免费�
 版本升级：
 
 目前还没有制作专门的安装包，所以将最新版压缩包下载后，解压缩，直接覆盖旧版文件夹即可。
+
+
+
+## 感谢
+
+感谢以下朋友的技术支持
+
+[**GoogleLLP** Xiangrui Zong](https://github.com/GoogleLLP)
 

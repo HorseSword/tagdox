@@ -40,6 +40,8 @@ from my_scripts.widgets.my_tk_widgets import my_progress_window
 from my_scripts.widgets.my_tk_widgets import my_input_window
 from my_scripts.widgets.my_tk_widgets import my_space_window
 
+from my_scripts.markdown import MarkdownRel  # 对 markdown 的特殊处理
+
 # import my_logger
 # import send2trash # 回收站（目前作废）
 
@@ -47,10 +49,13 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.21.1.2'  # 版本号
+VER = 'v0.21.2.0'  # 版本号
 
 """
 ## 近期更新说明
+#### v0.21.2.0 2021年10月21日
+右键新建笔记的时候，可以更方便地选择笔记类型了。
+
 #### v0.21.1.2 2021年10月6日
 修复了在非NTFS磁盘上的兼容性bug。
 文件夹区域也增加了鼠标指向效果。
@@ -4493,6 +4498,14 @@ def show_popup_menu_file(event):
     #
     menu_tags_to_drop = tk.Menu(window, tearoff=0)
     menu_tags_to_add = tk.Menu(window, tearoff=0)
+    menu_create_note = tk.Menu(window, tearoff=0) # 新建笔记
+
+    menu_create_note.add_command(label='.docx', command=lambda x=1: exec_create_note(None, '.docx'))
+    menu_create_note.add_command(label='.md', command=lambda x=1: exec_create_note(None, '.md'))
+    menu_create_note.add_command(label='.txt', command=lambda x=1: exec_create_note(None, '.txt'))
+    menu_create_note.add_command(label='.rtf', command=lambda x=1: exec_create_note(None, '.rtf'))
+
+    #
     if len(QUICK_TAGS) > 0:
         for i in QUICK_TAGS:
             menu_tags_to_add.add_command(label=i, command=lambda x=i: exec_fast_add_tag(x))
@@ -4505,6 +4518,7 @@ def show_popup_menu_file(event):
     menu_file.add_separator()
     if len(lst_my_path_long_selected) == 1:
         menu_file.add_command(label="新建笔记", command=exec_create_note, accelerator='Ctrl+N')
+        menu_file.add_cascade(label="新建更多格式的笔记", menu=menu_create_note)
     else:
         menu_file.add_command(label="新建笔记", state=tk.DISABLED, command=exec_create_note, accelerator='Ctrl+N')
     menu_file.add_separator()
@@ -4549,6 +4563,7 @@ def show_popup_menu_file(event):
     menu_file_no_selection.add_separator()
     if len(lst_my_path_long_selected) == 1:
         menu_file_no_selection.add_command(label="新建笔记", command=exec_create_note, accelerator='Ctrl+N')
+        menu_file_no_selection.add_cascade(label="新建更多格式的笔记", menu=menu_create_note)
     else:
         menu_file_no_selection.add_command(label="新建笔记", state=tk.DISABLED, command=exec_create_note,
                                            accelerator='Ctrl+N')
@@ -5684,42 +5699,55 @@ class main_app:
 
 
 ###########################################################
+###########################################################
+# 主程序开始
+###########################################################
+###########################################################
 
-# 检查是否已经运行；
-'''
-import win32gui 
-import win32con
-wd_name = TAR + ' ' + VER
-pr_name = '我的文库.exe'
-have_exe = 0
-try:
-    win =win32gui.FindWindow(wd_name,None)
-    print(win)
-    if win:
-        have_exe = 1
-        win.ShowWindow(win32con.SW_SHOWNORMAL)
-        print('\n已经存在打开的实例\n')
-    else:
-        print('\n不存在打开的实例\n')
-except Exception as e:
-    print(e)
+
+"""
+def check_single_instance():  # 检查是否已经运行；
+    import win32gui
+    import win32com.client
+    import sys
+
+    wd_name = TAR + ' ' + VER
+    pr_name = 'tagdox'
     have_exe = 0
+    try:
+        # win32gui.GetWindow()
+        shell = win32com.client.Dispatch("WScript.Shell")  # 未找到函数
+        shell.AppActivate(wd_name)
+        # print('\n已经存在打开的实例\n')
+        have_exe = 1
+        
+        win = win32gui.FindWindow(None,wd_name)
+        print(win)
+        if win:
+            have_exe = 1
+            root = tk.Tk()
+            t = tk.messagebox.showerror(title='ERROR',
+                message='本程序已经在运行。')
+            root.destroy()
+            # win.ShowWindow(win32con.SW_SHOWNORMAL)
+            print('\n已经存在打开的实例\n')
+        else:
+            print('\n不存在打开的实例\n')
+    except Exception as e:
+        print(e)
+        have_exe = 0
+    return have_exe
+"""
 
 # from tendo import singleton
 # me = singleton.SingleInstance() # will sys.exit(-1) if other instance is running
-'''
+
+# have_exe = check_single_instance()
+# if __name__ == '__main__' and have_exe==0:
 
 if __name__ == '__main__':
-    # if True:
     # 变量 ###########################################################
-    # from tendo import singleton
-    # import sys
-    # try:
-    #     me = singleton.SingleInstance() # will sys.exit(-1) if other instance is running
-    # except:
-    #     t = tk.messagebox.showerror(title='ERROR', 
-    #     message='文件夹重命名失败，可能是有内部文件正在被访问，或没有操作权限。')
-    #     sys.exit(-1)
+    #
     #
     q = queue.Queue()
     #

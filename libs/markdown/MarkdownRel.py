@@ -8,6 +8,7 @@
 import re
 import os
 import shutil
+import urllib.parse
 
 
 def find_links(filepath: str):
@@ -73,7 +74,6 @@ def find_links(filepath: str):
 
 def copy_md_linked_files(file_path_old: str, new_path, mode='copy'):
     """
-
     :param file_path_old: md文件所在完整路径（包括文件名）
     :param new_path: md文件目标位置（文件夹）
     :param mode: 移动或者复制
@@ -83,6 +83,9 @@ def copy_md_linked_files(file_path_old: str, new_path, mode='copy'):
     fpath, fname = os.path.split(file_path_old)
 
     for p in lst_links_rel:
+        # URL解码
+        p = urllib.parse.unquote(p)
+        #
         old_pth = fpath.replace('\\', '/') + '/' + p  # 原位置
         print(old_pth)
         tar_pth = new_path.replace('\\', '/')
@@ -92,9 +95,10 @@ def copy_md_linked_files(file_path_old: str, new_path, mode='copy'):
             tar_pth = tar_pth + '/' + p
         print(tar_pth)
         tarp, tarfn = os.path.split(tar_pth)
-        if not os.path.exists(tarp):
-            os.makedirs(tarp)
         try:
+            if not os.path.exists(tarp):
+                os.makedirs(tarp)
+
             shutil.copyfile(old_pth, tar_pth)  # 目前，附件永远是复制，因为移动可能存在其他问题
 
         except Exception as e:
@@ -110,9 +114,11 @@ def copy_md(file_path_old: str, file_path_new: str, mode='copy'):
     :param mode: 移动或者复制
     :return: 无
     """
+
+    # 相对路径附件，复制到目标位置
     new_path, new_filename = os.path.split(file_path_new)
     copy_md_linked_files(file_path_old, new_path)
-
+    #
     if len(new_filename) == 0:
         fpath, fname = os.path.split(file_path_old)
         new_full_path = new_path + '/' + fname

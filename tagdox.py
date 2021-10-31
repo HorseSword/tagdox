@@ -34,13 +34,13 @@ import queue
 import subprocess  # 用于打开文件所在位置并选中文件
 #
 # 自建库
-from my_scripts.common_funcs import *
-
-from my_scripts.widgets.my_tk_widgets import my_progress_window
-from my_scripts.widgets.my_tk_widgets import my_input_window
-from my_scripts.widgets.my_tk_widgets import my_space_window
-
-from my_scripts.markdown import MarkdownRel  # 对 markdown 的特殊处理
+from libs.common_funcs import *
+#
+from libs.widgets.my_tk_widgets import my_progress_window
+from libs.widgets.my_tk_widgets import my_input_window
+from libs.widgets.my_tk_widgets import my_space_window
+#
+from libs.markdown import MarkdownRel  # 对 markdown 的特殊处理
 
 # import my_logger
 # import send2trash # 回收站（目前作废）
@@ -49,10 +49,15 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.21.2.0'  # 版本号
+VER = 'v0.21.3.0'  # 版本号
 
 """
 ## 近期更新说明
+
+#### v0.21.3.0 2021年10月30日
+增加对markdown移动的优化，相对路径附件可以在移动的时候自动复制了，
+这样移动后的md文件仍然可以正常访问图片等附件。
+
 #### v0.21.2.0 2021年10月21日
 右键新建笔记的时候，可以更方便地选择笔记类型了。
 
@@ -107,6 +112,7 @@ FILE_DRAG_MOVE = 'move'  # 文件拖动到列表的时候，是复制，还是�
 # 取值：'move' 'copy'。// 可修改
 FOLDER_TYPE = 2
 TAG_METHOD = 'FILE_STREAM'  # 或者 FILENAME
+MARKDOWN_IMGS = True  # 是否移动markdown的时候，移动相应的相对路径文件；
 #
 try:
     if isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
@@ -293,10 +299,14 @@ def exec_safe_rename(old_name, new_name):
         pass
 
 
-def exec_safe_copy(old_name, new_name, opt_type='copy'):
+def exec_safe_copy(old_name:str, new_name:str, opt_type:str ='copy'):
     """
     安全复制或移动文件。
-    参数 opt_type 是 'copy' 或 'move'。
+
+    :param opt_type:  'copy' 或 'move'。
+    :param old_name: 旧的文件完整路径
+    :param new_name: 新的文件完整路径（含文件名）
+    :return: 操作之后的文件路径，移动失败返回原始路径，移动成功返回新路径。
     """
     old_name = old_name.replace('\\', '/')
     new_name = new_name.replace('\\', '/')
@@ -706,9 +716,11 @@ def get_data(ipath=None, update_sub_path=1, need_set_prog=True, is_global=True):
 
 def get_file_part(tar):  # 
     """
-    这里输入参数 tar 是完整文件路径。
-    输入完整（文件）路径，以字典的形式，返回对应的所有文件信息。
+    分拆。
     【疑似bug】对带有空格的路径解析异常
+
+    :param tar: 是完整文件路径。
+    :returns: （文件）路径，以字典的形式，返回对应的所有文件信息。
     """
 
     [fpath, ffname] = os.path.split(tar)  # fpath 所在文件夹、ffname 原始文件名
@@ -833,7 +845,9 @@ def sub_get_dt(lst_file_in):
 
 def update_data_process(lst1):
     """
-    用于后台加载数据
+    用于后台加载数据。
+
+    :param lst1: 传入的是完整路径列表。
     """
     print('———— 后台数据加载开始 ————')
 
@@ -3715,6 +3729,24 @@ def exec_tree_drag_enter(files, drag_type=None):
     res_tag, res_keyword, res_path = get_search_items_sub_folder(res_lst=True)
     #
     new_file_lst = []
+
+    # 特殊排序，将markdown文件放在后面操作
+    files1=[]
+    files2=[]
+    for item in files:
+        try:
+            itm = item.decode('gbk')
+        except:
+            itm = item
+            pass
+        if len(str(itm))>3 and str(itm)[-3:] in ['.md','.MD']:
+            files2.append(item)
+        else:
+            files1.append(item)
+
+    files = files1+files2  #
+    # print('\nfiles=',files)
+    #
     for item in files:
         # [item_path, item_name] = os.path.split(item)
         #
@@ -3749,6 +3781,11 @@ def exec_tree_drag_enter(files, drag_type=None):
         #
         new_name = long_name + '/' + ffname
         if drag_type in ['copy', 'move']:
+            #
+            # 2021年10月30日新增：markdown特殊处理
+            if len(old_name)>3 and old_name[-3:] in ['.md','.MD']:
+                MarkdownRel.copy_md_linked_files(old_name,long_name)
+            #
             res = exec_safe_copy(old_name, new_name, opt_type=drag_type)
             str_btm.set('拖动添加文件成功')
         #     res=safe_move(old_name, new_name, opt_type='copy')
@@ -5108,7 +5145,7 @@ def exec_tree_file_put_down(event=None):
     global lst_pick_up_files
     global lst_pick_up_items
     # state_pick_up = 'move' 默认
-    exec_tree_drag_enter(lst_pick_up_files, drag_type=state_pick_up)
+    exec_tree_drag_enter(lst_pick_up_files, drag_type=state_pick_up) # 调用的是拖动函数
     # lst_pick_up_files=[]
     # lst_pick_up_items = []
     exec_tree_file_pick_nothing(fastmode=True)
@@ -5223,7 +5260,7 @@ class main_app:
         self.frameMenu = ttk.Frame(self.frame0,
                                    relief='flat',
                                    style='Dark.TFrame',
-                                   width=320 - 16,
+                                   width=320 - 16*1,
                                    borderwidth=0,
                                    )  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
         self.frameMenu.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10, pady=5)

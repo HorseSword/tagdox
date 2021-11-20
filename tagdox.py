@@ -49,10 +49,12 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.21.3.0'  # 版本号
+VER = 'v0.21.3.1'  # 版本号
 
 """
 ## 近期更新说明
+#### v0.21.3.1 2021年11月17日
+优化体验，当左键单击列表空白的时候，会自动取消选中。
 
 #### v0.21.3.0 2021年10月30日
 增加对markdown移动的优化，相对路径附件可以在移动的时候自动复制了，
@@ -3655,12 +3657,12 @@ def exec_folder_add_drag(files):  #
 
 
 def exec_tree_drag_enter_popupmenu(files):
-    '''
+    """
     ###########################################
     弹出菜单，判断是移动还是复制。
     （存在逻辑问题，还没有启用）
     #######################################
-    '''
+    """
     global FILE_DRAG_MOVE
     menu_move_or_copy = tk.Menu(window, tearoff=0)
     menu_move_or_copy.add_command(label="复制", command=lambda x=files: exec_tree_drag_enter(x, 'copy'))
@@ -3783,7 +3785,7 @@ def exec_tree_drag_enter(files, drag_type=None):
         if drag_type in ['copy', 'move']:
             #
             # 2021年10月30日新增：markdown特殊处理
-            if len(old_name)>3 and old_name[-3:] in ['.md','.MD']:
+            if MARKDOWN_IMGS is True and len(old_name)>3 and old_name[-3:] in ['.md','.MD']:
                 MarkdownRel.copy_md_linked_files(old_name,long_name)
             #
             res = exec_safe_copy(old_name, new_name, opt_type=drag_type)
@@ -3977,9 +3979,9 @@ def exec_folder_set_group(event=None, group_name=None, short_name=None, need_upd
 
 
 def exec_folder_rename_group(event=None):
-    '''
+    """
     重命名文件夹分组
-    '''
+    """
     # 获得旧分组名称
     fd_0 = tree_lst_folder.selection()[0]
     group_name_old = tree_lst_folder.item(fd_0, "text")
@@ -3999,10 +4001,10 @@ def exec_folder_rename_group(event=None):
 
 
 def exec_folder_add(tar_list):
-    '''
+    """
     添加关注的目录,输入必须是列表。
     列表内是文件夹完整路径。
-    '''
+    """
     global json_data
     need_update = 0
     for tmp_path_long in tar_list:
@@ -4509,6 +4511,23 @@ def exec_tree_right_click(event):
     exec_tree_mouse_highlight(event, clear_only=True)
 
 
+def exec_tree_left_click(event):
+    """
+    左键单击tree区域，
+    如果不设置，那么点击空白并不会影响选中项目；体验不好。
+    :param event:
+    :return:
+    """
+    # print(event.keycode)
+    # if event.keysym in ['<Shift_L>','<Shift_R>','<Control_L>','<Control_R>']:  # 按 ctrl 或者 shift 的时候不操作
+        # print(event)
+        # return
+    tmp = app.tree.identify_row(event.y)
+    if tmp not in app.tree.get_children():
+        app.tree.selection_set(tmp)
+    # exec_tree_mouse_highlight(event, clear_only=True)
+
+
 def exec_tree_folder_right_click(event):
     """
     右键点击 folder 区域
@@ -4779,7 +4798,7 @@ def exec_tree_mouse_highlight(event, clear_only=False, the_tree=None):
     # print(event.y)
     #
 
-    def remove_last_tag():
+    def remove_last_tag():  # 移除之前高亮的项目
         if app.last_focus:
             if app.the_tree and app.the_tree is not the_tree:
                 #
@@ -5716,7 +5735,8 @@ class main_app:
 
         self.tree.bind('<Double-Button-1>', exec_tree_file_open)
         self.tree.bind('<Return>', exec_tree_file_open)
-        self.tree.bind("<Button-3>", exec_tree_right_click)  # 绑定文件夹区域的右键功能
+        self.tree.bind("<Button-3>", exec_tree_right_click)  # 绑定文件区域的右键功能
+        self.tree.bind("<Button-1>", exec_tree_left_click)  # 绑定文件区域的右键功能
         self.tree.bind("<ButtonRelease-3>", show_popup_menu_file)  # 绑定文件夹区域的右键起功能
         self.tree.bind('<F5>', update_main_window)  # 刷新。
         self.tree.bind('<space>', self.call_space)  # 刷新。

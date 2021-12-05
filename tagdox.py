@@ -49,10 +49,26 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.21.3.1'  # 版本号
+VER = 'v0.21.4.4'  # 版本号
 
 """
 ## 近期更新说明
+
+#### v0.21.4.4 2021年12月2日
+优化代码，将标签的排除类型调整到变量中。
+
+#### v0.21.4.3 2021年12月2日
+隐藏了标签下拉框。
+
+#### v0.21.4.2 2021年11月28日
+尝试修复Typora以覆盖方式更新md文件导致丢失标签的bug。
+
+#### v0.21.4.1 2021年11月26日
+优化UI布局和颜色。
+
+#### v0.21.4.0 2021年11月26日
+增加标签列表，提高标签应用性能，进入测试阶段。
+
 #### v0.21.3.1 2021年11月17日
 优化体验，当左键单击列表空白的时候，会自动取消选中。
 
@@ -84,7 +100,7 @@ PROG_STEP = 500  # 进度条刷新参数
 CLEAR_AFTER_CHANGE_FOLDER = 2  # 切换文件夹后，是否清除筛选。0 是保留，其他是清除。
 DIR_LST = ['▲', '▼']  # 列排序标题行
 HEADING_LST = ['#0', 'tags', 'modify_time', 'size', 'file0']
-HEADING_LST_TXT = ['名称', '标签', '修改时间', '文件大小(kB)', '完整路径']
+HEADING_LST_TXT = ['名称', '标签', '修改时间', '大小(kB)', '完整路径']
 MULTI_PROC = 1  # 并发进程数，设置为1或更低就单独进程。
 MULTI_FILE_COUNT = 400
 DEFAULT_GROUP_NAME = '默认文件夹分组'
@@ -97,10 +113,11 @@ MON_FONTSIZE = 9  # 正文字号
 FONT_TREE_HEADING = ('微软雅黑', LARGE_FONT)
 FONT_TREE_BODY = ('微软雅黑', MON_FONTSIZE)
 EXP_FOLDERS = ['_img']  # 排除文件夹名称，以后会加到自定义里面
+EXP_EXTS = ['.md','.MD']  # 排除扩展名，这里面的强制采用传统标签；
 ALL_FOLDERS = 2  # 文件夹列表是否带“（全部）”,1 在前面，2在末尾（默认），其余没有
 NOTE_NAME = '未命名笔记'  # 新建笔记的默认名称
 DRAG_FILES_ADD_TAG = True  # 为拖拽进来的新增文件统一添加当前选中的标签
-TREE_SUB_SHOW = ['tag', 'sub_folder'][1]  # 决定左侧布局是标签模式还是子文件夹模式。// 可修改
+TREE_SUB_SHOW = ['tag', 'sub_folder'][1]  # 决定左侧布局是标签模式还是子文件夹模式。// 可修改  // 已经基本上作废
 FOLDER_AS_TAG = 0  # 最后多少层文件夹名称，强制作为标签（即使不包括V_SEP） // 可修改
 TAG_EASY = 1  # 标签筛选是严格模式还是简单模式，1是简单模式，名称有就行；0是严格模式。 // 可修改
 
@@ -2233,7 +2250,8 @@ def exec_tree_add_items(tree, dT) -> None:
     print(time.time() - time0)
 
     # str_btm.set("找到 " + str(k) + " 个结果，用时"+str(time.time()-time0)+"秒")
-    str_btm.set("找到 " + str(k) + " 个结果")  # "，用时"+str(time.time()-time0)+"秒")
+    # "在"+str(len(dT))+"个项目中找到 " + str(k) + " 个文件，"
+    str_btm.set("找到 " + str(k) + " 个文件")  # "，用时"+str(time.time()-time0)+"秒")
     if flag_inited:
         set_prog_bar(100)
         tree.focus()
@@ -2874,7 +2892,7 @@ def exec_file_add_tag(filename, tag0, need_update=True):
     ntfs_error = False
     #
     # 增加NTFS流的标签解析
-    if TAG_METHOD == 'FILE_STREAM':
+    if TAG_METHOD == 'FILE_STREAM' and not os.path.splitext(filename)[1] in EXP_EXTS:
         # 先看有没有这个标签
         tmp = get_file_part(filename)
         tags_old = tmp['ftags']
@@ -2903,7 +2921,7 @@ def exec_file_add_tag(filename, tag0, need_update=True):
             # dicT[filename] = tmp_v
         # return tmp_final_name
 
-    if TAG_METHOD != 'FILE_STREAM' or ntfs_error:
+    if TAG_METHOD != 'FILE_STREAM' or ntfs_error or os.path.splitext(filename)[1] in EXP_EXTS:
         tag_list = tag0.split(V_SEP)
         tag_old = get_file_part(filename)['ftags']  # 已有标签
         file_old = get_file_part(filename)['ffname']  # 原始的文件名
@@ -3741,7 +3759,7 @@ def exec_tree_drag_enter(files, drag_type=None):
         except:
             itm = item
             pass
-        if len(str(itm))>3 and str(itm)[-3:] in ['.md','.MD']:
+        if len(str(itm))>3 and str(itm)[-3:] in EXP_EXTS:
             files2.append(item)
         else:
             files1.append(item)
@@ -3785,7 +3803,7 @@ def exec_tree_drag_enter(files, drag_type=None):
         if drag_type in ['copy', 'move']:
             #
             # 2021年10月30日新增：markdown特殊处理
-            if MARKDOWN_IMGS is True and len(old_name)>3 and old_name[-3:] in ['.md','.MD']:
+            if MARKDOWN_IMGS is True and len(old_name)>3 and old_name[-3:] in EXP_EXTS:
                 MarkdownRel.copy_md_linked_files(old_name,long_name)
             #
             res = exec_safe_copy(old_name, new_name, opt_type=drag_type)
@@ -4181,7 +4199,7 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
         else:
             stags = ''
 
-        if TAG_METHOD == 'FILE_STREAM':  # 如果流模式，就不通过文件名的方式加标签了；
+        if TAG_METHOD == 'FILE_STREAM' and not NOTE_EXT in EXP_EXTS:  # 如果流模式，就不通过文件名的方式加标签了；
             stags = ''
 
         if len(lst_my_path_long_selected) > 1:
@@ -4222,7 +4240,7 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
                     # 打开
                     exec_run(fpth)  # 打开这个文件
 
-                    if TAG_METHOD == 'FILE_STREAM':  # 流模式下新增标签的方法
+                    if TAG_METHOD == 'FILE_STREAM' :  # 流模式下新增标签的方法
                         for tg in tags:
                             exec_file_add_tag(fpth, tg, need_update=False)
 
@@ -4879,9 +4897,12 @@ def set_style(style):
             # 独立设定效果
             app.tree.tag_configure('line_mouse', background="#dddfe2")
             app.tree_lst_folder.tag_configure('line_mouse', background="#242425")
+            app.tree_lst_folder.tag_configure('line_mouse', background="#242425")
+            app.tree_lst_sub_tag.tag_configure('line1', background="#EBEFF2")
+            #
             #
             # 通用的
-            for tar in [app.tree_lst_folder, app.tree_lst_sub_folder, app.tree_lst_sub_tag, app.tree]:
+            for tar in [app.tree_lst_folder, app.tree_lst_sub_folder, app.tree]:
                 # tar.tag_configure('line_mouse', background="#dddfe2")
                 tar.tag_configure('line1', background="#F2F2F2")
                 # tar.tag_configure('line1',background="#F8F8F8")
@@ -4931,6 +4952,16 @@ def set_style(style):
                         )
         style.layout("Treeview", [('Dark.Treeview.treearea', {'sticky': 'nswe'})])  # Remove the borders
 
+        style.configure("Taglist.Treeview",
+                        # font=FONT_TREE_BODY,
+                        # fontsize=-15,
+                        # rowheight=int(MON_FONTSIZE * 3.5), \
+                        fieldbackground='#5c6164',  # 没有行部分的颜色
+                        background='#dbe2e8',  # 空白行的颜色
+                        foreground='black',
+                        # relief='flat',
+                        # borderwidth=0,
+                        )
         style.configure("Dark.Treeview",
                         # font=FONT_TREE_BODY,
                         # fontsize=-15,
@@ -5254,7 +5285,7 @@ class main_app:
         self.window.title(TAR + ' ' + VER)
         screenwidth = SCREEN_WIDTH
         screenheight = SCREEN_HEIGHT
-        w_width = int(screenwidth * 0.8)
+        w_width = int(screenwidth * 0.9)
         w_height = int(screenheight * 0.8)
         x_pos = (screenwidth - w_width) / 2
         y_pos = (screenheight - w_height) / 2
@@ -5271,11 +5302,13 @@ class main_app:
         #
         self.frame_window = ttk.Frame(self.window, padding=(0, 0, 0, 0), relief='flat', borderwidth=0)
         self.frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=0, pady=0)
-        # 上面功能区
+        #
+        # 上面功能区：frame0
         self.frame0 = ttk.Frame(self.frame_window, relief='flat',
                                 height=120)  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
         self.frame0.pack(expand=0, fill=tk.X, padx=0, pady=0)  # padx=10, pady=5)
-
+        #
+        # 菜单区
         self.frameMenu = ttk.Frame(self.frame0,
                                    relief='flat',
                                    style='Dark.TFrame',
@@ -5284,7 +5317,7 @@ class main_app:
                                    )  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
         self.frameMenu.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10, pady=5)
         self.frameMenu.pack_propagate(0)
-
+        #
         # 文件夹区
         self.frameLeft = ttk.Frame(self.frame_window,
                                    # style="Dark.Treeview",
@@ -5297,19 +5330,20 @@ class main_app:
         self.frameLeft.pack_propagate(0)  # 有这句话才能使框架的尺寸生效
         # for i in range(2):
         # frameLeft.rowconfigure(i,weight=1)
-
+        #
+        # 文件夹在frameLeft内部
         self.frameFolder = ttk.Frame(self.frameLeft, style='Dark.TFrame', relief='flat', borderwidth=0, )
         # height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
         self.frameFolder.pack(side=tk.TOP, expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10,pady=5)
         # frameFolder.grid(column=0,row=0)
         #
-        # 子文件夹区
+        # 子文件夹区（也在frameLeft内部）
         self.frameSubFolder = ttk.Frame(self.frameLeft, relief='flat')  # ,width=600)
         if FOLDER_TYPE == 1:
             self.frameSubFolder.pack(side=tk.BOTTOM, expand=1, fill=tk.BOTH, padx=0, pady=2)  # padx=10,pady=5)
-        # 同位置的标签区
-        # frameSubTags = ttk.Frame(frameLeft)  # ,width=600)
-        # frameSubTags.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=10, pady=5)  # padx=10,pady=5)
+        #
+
+        # self.frameSubTags.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=10, pady=5)  # padx=10,pady=5)
         #
         # 文件夹下面的控制区
         self.frameFolderCtl = ttk.Frame(self.frameLeft, height=10, borderwidth=0, relief=tk.SOLID)
@@ -5335,7 +5369,10 @@ class main_app:
         # self.bar_tree_v = tk.Scrollbar(self.frameMain)  # 右侧滚动条
         self.bar_tree_h = tk.Scrollbar(self.frameBtm, orient=tk.HORIZONTAL, width=16)  # 底部滚动条
         # self.bar_tree_h = tk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL)  # 底部滚动条
-
+        # 标签区
+        # self.frameSubTags = ttk.Frame(self.frameLeft)  # ,width=600)
+        self.frameSubTags = ttk.Frame(self.frameMain, width=300)
+        self.frameSubTags.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
         # 文件夹列表
 
         if True:
@@ -5385,28 +5422,29 @@ class main_app:
         #
         # 标签列表：
         if True:
-            self.v_tag_search = tk.Entry(self.frameSubFolder)
-            self.bar_sub_tag_v = tk.Scrollbar(self.frameSubFolder, width=16)
+            self.v_tag_search = tk.Entry(self.frameSubTags)
+            self.bar_sub_tag_v = tk.Scrollbar(self.frameSubTags, width=16)
             if TREE_SUB_SHOW == 'tag':
-                # v_tag_search.pack(side=tk.TOP,expand=0,fill=tk.X)
+                #v_tag_search.pack(side=tk.TOP,expand=0,fill=tk.X)
                 pass
 
-            self.tree_lst_sub_tag = ttk.Treeview(self.frameSubFolder,
+            self.tree_lst_sub_tag = ttk.Treeview(self.frameSubTags,
                                                  columns=['tags'],
                                                  # columns = ['index','type','folders','folder_path'],
                                                  displaycolumns=['tags'],
                                                  selectmode=tk.BROWSE,
                                                  show="headings",
+                                                 style='Taglist.Treeview',
                                                  # show="tree",
                                                  # cursor='hand2',
 
                                                  yscrollcommand=self.bar_sub_tag_v.set)  # , height=18)
 
-            self.tree_lst_sub_tag.heading("tags", text="标签", anchor='w', command=tree_tag_search)
-            self.tree_lst_sub_tag.column('tags', width=300, anchor='w')
+            self.tree_lst_sub_tag.heading("tags", text="全部标签", anchor='w', command=tree_tag_search)
+            self.tree_lst_sub_tag.column('tags', width=220, anchor='w')
             self.bar_sub_tag_v.config(command=self.tree_lst_sub_tag.yview)
             #
-            if TREE_SUB_SHOW == 'tag':
+            if True:#TREE_SUB_SHOW == 'tag':
                 self.bar_sub_tag_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
                 self.tree_lst_sub_tag.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=0)
         #
@@ -5415,7 +5453,7 @@ class main_app:
         #
         # 主文件列表
         columns = ("index", "file", "tags", "modify_time", "size", "file0")
-        column_text = ("序号", "文件名", "标签", "修改时间", "文件大小(kB)", "完整路径")
+        column_text = ("序号", "文件名", "标签", "修改时间", "大小(kB)", "完整路径")
         tree_displaycolumns = ["tags", "modify_time", "size"]  # "file",
         col_dic = {
             "序号": {
@@ -5449,10 +5487,10 @@ class main_app:
         #
         self.tree.column('#0', width=700, anchor='w')  # ,stretch=tk.NO)
         self.tree.column('index', width=30, anchor='center')
-        self.tree.column('file', width=700, minwidth=100, anchor='w')
+        self.tree.column('file', width=600, minwidth=100, anchor='w')
         self.tree.column('tags', width=200, minwidth=100, anchor='w')
-        self.tree.column('modify_time', width=18, minwidth=120, anchor='w')  # ,stretch=tk.NO)
-        self.tree.column('size', width=14, minwidth=80, anchor='w')  # ,stretch=tk.NO)
+        self.tree.column('modify_time', width=120, minwidth=120, anchor='w')  # ,stretch=tk.NO)
+        self.tree.column('size', width=60, minwidth=80, anchor='w')  # ,stretch=tk.NO)
         self.tree.column('file0', width=80, anchor='w')
         #
         self.tree.heading('#0', text='名称', anchor='w', command=tree_order_filename)
@@ -5460,7 +5498,7 @@ class main_app:
         self.tree.heading("file", text="文件名", anchor='w', command=tree_order_filename)
         self.tree.heading("tags", text="标签", anchor='w', command=tree_order_tag)
         self.tree.heading("modify_time", text="修改时间", anchor='w', command=tree_order_modi_time)
-        self.tree.heading("size", text="文件大小(kB)", anchor='w', command=tree_order_size)
+        self.tree.heading("size", text="大小(kB)", anchor='w', command=tree_order_size)
         self.tree.heading("file0", text="完整路径", anchor='w', command=tree_order_path)
         #
         vPDX = 10  # 10
@@ -5520,9 +5558,11 @@ class main_app:
         elif TREE_SUB_SHOW == 'sub_folder':
             nx += 1
             self.lable_tag = ttk.Label(self.frame0, text='标签')
-            self.v_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
+            #
+            # 2021年12月2日 隐藏了标签下拉框
+            # self.v_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
             nx += 1
-            self.lable_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
+            #self.lable_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
             nx += 1
             #
 
@@ -5974,6 +6014,7 @@ if __name__ == '__main__':
     #
     if True:
         sub_task = threading.Thread(target=update_data_process, args=(lst_my_path_long,))
+        sub_task.setDaemon(True)
         sub_task.start()
     #
     window.mainloop()

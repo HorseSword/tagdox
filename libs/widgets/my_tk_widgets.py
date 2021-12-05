@@ -209,10 +209,10 @@ class my_input_window:
 
 
 class my_space_window:
-    '''
+    """
     空格窗体类。
     实现了一个居中的模态窗体。
-    '''
+    """
     input_value = ''
 
     def __init__(self, parent, 
@@ -221,11 +221,11 @@ class my_space_window:
         default_value='', 
         selection_range=None,
         ) -> None:
-        '''
+        """
         自制输入窗体的初始化；
         参数：
         selection_range 是默认选中的范围。
-        '''
+        """
 
         # 变量设置
         self.form0 = parent  # 父窗格
@@ -277,6 +277,9 @@ class my_space_window:
         self.sub_window.update()
 
         self.sub_window.bind_all('<space>',self.sub_exit)
+        #
+        # 失去焦点自动退出
+        # self.sub_window.bind_all('<FocusOut>',self.sub_exit)
 
     
     def sub_exit(self,event=None):

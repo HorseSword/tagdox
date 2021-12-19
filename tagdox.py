@@ -36,9 +36,9 @@ import subprocess  # 用于打开文件所在位置并选中文件
 # 自建库
 from libs.common_funcs import *
 #
-from libs.widgets.my_tk_widgets import my_progress_window
-from libs.widgets.my_tk_widgets import my_input_window
-from libs.widgets.my_tk_widgets import my_space_window
+from libs.widgets.my_tk_widgets import tdProgressWindow as my_progress_window
+from libs.widgets.my_tk_widgets import tdInputWindow as my_input_window
+from libs.widgets.my_tk_widgets import tdSpaceWindow as my_space_window
 #
 from libs.markdown import MarkdownRel  # 对 markdown 的特殊处理
 
@@ -49,10 +49,20 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.21.4.4'  # 版本号
+VER = 'v0.22.0.0'  # 版本号
 
 """
 ## 近期更新说明
+
+#### v0.22.0.0 2021年12月19日
+优化了标签区域的鼠标效果；
+为子窗口增加后台自动关闭的功能，修复了在后台会锁住程序的bug。
+
+#### v0.21.4.6 2021年12月19日
+修复了短时间快速点击可能导致多次打开文件的bug。
+
+#### v0.21.4.5 2021年12月19日
+将文件夹区域右键的添加关注文件夹功能调整到菜单中。
 
 #### v0.21.4.4 2021年12月2日
 优化代码，将标签的排除类型调整到变量中。
@@ -2390,6 +2400,13 @@ def exec_tree_file_open(event=None):  # 单击
     按理说，兼容多文件。
 
     """
+    # 为了避免短时间三次点击鼠标导致重复打开，增加计时功能；
+    if (time.time() - app.file_open_time)<1:  # 要求至少间隔1秒。
+        app.file_open_time = time.time()
+        return
+    else:
+        app.file_open_time = time.time()
+
     for item in tree.selection():
         item_text = tree.item(item, "values")
         print('正在打开文件：')
@@ -4383,7 +4400,7 @@ def show_popup_menu_folder(event):
     if vtype == 1: menu_folder.add_cascade(label="设置文件夹分组", menu=menu_folder_group)
     if vtype >= 1: menu_folder.add_separator()
 
-    menu_folder.add_command(label="添加文件夹到关注列表…", command=exec_folder_add_click)
+    # menu_folder.add_command(label="添加文件夹到关注列表…", command=exec_folder_add_click)
     menu_folder.add_command(label="刷新文件夹列表", command=update_folder_list)
     menu_folder.post(event.x_root, event.y_root)
 
@@ -4800,9 +4817,25 @@ def exec_tree_folder_mouse_highlight(event, clear_only=False):
     exec_tree_mouse_highlight(event, clear_only=clear_only, the_tree=the_tree)
 
 
+def exec_tree_tag_remove_mouse_highlight(event):
+    exec_tree_folder_mouse_highlight(event, clear_only=True)
+
+
+def exec_tree_tag_mouse_highlight(event, clear_only=False):
+    """
+    文件夹树的鼠标悬浮效果。
+    :param event:
+    :param clear_only:
+    :param the_tree:
+    :return:
+    """
+    the_tree = app.tree_lst_sub_tag
+    exec_tree_mouse_highlight(event, clear_only=clear_only, the_tree=the_tree)
+
+
 def exec_tree_mouse_highlight(event, clear_only=False, the_tree=None):
     """
-    鼠标指向的项目加背景色
+    鼠标指向的项目加背景色，可以作为通用函数，被各种树调用
     :param event:
     :return:
     """
@@ -4898,6 +4931,7 @@ def set_style(style):
             app.tree.tag_configure('line_mouse', background="#dddfe2")
             app.tree_lst_folder.tag_configure('line_mouse', background="#242425")
             app.tree_lst_folder.tag_configure('line_mouse', background="#242425")
+            app.tree_lst_sub_tag.tag_configure('line_mouse', background="#FFFFFF")
             app.tree_lst_sub_tag.tag_configure('line1', background="#EBEFF2")
             #
             #
@@ -5214,7 +5248,7 @@ class main_app:
         """
         self.last_focus = None
         self.the_tree = None
-
+        self.file_open_time = time.time()  # 最近一次tree_file_open 的时间；
         self.window = tk.Tk()
         #
         # 调整清晰度 ############################################
@@ -5748,6 +5782,7 @@ class main_app:
         self.tree_lst_sub_tag.bind('<ButtonRelease-1>', exec_after_sub_tag_choose)
         self.tree_lst_sub_tag.bind('<KeyRelease-Up>', exec_after_sub_tag_choose)
         self.tree_lst_sub_tag.bind('<KeyRelease-Down>', exec_after_sub_tag_choose)
+        self.tree_lst_sub_tag.bind("<Motion>", exec_tree_tag_mouse_highlight)
 
         # tree.tag_configure('line1', background='#EEEEEE')  # 灰色底纹
         #

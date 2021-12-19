@@ -6,17 +6,17 @@ LARGE_FONT = 10  # 表头字号
 MON_FONTSIZE = 9  # 正文字号
 
 
-class my_progress_window:
-    '''
+class tdProgressWindow:
+    """
     一个出现在主窗口中间的进度条
-    '''
+    """
 
     # input_window = ''  # =tk.Toplevel(self.form0)
 
     def __init__(self, parent, prog_value=0, prog_text='') -> None:
-        '''
+        """
         进度条，输入进度数值
-        '''
+        """
 
         # 变量设置
         self.form0 = parent
@@ -41,8 +41,8 @@ class my_progress_window:
         # self.y_pos = (self.screenheight - self.w_height) / 2
         #
         # 主窗口中央：
-        self.x_pos=self.form0.winfo_x()+(self.form0.winfo_width()-self.w_width)/2
-        self.y_pos=self.form0.winfo_y()+(self.form0.winfo_height()-self.w_height)/2
+        self.x_pos = self.form0.winfo_x() + (self.form0.winfo_width() - self.w_width) / 2
+        self.y_pos = self.form0.winfo_y() + (self.form0.winfo_height() - self.w_height) / 2
 
         self.input_window.geometry('%dx%d+%d+%d' % (self.w_width, self.w_height, self.x_pos, self.y_pos))
         # self.input_window.title(self.title)
@@ -63,10 +63,20 @@ class my_progress_window:
         self.prog_bar = ttk.Progressbar(self.iframe, variable=self.my_prog)
         self.prog_bar.pack(expand=0, fill=tk.BOTH)
         #
-        self.prog_bar.bind('<1>',self.force_close)
+        self.prog_bar.bind("<FocusOut>", self.on_focus_out)
+        self.prog_bar.bind('<1>', self.force_close)
 
-    def force_close(self,event=None):
+    def force_close(self, event=None):
         self.input_window.destroy()
+
+    def on_focus_out(self, event=None):
+        """
+        失去焦点的事件，自动关闭窗口，避免最小化等操作时程序锁死
+        """
+        # print(event.widget)
+        if event.widget == self.prog_bar:
+            print("失去焦点")
+            self.force_close(self)
 
     def set(self, value):
         self.progress = value
@@ -92,19 +102,19 @@ class my_progress_window:
 
 
 # 自制输入窗体
-class my_input_window:
-    '''
+class tdInputWindow:
+    """
     输入窗体类。
     实现了一个居中的模态窗体。
-    '''
+    """
     input_value = ''
 
     def __init__(self, parent, title='未命名', msg='未定义', default_value='', selection_range=None) -> None:
-        '''
+        """
         自制输入窗体的初始化；
         参数：
         selection_range 是默认选中的范围。
-        '''
+        """
 
         # 变量设置
         self.form0 = parent  # 父窗格
@@ -131,8 +141,8 @@ class my_input_window:
         # self.y_pos = (self.screenheight - self.w_height) / 2
         #
         # 主窗口中央：
-        self.x_pos=self.form0.winfo_x()+(self.form0.winfo_width()-self.w_width)/2
-        self.y_pos=self.form0.winfo_y()+(self.form0.winfo_height()-self.w_height)/2
+        self.x_pos = self.form0.winfo_x() + (self.form0.winfo_width() - self.w_width) / 2
+        self.y_pos = self.form0.winfo_y() + (self.form0.winfo_height() - self.w_height) / 2
 
         self.input_window.geometry('%dx%d+%d+%d' % (self.w_width, self.w_height, self.x_pos, self.y_pos))
         self.input_window.title(self.title)
@@ -181,7 +191,18 @@ class my_input_window:
         self.input_window.lift()
         self.input_window.focus_force()
 
+        self.input_window.bind("<FocusOut>", self.on_focus_out)
+
         self.form0.wait_window(self.input_window)  # 要用这句话拦截主窗体的代码运行
+
+    def on_focus_out(self, event=None):
+        """
+        失去焦点的事件，自动关闭窗口，避免最小化等操作时程序锁死
+        """
+        # print(event.widget)
+        if event.widget == self.input_window:
+            print("输入框失去焦点")
+            self.bt_cancel_click(self)
 
     def bt_cancel_click(self, event=None):
         self.input_window.unbind_all('<Return>')
@@ -192,7 +213,7 @@ class my_input_window:
         self.input_window.unbind_all('<Return>')
         self.input_window.unbind_all('<Escape>')
         try:
-            self.input_value = self.et.get() # 
+            self.input_value = self.et.get()  #
         except Exception as e:
             print(e)
         # print(self.input_value)
@@ -208,19 +229,19 @@ class my_input_window:
         return ''
 
 
-class my_space_window:
+class tdSpaceWindow:
     """
     空格窗体类。
     实现了一个居中的模态窗体。
     """
     input_value = ''
 
-    def __init__(self, parent, 
-        title='未命名', 
-        msg='未定义', 
-        default_value='', 
-        selection_range=None,
-        ) -> None:
+    def __init__(self, parent,
+                 title='未命名',
+                 msg='未定义',
+                 default_value='',
+                 selection_range=None,
+                 ) -> None:
         """
         自制输入窗体的初始化；
         参数：
@@ -252,8 +273,8 @@ class my_space_window:
         # self.y_pos = (self.screenheight - self.w_height) / 2
         #
         # 主窗口中央：
-        self.x_pos=self.form0.winfo_x()+(self.form0.winfo_width()-self.w_width)/2
-        self.y_pos=self.form0.winfo_y()+(self.form0.winfo_height()-self.w_height)/2
+        self.x_pos = self.form0.winfo_x() + (self.form0.winfo_width() - self.w_width) / 2
+        self.y_pos = self.form0.winfo_y() + (self.form0.winfo_height() - self.w_height) / 2
 
         self.sub_window.geometry('%dx%d+%d+%d' % (self.w_width, self.w_height, self.x_pos, self.y_pos))
         self.sub_window.title(self.title)
@@ -268,19 +289,27 @@ class my_space_window:
         self.iframe.pack(expand=1, fill=tk.BOTH)
 
         # 文本框
-        self.lb = tk.Label(self.iframe,text=self.msg, 
-            wraplength=900,
-            justify="left", 
-            font="微软雅黑 10")
+        self.lb = tk.Label(self.iframe, text=self.msg,
+                           wraplength=900,
+                           justify="left",
+                           font="微软雅黑 10")
         self.lb.pack(anchor='sw', pady=5)
         self.lb.focus()  # 获得焦点
         self.sub_window.update()
 
-        self.sub_window.bind_all('<space>',self.sub_exit)
+        self.sub_window.bind_all('<space>', self.sub_exit)
         #
         # 失去焦点自动退出
-        # self.sub_window.bind_all('<FocusOut>',self.sub_exit)
+        self.sub_window.bind('<FocusOut>', self.on_focus_out)
 
-    
-    def sub_exit(self,event=None):
+    def on_focus_out(self, event=None):
+        """
+        失去焦点的事件，自动关闭窗口，避免最小化等操作时程序锁死
+        """
+        # print(event.widget)
+        if event.widget == self.sub_window:
+            print("输入框失去焦点")
+            self.sub_exit(self)
+
+    def sub_exit(self, event=None):
         self.sub_window.destroy()

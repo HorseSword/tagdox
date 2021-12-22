@@ -49,10 +49,14 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.22.0.0'  # 版本号
+VER = 'v0.22.0.1'  # 版本号
 
 """
 ## 近期更新说明
+
+#### v0.22.0.1 2021年12月21日
+优化文件夹排序，实现英文首字母混排，且忽略标签分隔符。
+精简部分菜单项。
 
 #### v0.22.0.0 2021年12月19日
 优化了标签区域的鼠标效果；
@@ -197,6 +201,7 @@ def exec_tree_clear(tree_obj) -> None:  #
 def exec_list_sort(lst):
     """
     通用函数，按我的规矩为列表排序的函数。
+
     """
     if not type(lst) is list:
         return None
@@ -215,7 +220,8 @@ def exec_list_sort(lst):
         else:
             lst_en.append(i)
     # 英文无论大小写都一起排序
-    lst_en = sorted(lst_en, key=lambda x: str.lower(x.replace('\xa0', ' ')).encode('gbk'))
+    # 如果是^开头，就忽略这个符号，直接正常排序
+    lst_en = sorted(lst_en, key=lambda x: str.lower(x.replace(V_SEP, '').replace('\xa0', ' ')).encode('gbk'))
     # 中文也排序
     lst_cn = sorted(lst_cn, key=lambda x: str.lower(x.replace('\xa0', ' ')).encode('gbk'))
     # 组合起来
@@ -1536,8 +1542,9 @@ def update_folder_list(event=None, need_select=True):
         """
         tmp = 1
         for root_, dirs_, files_ in os.walk(root_dir):
-            dirs_.sort()
-            for sub_dir_ in dirs_:
+            # dirs_.sort()
+            dirs_sorted = exec_list_sort(dirs_)
+            for sub_dir_ in dirs_sorted:
                 tmp += 1
                 if sub_dir_ in EXP_FOLDERS:  # 排除文件夹
                     continue
@@ -4614,8 +4621,8 @@ def show_popup_menu_file(event):
         menu_file.add_command(label="新建笔记", state=tk.DISABLED, command=exec_create_note, accelerator='Ctrl+N')
     menu_file.add_separator()
     if n_selection == 1:
-        menu_file.add_command(label="打开选中项所在文件夹", command=tree_open_folder)
-        menu_file.add_command(label="打开选中项所在文件夹并选中文件（有点慢）", command=tree_open_folder_select)
+        # menu_file.add_command(label="打开选中项所在文件夹", command=tree_open_folder)
+        menu_file.add_command(label="打开选中项所在文件夹，并选中文件", command=tree_open_folder_select)
     elif n_selection > 1:
         menu_file.add_command(label="打开选中项所在文件夹", state=tk.DISABLED, command=tree_open_folder)
     menu_file.add_command(label="打开当前文件夹", command=tree_open_current_folder)
@@ -4639,10 +4646,11 @@ def show_popup_menu_file(event):
     menu_file.add_separator()
     menu_file.add_command(label="剪切", command=exec_tree_file_cut, accelerator='Ctrl+X')
     menu_file.add_command(label="复制", command=exec_tree_file_copy, accelerator='Ctrl+C')
-    menu_file.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
-                          command=exec_tree_file_pick_nothing)
     menu_file.add_command(label="粘贴", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
                           command=exec_tree_file_put_down, accelerator='Ctrl+V')
+    # menu_file.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
+    #                       command=exec_tree_file_pick_nothing)
+
     menu_file.add_separator()
     menu_file.add_command(label="刷新", command=update_main_window, accelerator='F5')
     #
@@ -4663,10 +4671,10 @@ def show_popup_menu_file(event):
     menu_file_no_selection.add_separator()
     menu_file_no_selection.add_command(label="剪切", state=tk.DISABLED, command=exec_tree_file_cut, accelerator='Ctrl+X')
     menu_file_no_selection.add_command(label="复制", state=tk.DISABLED, command=exec_tree_file_copy, accelerator='Ctrl+C')
-    menu_file_no_selection.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
-                                       command=exec_tree_file_pick_nothing)
     menu_file_no_selection.add_command(label="粘贴", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
                                        command=exec_tree_file_put_down, accelerator='Ctrl+V')
+    # menu_file_no_selection.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
+    #                                    command=exec_tree_file_pick_nothing)
     menu_file_no_selection.add_separator()
     menu_file_no_selection.add_command(label="刷新", command=update_main_window)
 

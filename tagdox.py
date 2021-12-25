@@ -45,9 +45,9 @@ from libs.markdown import MarkdownRel  # 对 markdown 的特殊处理
 # import my_logger
 # import send2trash # 回收站（目前作废）
 
-URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链接，目前是 gitee 主页
-URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
-URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
+URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前是 gitee 主页
+URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
+URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
 VER = 'v0.22.0.2'  # 版本号
 
@@ -5990,7 +5990,7 @@ if __name__ == '__main__':
         "folder_75_20": tk.PhotoImage(file="./src/folder_75_20.png"),
         "folder_50_20": tk.PhotoImage(file="./src/folder_50_20.png"),
         "folder_25_20": tk.PhotoImage(file="./src/folder_25_20.png")}
-    IMAGE_FOLDER = tk.PhotoImage(file='./src/在线帮助.png')
+    IMAGE_FOLDER = tk.PhotoImage(file='./src/gitee_homepage.png')
     #
     # 运行
     update_folder_list()  # 文件夹列表

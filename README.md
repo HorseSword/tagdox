@@ -6,7 +6,7 @@
     <a href="https://github.com/HorseSword/tagdox">
     <img src="https://img.shields.io/badge/Github-Click--Me-blue?logo=github&style=flat-square"  target ="_blank" height="20" alt="Github Ready-to-Code">
   </a>
-    <a href="https://gitee.com/horse_sword/my-local-library">
+    <a href="https://gitee.com/horse_sword/tagdox">
     <img src="https://img.shields.io/badge/Gitee-Click--Me-blue?logo=gitee&style=flat-square&color=c71d23" height="20"  target ="_blank" alt="Gitee Ready-to-Code">
   </a>
     <!-- Short description: -->

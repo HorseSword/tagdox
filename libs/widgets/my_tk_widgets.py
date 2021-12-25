@@ -131,6 +131,7 @@ class tdInputWindow:
         #
         # 窗口设置
         # self.input_window.overrideredirect(True) # 这句话可以去掉标题栏，同时也会没有阴影
+        # 上面功能启用之后，好像快捷键会出现问题。
         self.w_width = 800
         self.w_height = 160
         #
@@ -258,7 +259,7 @@ class tdSpaceWindow:
         self.sub_window = tk.Toplevel(self.form0)
         #
         self.sub_window.transient(self.form0)  # 避免在任务栏出现第二个窗口，而且可以实现置顶
-        self.sub_window.grab_set()  # 模态
+        # self.sub_window.grab_set()  # 模态，此功能生效后，窗口外不可以点击。注释掉就可以操作了。
 
         #
         # 窗口设置
@@ -308,7 +309,7 @@ class tdSpaceWindow:
         """
         # print(event.widget)
         if event.widget == self.sub_window:
-            print("输入框失去焦点")
+            print("失去焦点")
             self.sub_exit(self)
 
     def sub_exit(self, event=None):

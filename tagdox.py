@@ -49,10 +49,13 @@ URL_HELP = 'https://gitee.com/horse_sword/my-local-library'  # 帮助的超链�
 URL_ADV = 'https://gitee.com/horse_sword/my-local-library/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/my-local-library/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.22.0.1'  # 版本号
+VER = 'v0.22.0.2'  # 版本号
 
 """
 ## 近期更新说明
+#### v0.22.0.2 2021年12月25日
+文件重命名默认不再修改扩展名，避免重命名导致的其他问题。
+圣诞快乐！
 
 #### v0.22.0.1 2021年12月21日
 优化文件夹排序，实现英文首字母混排，且忽略标签分隔符。
@@ -1389,15 +1392,15 @@ def show_window_input(title_value, body_value='', init_value='', is_file_name=Tr
 
     # 特殊处理
     if is_file_name:
-        res = res.replace('\\', '')
-        res = res.replace('/', '')
-        res = res.replace('?', '')
-        res = res.replace('|', '')
-        res = res.replace('*', '')
-        res = res.replace('"', '')
-        res = res.replace('<', '')
-        res = res.replace('>', '')
-        res = res.replace(':', '')
+        res = res.replace('\\', '_')
+        res = res.replace('/', '_')
+        res = res.replace('?', '_')
+        res = res.replace('|', '_')
+        res = res.replace('*', '_')
+        res = res.replace('"', '_')
+        res = res.replace('<', '_')
+        res = res.replace('>', '_')
+        res = res.replace(':', '_')
     return res
     pass
 
@@ -1425,9 +1428,12 @@ def update_folder_list(event=None, need_select=True):
     lst_root_text = get_folder_group_list()
     lst_my_path_short = exec_list_sort(lst_my_path_short)
 
-    def find_node_pos_by_text(node, text):
+    def find_node_pos_by_text(node, text, pos_min=0):
         """
         返回对应的位置编号
+        node
+        text
+        pos_min 是最小的位置，默认为0. 只会返回不小于这个值的查询位置。
         """
         find_succ = 0
         pos = 0
@@ -1436,7 +1442,7 @@ def update_folder_list(event=None, need_select=True):
         else:
             items = tree_lst_folder.get_children(node)
         for i in items:
-            if tree_lst_folder.item(i, 'text') == text:
+            if tree_lst_folder.item(i, 'text') == text and pos >= pos_min:
                 find_succ = 1
                 break
             pos += 1
@@ -2403,20 +2409,21 @@ def exec_tree_file_rename(tar=None):  # 对文件重命名
         # 获得目标文件
         item_text = tree.item(item, "values")
         tmp_full_path = item_text[-1]
-        tmp_file_name = get_split_path(tmp_full_path)[-1]
+        tmp_file_name = get_split_path(tmp_full_path)[-1]  # 文件名
         #
         #
         print('正在重命名：')
-        print(tmp_full_path)
-        print(tmp_file_name)
+        print('路径：', tmp_full_path)
+        print('文件名：', tmp_file_name)
         # res = simpledialog.askstring('文件重命名',prompt='请输入新的文件名',initialvalue =tmp_file_name) # 有bug，不能输入#号
-        res = show_window_input('文件重命名', body_value='请输入新的文件名', init_value=tmp_file_name)  # 有bug，不能输入#号
+        [fname, fename] = os.path.splitext(tmp_file_name)  # 文件名，扩展名，其中扩展名包括点号。
+        print(fname,'  ',fename)
+        res = show_window_input('文件重命名', body_value='请输入新的文件名', init_value=fname)  # 有bug，不能输入#号
         #
         if res is not None:
             try:
-                tmp_new_name = '/'.join(get_split_path(tmp_full_path)[0:-1] + [res])
-                print('tmp_new_name=')
-                print(tmp_new_name)
+                tmp_new_name = '/'.join(get_split_path(tmp_full_path)[0:-1] + [res + fename])
+                print('tmp_new_name=', tmp_new_name)
                 # os.rename(tmp_full_path,tmp_new_name)
                 final_name = exec_safe_rename(tmp_full_path, tmp_new_name)
                 update_main_window(0, fast_mode=True)

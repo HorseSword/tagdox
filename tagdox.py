@@ -27,7 +27,7 @@ from multiprocessing import Pool  # 进程
 from multiprocessing import Process
 # from docx import Document  # 用于创建word文档
 # import ctypes # 用于调整分辨率 #
-from win32com.shell import shell, shellcon  # 此处报错是编辑器的问题，可以忽略
+# from win32com.shell import shell, shellcon  # 此处报错是编辑器的问题，可以忽略
 import shutil
 import queue
 # 
@@ -35,10 +35,10 @@ import subprocess  # 用于打开文件所在位置并选中文件
 #
 # 自建库
 from libs.common_funcs import *
-#
-from libs.widgets.my_tk_widgets import tdProgressWindow as my_progress_window
-from libs.widgets.my_tk_widgets import tdInputWindow as my_input_window
-from libs.widgets.my_tk_widgets import tdSpaceWindow as my_space_window
+# 控件库
+from libs.widgets.windows import TdProgressWindow as TdProgressWindow
+from libs.widgets.windows import TdInputWindow as TdInputWindow
+from libs.widgets.windows import TdSpaceWindow as TdSpaceWindow
 #
 from libs.markdown import MarkdownRel  # 对 markdown 的特殊处理
 
@@ -49,10 +49,14 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.22.0.2'  # 版本号
+VER = 'v0.22.0.3'  # 版本号
 
 """
 ## 近期更新说明
+
+#### v0.22.0.3 2022年1月3日
+对部分函数进行了重命名，逻辑没有改。
+
 #### v0.22.0.2 2021年12月25日
 文件重命名默认不再修改扩展名，避免重命名导致的其他问题。
 圣诞快乐！
@@ -138,16 +142,6 @@ OPT_DEFAULT = {
 #######################################################################
 
 
-def XXX_get_split_path_XXX(full_path) -> list:
-    """
-    通用函数：
-    将完整路径按照斜杠拆分，得到每个文件夹到文件名的列表。
-    """
-    test_str = full_path.replace('\\', '/', -1)
-    test_str_res = test_str.split('/')
-    return (test_str_res)
-
-
 def exec_tree_clear(tree_obj) -> None:  #
     """
     通用函数。
@@ -224,34 +218,6 @@ def safe_get_name(new_name) -> str:
         n += 1
     # print(tmp_new_full_name)
     return (tmp_new_full_name)
-
-
-def exec_remove_to_trash(filename, remove=False):
-    """
-    删除文件，
-    参数filename 可以是文件，也可以是文件夹。
-    参数remove=True就直接删除，False移动到回收站（默认）。
-    """
-    if remove:
-        print('直接删除')
-        os.remove(filename)
-    else:
-        print('删除到回收站')
-        print('deltorecyclebin', filename)
-        res = shell.SHFileOperation((0, shellcon.FO_DELETE, filename, None,
-                                     shellcon.FOF_SILENT | shellcon.FOF_ALLOWUNDO | shellcon.FOF_NOCONFIRMATION, None,
-                                     None))  # 删除文件到回收站
-        print(res)
-        if not res[1]:
-            # tk.messagebox.showerror(title='ERROR', message='删除失败，文件可能被占用！'+ str(filename))
-            print('请检查删除操作的返回值')
-            # os.system('del '+filename)
-
-        # (fp,fn) = os.path.split(filename)
-        # newname = fp+'/'+'~~'+fn
-        # final_name = exec_safe_rename(filename, newname)
-        # print(final_name)
-        # send2trash.send2trash(filename) 
 
 
 def exec_safe_rename(old_name, new_name):
@@ -369,7 +335,7 @@ def exec_safe_copy(old_name:str, new_name:str, opt_type:str ='copy'):
 # 加载设置项 json 内容。保存到 opt_data 变量中，这是个 dict。
 
 
-def write_json_file(tar=OPTIONS_FILE, data=None):
+def exec_json_file_write(tar=OPTIONS_FILE, data=None):
     """
     将 json_data变量的值，写入 json 文件。
     可以不带参数，随时调用就是写入json。
@@ -395,12 +361,12 @@ def set_json_options(key1, value1, need_write=True):
     opt_data[key1] = value1
     #
     if need_write:
-        write_json_file(data=json_data)
-    # load_json_file_data()
+        exec_json_file_write(data=json_data)
+    # exec_json_file_load()
     pass
 
 
-def load_json_file_data(load_settings=True, load_folders=True):
+def exec_json_file_load(load_settings=True, load_folders=True):
     """
     读取json文件，获取其中的参数，并存储到相应的变量中。
 
@@ -525,7 +491,7 @@ def load_json_file_data(load_settings=True, load_folders=True):
         print('加载json异常，正在重置json文件')
         # need_init_json=1
         json_data = OPT_DEFAULT
-        write_json_file()
+        exec_json_file_write()
 
 
 # %%
@@ -556,7 +522,7 @@ def set_prog_bar(inp, maxv=100):
             # if var_exists == True:
             #     prog_win.set(100)
             #     del prog_win
-            prog_win = my_progress_window(window, inp)
+            prog_win = TdProgressWindow(window, inp)
 
         elif inp == 100:
             prog_win.set(inp)
@@ -841,7 +807,7 @@ def sub_get_dt(lst_file_in):
     return tmp_dt
 
 
-def update_data_process(lst1):
+def process_update_data(lst1):
     """
     用于后台加载数据。
 
@@ -1124,255 +1090,6 @@ def show_window_info():
     # tmp.pack()
 
 
-# 自制输入窗体
-class XXX_my_input_window_XXX:
-    """
-    输入窗体类。
-    实现了一个居中的模态窗体。
-    """
-    input_value = ''
-
-    def __init__(self, parent, title='未命名', msg='未定义', default_value='', selection_range=None) -> None:
-        """
-        自制输入窗体的初始化；
-        参数：
-        selection_range 是默认选中的范围。
-        """
-
-        # 变量设置
-        self.form0 = parent  # 父窗格
-        #
-        self.input_value = ''
-        self.title = title
-        self.msg = msg
-        self.default_value = default_value
-        self.input_window = tk.Toplevel(self.form0)
-        #
-        self.input_window.transient(self.form0)  # 避免在任务栏出现第二个窗口，而且可以实现置顶
-        self.input_window.grab_set()  # 模态
-
-        #
-        # 窗口设置
-        # self.input_window.overrideredirect(True) # 这句话可以去掉标题栏，同时也会没有阴影
-        self.w_width = 800
-        self.w_height = 160
-        #
-        # 屏幕中央：
-        # self.screenwidth = SCREEN_WIDTH
-        # self.screenheight = SCREEN_HEIGHT
-        # self.x_pos = (self.screenwidth - self.w_width) / 2
-        # self.y_pos = (self.screenheight - self.w_height) / 2
-        #
-        # 主窗口中央：
-        self.x_pos = self.form0.winfo_x() + (self.form0.winfo_width() - self.w_width) / 2
-        self.y_pos = self.form0.winfo_y() + (self.form0.winfo_height() - self.w_height) / 2
-
-        self.input_window.geometry('%dx%d+%d+%d' % (self.w_width, self.w_height, self.x_pos, self.y_pos))
-        self.input_window.title(self.title)
-        #
-
-        try:
-            self.input_window.iconbitmap(LOGO_PATH)  # 左上角图标
-        except:
-            pass
-
-        self.iframe = tk.Frame(self.input_window, padx=20, pady=10)
-        self.iframe.pack(expand=0, fill=tk.BOTH)
-
-        # 文本框
-        self.lb = tk.Label(self.iframe, text=self.msg, font="微软雅黑 " + str(MON_FONTSIZE))
-        self.lb.pack(anchor='sw', pady=5)
-        self.input_window.update()
-
-        # 输入框
-        self.et = tk.Entry(self.iframe, font="微软雅黑 " + str(MON_FONTSIZE))
-        self.et.insert(0, self.default_value)
-        self.et.pack(expand=0, fill=tk.X, pady=5)
-
-        # self.et.selection_range(0, len(self.et.get()))
-        if selection_range is None:
-            self.et.selection_range(0, len(self.et.get()))
-        else:
-            self.et.selection_range(0, selection_range)
-        self.et.focus()  # 获得焦点
-
-        # self.et.focus()
-        # 键盘快捷键
-        self.input_window.bind_all('<Return>', self.bt_yes_click)
-        self.input_window.bind_all('<Escape>', self.bt_cancel_click)
-
-        self.iframe_bt = tk.Frame(self.input_window, padx=10, pady=10)
-        self.iframe_bt.pack()
-        # self.iframe_bt.pack(expand=0,fill=tk.BOTH)
-        # 按钮
-        self.bty = ttk.Button(self.iframe_bt, text='确定', command=self.bt_yes_click)
-        self.bty.pack(side=tk.LEFT, padx=20)
-        self.btc = ttk.Button(self.iframe_bt, text='取消', command=self.bt_cancel_click)
-        self.btc.pack(side=tk.LEFT, padx=20)
-
-        self.input_window.deiconify()
-        self.input_window.lift()
-        self.input_window.focus_force()
-
-        self.form0.wait_window(self.input_window)  # 要用这句话拦截主窗体的代码运行
-
-    def bt_cancel_click(self, event=None):
-        self.input_window.unbind_all('<Return>')
-        self.input_window.unbind_all('<Escape>')
-        self.input_window.destroy()
-
-    def bt_yes_click(self, event=None) -> str:
-        self.input_window.unbind_all('<Return>')
-        self.input_window.unbind_all('<Escape>')
-        try:
-            self.input_value = self.et.get()  #
-        except Exception as e:
-            print(e)
-        # print(self.input_value)
-        self.input_window.destroy()
-        return self.input_value
-
-    def __str__(self) -> str:
-        return self.input_value
-
-    def __del__(self) -> str:
-        self.input_value = ''
-        # self.input_window.destroy()
-        return ''
-
-
-class XXX_my_progress_window:
-    """
-    # 一个出现在主窗口中间的进度条
-    """
-
-    # input_window = ''  # =tk.Toplevel(self.form0)
-
-    def __init__(self, parent, prog_value=0, prog_text='') -> None:
-        """
-        # 进度条，输入进度数值
-        """
-
-        # 变量设置
-        self.form0 = parent
-
-        self.input_value = ''
-        self.input_window = tk.Toplevel(self.form0)
-        print('———————————— 进度条激活 ——————————')
-        self.input_window.title('进度')
-        self.my_prog = tk.DoubleVar()  # 进度
-        self.my_text = prog_text
-        self.my_prog.set(prog_value)
-        #
-        # 窗口设置
-        self.input_window.overrideredirect(True)  # 这句话可以去掉标题栏，同时也会没有阴影
-        self.w_width = 800
-        self.w_height = 100
-        #
-        # 屏幕中央：
-        # self.screenwidth = SCREEN_WIDTH
-        # self.screenheight = SCREEN_HEIGHT
-        # self.x_pos = (self.screenwidth - self.w_width) / 2
-        # self.y_pos = (self.screenheight - self.w_height) / 2
-        #
-        # 主窗口中央：
-        self.x_pos = self.form0.winfo_x() + (self.form0.winfo_width() - self.w_width) / 2
-        self.y_pos = self.form0.winfo_y() + (self.form0.winfo_height() - self.w_height) / 2
-
-        self.input_window.geometry('%dx%d+%d+%d' % (self.w_width, self.w_height, self.x_pos, self.y_pos))
-        # self.input_window.title(self.title)
-        self.input_window.transient(self.form0)  # 避免在任务栏出现第二个窗口，而且可以实现置顶
-        self.input_window.withdraw()
-
-        try:
-            self.input_window.iconbitmap(LOGO_PATH)  # 左上角图标
-        except:
-            pass
-
-        self.iframe = tk.Frame(self.input_window, padx=20, pady=20)
-        self.iframe.pack(expand=0, fill=tk.BOTH)
-        # 标签
-        self.pct = tk.Label(self.iframe)
-        self.pct.pack()
-        # 进度条
-        self.prog_bar = ttk.Progressbar(self.iframe, variable=self.my_prog)
-        self.prog_bar.pack(expand=0, fill=tk.BOTH)
-        #
-        self.prog_bar.bind('<1>', self.force_close)
-
-    def force_close(self, event=None):
-        self.input_window.destroy()
-
-    def set(self, value):
-        self.progress = value
-        self.my_prog.set(self.progress)
-        self.pct.configure(text=self.my_text + str(int(value)) + '%')
-        self.input_window.update()
-        # self.pct.update()
-        # self.prog_bar.update()
-        if value == 0:
-            self.input_window.withdraw()
-        elif value > 0:
-            self.input_window.deiconify()  # 置顶
-            # self.input_window.lift() # 置顶，但是会导致后面失去输入能力
-            # self.input_window.focus_force()
-
-            self.input_window.grab_set()  # 模态
-
-        if value >= 100:
-            self.input_window.withdraw()
-            # self.input_window.overrideredirect(False) 
-            self.input_window.destroy()
-            self.__destroy__()
-
-
-def X_show_my_input_window(title='未命名', msg='未定义', default_value=''):
-    """
-    想要做输入框，替代 tkinter 自带的，
-    但是并没有启用。
-    """
-    screenwidth = window.winfo_screenwidth()
-    screenheight = window.winfo_screenheight()
-    w_width = 500
-    w_height = 200
-    x_pos = (screenwidth - w_width) / 2
-    y_pos = (screenheight - w_height) / 2
-    input_window = tk.Toplevel(window)
-    input_window.geometry('%dx%d+%d+%d' % (w_width, w_height, x_pos, y_pos))
-    input_window.title(title)
-    #
-    input_value = ''
-    #
-    # input_window.withdraw()
-    input_window.deiconify()
-    input_window.lift()
-    input_window.focus_force()
-    input_window.transient(window)  # 避免在任务栏出现第二个窗口，而且可以实现置顶
-    input_window.grab_set()  # 模态
-
-    iframe = tk.Frame(input_window, padx=10, pady=10)
-    iframe.pack(expand=0, fill=tk.BOTH)
-
-    lb = tk.Label(iframe, text=msg)
-    lb.pack(anchor='sw')
-
-    et = tk.Entry(iframe)
-    et.pack(expand=0, fill=tk.X)
-
-    def bt_cancel_click(event=None):
-        input_window.destroy()
-
-    def bt_yes_click(event=None):
-        global input_value
-        input_value = et.get()
-        input_window.destroy()
-
-    btc = ttk.Button(input_window, text='yes', command=bt_yes_click)
-    btc.pack()
-
-    return (input_value)
-
-
 def show_window_input(title_value, body_value='', init_value='', is_file_name=True):
     """
     接管输入框的过程，以后可以将自定义输入框替换到这里。
@@ -1385,7 +1102,7 @@ def show_window_input(title_value, body_value='', init_value='', is_file_name=Tr
 
     """
     # 获得输入值
-    res = str(my_input_window(window, title=title_value, msg=body_value, default_value=init_value)).strip()
+    res = str(TdInputWindow(window, title=title_value, msg=body_value, default_value=init_value)).strip()
     if len(res) == 0:
         print('没有得到输入内容')
         return None
@@ -1603,7 +1320,7 @@ def update_folder_list(event=None, need_select=True):
                 tree_lst_folder.yview_moveto(b1)
             except:
                 pass
-            exec_after_folder_choose()
+            on_folder_choose()
             #
         except Exception as e:
             print(e)
@@ -1618,7 +1335,7 @@ def update_folder_list(event=None, need_select=True):
                 to_selct = tree_lst_folder.get_children(item_group)[tmp_folder1]
                 tree_lst_folder.selection_set(to_selct)  # 选中第一个文件夹
                 #
-                exec_after_folder_choose()  # 右边也重载一次
+                on_folder_choose()  # 右边也重载一次
                 #
             except Exception as e:
                 print(e)
@@ -1884,7 +1601,7 @@ def set_search_tag_selected(ind):
         v_tag.current(0)
 
 
-def exec_after_sub_tag_choose(event=None):
+def on_sub_tag_choose(event=None):
     """
     点击sub_tag之后
     """
@@ -2434,18 +2151,6 @@ def exec_tree_file_rename(tar=None):  # 对文件重命名
                 pass
 
 
-def del_to_recyclebin(filename):
-    """
-    删除到回收站
-    """
-    print('deltorecyclebin', filename)
-    # os.remove(filename) #直接删除文件，不经过回收站
-    if True:
-        res = shell.SHFileOperation((0, shellcon.FO_DELETE, filename, None,
-                                     shellcon.FOF_SILENT | shellcon.FOF_ALLOWUNDO | shellcon.FOF_NOCONFIRMATION, None,
-                                     None))  # 删除文件到回收站
-        if not res[1]:
-            os.system('del ' + filename)
 
 
 def exec_tree_file_delete(tar=None):
@@ -2487,7 +2192,7 @@ def function_for_testing(event=None):  #
     为了避免 event 输入，所以套了一层。
 
     """
-    res = my_input_window(window, '输入框', 'aaaa', '外部输入')
+    res = TdInputWindow(window, '输入框', 'aaaa', '外部输入')
     print('自制输入框的返回值：')
     print(res)
     # print('进入测试功能')
@@ -3018,7 +2723,7 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
 
     if reload_setting == True:
         # 按需加载设置参数
-        load_json_file_data(load_folders=False)
+        exec_json_file_load(load_folders=False)
 
     tmp_sub_folder = get_sub_folder_selected()
     #
@@ -3051,7 +2756,7 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
         # v_inp.delete(0,len(v_inp.get()))
     # v_inp.delete(0,len(v_inp.get()))
 
-    # exec_after_folder_choose(refresh=0)
+    # on_folder_choose(refresh=0)
     print('—— 刷新核心过程 start ———')
     #
     if TREE_SUB_SHOW == 'tag':
@@ -3174,7 +2879,7 @@ def get_folder_s2l(folder_short_name):
     pass
 
 
-def exec_after_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文件夹之后
+def on_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文件夹之后
     """
     选择左侧文件夹后启动。\n
     参数：refresh：默认是1，代表了运行之后是否刷新列表。\n
@@ -3194,7 +2899,7 @@ def exec_after_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击�
     flag_root_folder = 1
     # if flag_running: # 如果正在查，就先不启动新任务。这样处理还不理想。
     # return
-    print('调用 exec_after_folder_choose 函数')
+    print('调用 on_folder_choose 函数')
     #
     # 缓存之前选中的文件夹；
     #
@@ -3290,20 +2995,20 @@ def exec_after_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击�
 
     # flag_running=0 # 标记为没有任务
     flag_root_folder = 0
-    print('exec_after_folder_choose 函数结束')
+    print('on_folder_choose 函数结束')
 
 
-def exec_after_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的文件夹之后
+def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的文件夹之后
     """
     选择左侧文件夹后启动。
-    V2函数并没有启用。
+    注意，这个V2函数并没有启用。
     """
     global lst_my_path_long_selected, flag_running, flag_root_folder
     #
     flag_root_folder = 1
     # if flag_running: # 如果正在查，就先不启动新任务。这样处理还不理想。
     # return
-    print('调用 exec_after_folder_choose 函数')
+    print('调用 on_folder_choose 函数')
     if sub_folder is None:
         lst_path_ori = lst_my_path_long_selected.copy()
     else:
@@ -3342,7 +3047,7 @@ def exec_after_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点�
 
     # flag_running=0 # 标记为没有任务
     flag_root_folder = 0
-    print('exec_after_folder_choose 函数结束')
+    print('on_folder_choose 函数结束')
 
 
 def X_sub_folder_choose_not_used(event=None):
@@ -3351,7 +3056,7 @@ def X_sub_folder_choose_not_used(event=None):
     '''
     global lst_sub_path, lst_my_path_long_selected
     if get_sub_folder_selected() == '':
-        exec_after_folder_choose()
+        on_folder_choose()
 
     print('sub处理前')
     print('lst_sub_path=', lst_sub_path)
@@ -3362,7 +3067,7 @@ def X_sub_folder_choose_not_used(event=None):
     tmp_path = lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
     tmp_folder = tmp_path
 
-    exec_after_folder_choose(sub_folder=tmp_folder)
+    on_folder_choose(sub_folder=tmp_folder)
     lst_my_path_long_selected = tmp_lst_my_path.copy()
     tmp_lst_sub_path.sort()
     v_sub_folders['value'] = [''] + tmp_lst_sub_path  # 强制修改子文件夹列表，但这样写不太好
@@ -3391,7 +3096,7 @@ def exec_search(event=None):
         v_tag.configure(state='readonly')
 
 
-def exec_after_sub_folders_choose(event=None):
+def on_sub_folders_choose(event=None):
     '''
     切换子文件夹后执行
     '''
@@ -3835,8 +3540,8 @@ def update_folder_and_json_file(ind=None, need_update=True):  # 刷新左侧的�
     输入参数是要选中的文件夹编号。
     """
     # 更新json文件
-    write_json_file(data=json_data)
-    load_json_file_data()
+    exec_json_file_write(data=json_data)
+    exec_json_file_load()
     #
     # 更新左侧列表
     update_folder_list(need_select=False)
@@ -3857,7 +3562,7 @@ def update_folder_and_json_file(ind=None, need_update=True):  # 刷新左侧的�
     #
     # 刷新
     if True:  # need_update: 这里可以优化，以后上下移动文件夹可以避免重载
-        exec_after_folder_choose()
+        on_folder_choose()
 
 
 def exec_folder_clear_clipoard(event=None):
@@ -4037,10 +3742,10 @@ def exec_folder_add(tar_list):
 
 
 def exec_folder_drop():  # 删除关注的目录
-    '''
+    """
     取消关注选中的文件夹。
     没有输入输出。
-    '''
+    """
     global json_data
     # 获取当前选中的文件夹
     short_name = get_folder_short()
@@ -4067,11 +3772,11 @@ def exec_folder_drop():  # 删除关注的目录
 
 
 def exec_folder_move_up(event=None, d='up'):
-    '''
+    """
     文件夹列表上下移动，默认上移，参数可以为 'up' 、 'down'、'top'。
     json_data['folders']是列表，
     每一项的'pth'是长路径。
-    '''
+    """
     # 
     global json_data
     # 获取当前选中的文件夹
@@ -4131,16 +3836,16 @@ def exec_folder_move_up(event=None, d='up'):
 
 
 def exec_folder_move_down(event=None):
-    '''
+    """
     向下移动
-    '''
+    """
     exec_folder_move_up(d='down')
 
 
 def exec_folder_move_top(event=None):
-    '''
+    """
     置顶
-    '''
+    """
     exec_folder_move_up(d='top')
 
 
@@ -4259,9 +3964,9 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
 
 
 def exec_create_note_here(event=None):
-    '''
+    """
     树状图里面，可以右击直接在选中文件的相同位置新建笔记。
-    '''
+    """
     global lst_my_path_long_selected
     for item in tree.selection():
         item_text = tree.item(item, "values")
@@ -4283,9 +3988,9 @@ def exec_create_note_here(event=None):
 
 # %%
 def jump_to_search(event=None):
-    '''
+    """
     输入快捷键快速搜索的功能。
-    '''
+    """
     tmp_search_value = v_search.get()
     res = show_window_input('快速搜索', body_value='请输入搜索关键词，多个关键词之间用空格隔开。',
                             init_value=tmp_search_value)
@@ -4305,10 +4010,10 @@ def jump_to_tag(event=None):
 # 弹出菜单
 
 def show_popup_menu_main(event):
-    '''
+    """
     主菜单，点击设置按钮可以弹出。
     设置菜单的弹出
-    '''
+    """
     menu_main = tk.Menu(window, tearoff=0)
     menu_main.add_command(label='设置…', command=show_window_setting)
     menu_main.add_separator()
@@ -4326,9 +4031,9 @@ def show_popup_menu_main(event):
 
 
 def show_popup_menu_folder(event):
-    '''
+    """
     文件夹区域的右键菜单
-    '''
+    """
     v_lst = get_folder_values_v2()
     try:
         vtype = int(v_lst[1])
@@ -4388,9 +4093,9 @@ def show_popup_menu_folder(event):
 
 
 def show_popup_menu_sub_folder(event):
-    '''
+    """
     子文件夹区域的右键菜单
-    '''
+    """
     if True:
         menu_sub_folder = tk.Menu(window, tearoff=0)
         menu_sub_folder.add_command(label='打开当前文件夹', command=tree_open_current_folder)
@@ -4547,7 +4252,7 @@ def exec_tree_folder_right_click(event):
     tmp = app.tree_lst_folder.identify_row(event.y)
     if tmp not in app.tree_lst_folder.selection():
         app.tree_lst_folder.selection_set(tmp)
-    exec_after_folder_choose()
+    on_folder_choose()
     show_popup_menu_folder(event)
 
 
@@ -5089,9 +4794,9 @@ def set_style(style):
 
 
 def exec_tree_file_pick_up(event=None, need_clear=False):
-    '''
+    """
     将选中的文件拿起来
-    '''
+    """
     global lst_pick_up_files
     global lst_pick_up_items
     global state_pick_up
@@ -5211,10 +4916,17 @@ def exec_tree_file_put_down(event=None):
 
 
 # %%
-class main_app:
+class MainApp:
     """
     主窗口类
     """
+
+    options = {
+        'V_SEP': '^',
+        'ScaleFactor': None,
+        'SCREEN_WIDTH': None,
+        'SCREEN_HEIGHT': None,
+    }
 
     def __init__(self) -> None:
         """
@@ -5534,7 +5246,7 @@ class main_app:
             self.v_sub_folders['value'] = [''] + lst_sub_path
             self.v_sub_folders['state'] = 'readonly'
 
-            self.v_sub_folders.bind('<<ComboboxSelected>>', exec_after_sub_folders_choose)
+            self.v_sub_folders.bind('<<ComboboxSelected>>', on_sub_folders_choose)
 
         # set_search_tag_values(lst_tags)
 
@@ -5726,9 +5438,9 @@ class main_app:
                            str(res['full_path']),
                            ]
                 msg = map(str, msg_lst)
-                my_space_window(self.window, '详情', ''.join(msg))
+                TdSpaceWindow(self.window, '详情', ''.join(msg))
             except:
-                my_space_window(self.window, '错误', '文件加载异常')
+                TdSpaceWindow(self.window, '错误', '文件加载异常')
 
     def bind_funcs(self):
         # 功能绑定
@@ -5742,21 +5454,21 @@ class main_app:
         windnd.hook_dropfiles(self.tree, func=exec_tree_drag_enter)
 
         # 各种功能的绑定
-        # tree_lst_folder.bind('<<ListboxSelect>>',exec_after_folder_choose)
-        # tree_lst_folder.bind('<Button-1>',exec_after_folder_choose)
-        self.tree_lst_folder.bind('<ButtonRelease-1>', exec_after_folder_choose)
-        self.tree_lst_folder.bind('<KeyRelease-Up>', exec_after_folder_choose)
-        self.tree_lst_folder.bind('<KeyRelease-Down>', exec_after_folder_choose)
+        # tree_lst_folder.bind('<<ListboxSelect>>',on_folder_choose)
+        # tree_lst_folder.bind('<Button-1>',on_folder_choose)
+        self.tree_lst_folder.bind('<ButtonRelease-1>', on_folder_choose)
+        self.tree_lst_folder.bind('<KeyRelease-Up>', on_folder_choose)
+        self.tree_lst_folder.bind('<KeyRelease-Down>', on_folder_choose)
         self.tree_lst_folder.bind("<Motion>", exec_tree_folder_mouse_highlight)
         #
-        # tree_lst_sub_folder.bind('<<TreeviewSelect>>', exec_after_sub_folders_choose) # 会导致重复加载
-        self.tree_lst_sub_folder.bind('<ButtonRelease-1>', exec_after_sub_folders_choose)
-        self.tree_lst_sub_folder.bind('<KeyRelease-Up>', exec_after_sub_folders_choose)
-        self.tree_lst_sub_folder.bind('<KeyRelease-Down>', exec_after_sub_folders_choose)
+        # tree_lst_sub_folder.bind('<<TreeviewSelect>>', on_sub_folders_choose) # 会导致重复加载
+        self.tree_lst_sub_folder.bind('<ButtonRelease-1>', on_sub_folders_choose)
+        self.tree_lst_sub_folder.bind('<KeyRelease-Up>', on_sub_folders_choose)
+        self.tree_lst_sub_folder.bind('<KeyRelease-Down>', on_sub_folders_choose)
         #
-        self.tree_lst_sub_tag.bind('<ButtonRelease-1>', exec_after_sub_tag_choose)
-        self.tree_lst_sub_tag.bind('<KeyRelease-Up>', exec_after_sub_tag_choose)
-        self.tree_lst_sub_tag.bind('<KeyRelease-Down>', exec_after_sub_tag_choose)
+        self.tree_lst_sub_tag.bind('<ButtonRelease-1>', on_sub_tag_choose)
+        self.tree_lst_sub_tag.bind('<KeyRelease-Up>', on_sub_tag_choose)
+        self.tree_lst_sub_tag.bind('<KeyRelease-Down>', on_sub_tag_choose)
         self.tree_lst_sub_tag.bind("<Motion>", exec_tree_tag_mouse_highlight)
 
         # tree.tag_configure('line1', background='#EEEEEE')  # 灰色底纹
@@ -5890,10 +5602,10 @@ if __name__ == '__main__':
     #
     # 加载设置参数。
     json_data = OPT_DEFAULT  # 用于后面处理的变量。
-    load_json_file_data()
+    exec_json_file_load()
     ###########################################################
     #
-    app = main_app()  # 主程序
+    app = MainApp()  # 主程序
     app.bind_funcs()
     #
     # window = tk.Tk()  # 主窗口
@@ -6023,7 +5735,7 @@ if __name__ == '__main__':
     set_prog_bar(0)
     #
     if True:
-        sub_task = threading.Thread(target=update_data_process, args=(lst_my_path_long,))
+        sub_task = threading.Thread(target=process_update_data, args=(lst_my_path_long,))
         sub_task.setDaemon(True)
         sub_task.start()
     #

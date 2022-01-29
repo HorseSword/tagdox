@@ -18,6 +18,7 @@ from tkinter.constants import NORMAL
 # from tkinter import font
 # from tkinter.constants import INSERT
 import windnd
+#
 from os.path import isdir
 from os.path import isfile
 import time
@@ -49,10 +50,17 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.22.0.3'  # 版本号
+VER = 'v0.22.1.0'  # 版本号
 
 """
 ## 近期更新说明
+
+#### v0.22.1.0 2022年1月12日
+增加.git文件夹的忽略；
+将默认配置文件配置设定在上级目录。
+
+#### v0.22.0.4 2022年1月12日
+优化了新建笔记时候的扩展名提示。
 
 #### v0.22.0.3 2022年1月3日
 对部分函数进行了重命名，逻辑没有改。
@@ -93,7 +101,7 @@ LARGE_FONT = 10  # 表头字号
 MON_FONTSIZE = 9  # 正文字号
 FONT_TREE_HEADING = ('微软雅黑', LARGE_FONT)
 FONT_TREE_BODY = ('微软雅黑', MON_FONTSIZE)
-EXP_FOLDERS = ['_img']  # 排除文件夹名称，以后会加到自定义里面
+EXP_FOLDERS = ['_img','.git']  # 排除文件夹名称，以后会加到自定义里面
 EXP_EXTS = ['.md','.MD']  # 排除扩展名，这里面的强制采用传统标签；
 ALL_FOLDERS = 2  # 文件夹列表是否带“（全部）”,1 在前面，2在末尾（默认），其余没有
 NOTE_NAME = '未命名笔记'  # 新建笔记的默认名称
@@ -115,11 +123,14 @@ TAG_METHOD = 'FILE_STREAM'  # 或者 FILENAME
 MARKDOWN_IMGS = True  # 是否移动markdown的时候，移动相应的相对路径文件；
 #
 try:
-    if isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
+    if isfile('../options_for_tagdox.json'):
+        print('读取上级目录')
+        OPTIONS_FILE = '../options_for_tagdox.json'
+    elif isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
         print('读取开发模式的配置文件')
         OPTIONS_FILE = 'D:/MyPython/开发数据/options_for_tagdox.json'
     else:
-        print('读取标准模式的配置文件')
+        print('读取当前目录配置文件')
         OPTIONS_FILE = 'options_for_tagdox.json'  # 配置文件的名称
 except:
     print('读取标准模式的配置文件')
@@ -1816,7 +1827,7 @@ def get_icon_ext(dot_ext):
     return tmp_imag
 
 
-def exec_tree_add_items(tree, dT) -> None:
+def exec_tree_add_items(tree, dT, search_items=None) -> None:
     """
     关键函数：增加主框架的内容
     先获得搜索项目以及 tag
@@ -2687,7 +2698,7 @@ def exec_fast_add_tag(tag):
 
 def exec_clear_entry(tar):
     """
-    将输入框清空。
+    前端函数，将输入框清空。
     必须要指定要清空的输入框对象。
     """
     try:
@@ -3081,6 +3092,7 @@ def X_sub_folder_choose_not_used(event=None):
 def exec_search(event=None):
     '''
     选择标签之后、选择子文件夹后、输入搜索词按回车后触发。
+    纯前端函数。
     清空tree，并按照dT为tree增加行。
     '''
     if TREE_SUB_SHOW == 'sub_folder':
@@ -3885,7 +3897,7 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
     #
     the_note_name = NOTE_NAME
     # res = simpledialog.askstring('新建 Tagdox 笔记',prompt='请输入文件名',initialvalue =the_note_name)
-    res = show_window_input('新建 Tagdox 笔记', body_value='请输入文件名', init_value=the_note_name)
+    res = show_window_input('新建 Tagdox 笔记（'+ NOTE_EXT +"）", body_value='请输入文件名', init_value=the_note_name)
     if res is not None:
         print('获得新笔记标题：')
         print(res)
@@ -4287,7 +4299,7 @@ def show_popup_menu_file(event):
     # menu_file.add_command(label="在相同位置创建笔记",command=exec_create_note_here)
     menu_file.add_separator()
     if len(lst_my_path_long_selected) == 1:
-        menu_file.add_command(label="新建笔记", command=exec_create_note, accelerator='Ctrl+N')
+        menu_file.add_command(label="新建笔记（"+NOTE_EXT+"）", command=exec_create_note, accelerator='Ctrl+N')
         menu_file.add_cascade(label="新建更多格式的笔记", menu=menu_create_note)
     else:
         menu_file.add_command(label="新建笔记", state=tk.DISABLED, command=exec_create_note, accelerator='Ctrl+N')
@@ -4333,7 +4345,7 @@ def show_popup_menu_file(event):
     menu_file_no_selection.add_command(label="打开当前文件夹", command=tree_open_current_folder)
     menu_file_no_selection.add_separator()
     if len(lst_my_path_long_selected) == 1:
-        menu_file_no_selection.add_command(label="新建笔记", command=exec_create_note, accelerator='Ctrl+N')
+        menu_file_no_selection.add_command(label="新建笔记（"+NOTE_EXT+"）", command=exec_create_note, accelerator='Ctrl+N')
         menu_file_no_selection.add_cascade(label="新建更多格式的笔记", menu=menu_create_note)
     else:
         menu_file_no_selection.add_command(label="新建笔记", state=tk.DISABLED, command=exec_create_note,

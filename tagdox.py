@@ -50,10 +50,21 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.22.1.0'  # 版本号
+VER = 'v0.23.0.1'  # 版本号
 
 """
 ## 近期更新说明
+#### v0.23.0.1 2022年3月5日
+实现了按照子文件夹分组显示的功能，
+修复了文件夹分组的背景色问题；
+已知bug：tree定位到高亮内容存在错误。
+
+#### v0.23.0.0 2022年3月3日
+增加tree分组显示，可以将子文件夹的内容在第二组显示出来，
+相关的功能还没有全部测试。
+已知bug：tree定位到高亮内容存在错误。
+tree列表的背景色有错误；
+如果能显示文件夹名称就更好了。
 
 #### v0.22.1.0 2022年1月12日
 增加.git文件夹的忽略；
@@ -101,8 +112,8 @@ LARGE_FONT = 10  # 表头字号
 MON_FONTSIZE = 9  # 正文字号
 FONT_TREE_HEADING = ('微软雅黑', LARGE_FONT)
 FONT_TREE_BODY = ('微软雅黑', MON_FONTSIZE)
-EXP_FOLDERS = ['_img','.git']  # 排除文件夹名称，以后会加到自定义里面
-EXP_EXTS = ['.md','.MD']  # 排除扩展名，这里面的强制采用传统标签；
+EXP_FOLDERS = ['_img', '.git']  # 排除文件夹名称，以后会加到自定义里面
+EXP_EXTS = ['.md', '.MD']  # 排除扩展名，这里面的强制采用传统标签；
 ALL_FOLDERS = 2  # 文件夹列表是否带“（全部）”,1 在前面，2在末尾（默认），其余没有
 NOTE_NAME = '未命名笔记'  # 新建笔记的默认名称
 DRAG_FILES_ADD_TAG = True  # 为拖拽进来的新增文件统一添加当前选中的标签
@@ -274,7 +285,7 @@ def exec_safe_rename(old_name, new_name):
         pass
 
 
-def exec_safe_copy(old_name:str, new_name:str, opt_type:str ='copy'):
+def exec_safe_copy(old_name: str, new_name: str, opt_type: str = 'copy'):
     """
     安全复制或移动文件。
 
@@ -1839,6 +1850,10 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
     # tmp_search_items = get_search_items_sub_folder()  # 列表
     #
     k = 0
+    k1 = 0 # 存储根目录下的编号
+    k2 = 0
+    k_all = 0
+
     print('筛选条件：')
     # print(tmp_search_items)
     print(f'标签是 {res_tag}')
@@ -1849,8 +1864,37 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
     refresh_unit = 4
     print(f'检查的路径是{res_path}')
     #
-    print('app.v_this_folder = ', app.v_this_folder.get())
+    # print('app.v_this_folder = ', app.v_this_folder.get())
     print('主路径是 = ', lst_my_path_long_selected)
+    #
+    # 前置条件检查：
+    var_note_only = app.v_note_only.get()  # 只看笔记
+    var_this_folder = app.v_this_folder.get()  # 只看当前文件夹
+    var_group_by_folder = app.v_folder_layers.get()  # 按文件夹分组
+    is_this_folder = 1  # 是否是当前文件夹
+    item_sub_folder = None
+    tmp_current_path = lst_my_path_long_selected[0].replace('\\','/')  # 当前路径
+    #
+    # 如果是分组模式，就检查子文件夹，并预先要做分组：
+
+    if var_group_by_folder and len(lst_my_path_long_selected) == 1:
+        lst_sub_folders_full = []
+        lst_sub_folders = []
+        lst_sub_items = []
+        lst_k = []
+        for _root, _dirs, _ in os.walk(tmp_current_path):
+            lst_sub_folders += _dirs
+            break
+        for _dir in exec_list_sort(lst_sub_folders):
+            if _dir in EXP_FOLDERS:
+                continue
+            lst_sub_folders_full.append(_dir)
+            lst_sub_items.append( tree.insert('', 'end',
+                                          text = _dir,
+                                          tags=['line_folder'],  # if k % 2 == 1 else ['line2'],
+                                          values=(0, '', '', '', '', '')))
+            lst_k.append(0)
+            tree.item(lst_sub_items[-1], open=True)
     #
     for i in range(len(dT)):  # 对每一条进行测试：
         n += 1
@@ -1867,23 +1911,39 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
         # 大小写转换仅限标签
 
         canadd = 1
+        #
         # 只看当前文件夹
-        # 
+        the_node = ''
         if len(lst_my_path_long_selected) == 1 and canadd == 1:
-            if app.v_this_folder.get() == 1:
+            if var_group_by_folder or var_this_folder:  # app.v_this_folder.get() == 1:
                 [tmp_fpath, tmp_ffname] = os.path.split(tmp[-1])
                 # print(str.lower(tmp_fpath))
                 # print(str.lower(lst_my_path_long_selected[0]))
-                if str.lower(tmp_fpath) != str.lower(lst_my_path_long_selected[0]):
-                    canadd = 0
-        # 只看笔记
+                if str.lower(tmp_fpath) == str.lower(tmp_current_path):
+                    is_this_folder = True
+                    # the_node = ''
+                else:
+                    is_this_folder = False
+                    if var_this_folder:
+                        canadd = 0
+                    else:
+                        for f_index in range(len(lst_sub_folders_full)):
+                            tmp_sub_pth = str.lower('/'.join([tmp_current_path, lst_sub_folders_full[f_index]]))
+                            tmp_full_pth = str.lower(tmp_fpath).replace('\\','/')
+                            if tmp_sub_pth in tmp_full_pth:
+                                the_node = lst_sub_items[f_index]
+                                lst_k[f_index]+=1
+                                k2 = lst_k[f_index]
+                                break
+
         #
+        # 只看笔记
         if canadd == 1:
-            if app.v_note_only.get() == 1:
+            if var_note_only == 1:  # app.v_note_only.get() == 1:
                 if not ('笔记' in tmp[0] or '笔记' in tmp[1]):
                     canadd = 0
-
-        if canadd == 1:  # 路径包含
+        # 路径包含
+        if canadd == 1:  #
             #
             for pth in res_path:
                 #
@@ -1892,8 +1952,8 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
                     canadd = 0
                     break  # 有这句话就是 and 关系。
                 #
-
-        if canadd == 1:  # 标签包含
+        # 标签包含
+        if canadd == 1:  #
             tag_lower = []
             for j in tmp[1]:
                 tag_lower.append(str.lower(j))
@@ -1908,8 +1968,9 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
                 else:
                     canadd = 0
                     break  # 有这句话就是 and 关系。
-
-        if canadd == 1:  # 关键词
+        #
+        # 关键词搜索
+        if canadd == 1:  #
             for keyw in res_keyword:
                 #
                 if True:  # 文件名和标签搜索
@@ -1924,26 +1985,42 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
                     if keyw == '' or str.lower(tmp[-1]).find(str.lower(keyw)) < 0:
                         canadd = 0
                         break  # 有这句话就是 and 关系。
-
-        if canadd == 1:
-            ext = tmp[4]
+        #
+        # 从这里开始，要正式插入内容了；
+        if canadd == 1:  #
+            ext = tmp[4]  # 扩展名
             tmp_imag = get_icon_ext(ext)
-            k += 1
-            tree.insert('', k,
+            # k += 1
+            # # 插入节点的分组
+            # the_node = ''
+            # if var_group_by_folder:
+            #     if is_this_folder:
+            #         the_node = ''
+            #     else:
+            #         if item_sub_folder is None:
+            #             item_sub_folder = tree.insert('', 'end',
+            #                                           text='子文件夹内容',
+            #                                           tags=['line1'],  # if k % 2 == 1 else ['line2'],
+            #                                           values=(0, '', '', '', '', ''))
+            #             tree.item(item_sub_folder, open=True)
+            #
+            #         the_node = item_sub_folder
+
+            # 开始插入内容
+            if the_node == '':
+                k1 += 1
+                k = k1
+            else:
+                k = k2
+            #
+            tree.insert(the_node, k,  # k,
                         text='  ' + tmp[0],
                         image=tmp_imag,
                         tags=['line1'] if k % 2 == 1 else ['line2'],
                         values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[-1]))
-
-            # if k % 2 == 1:
-            #     tree.insert('', k, 
-            #         values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]), 
-            #         tags=['line1'] if k%2==1 else ['line2'],
-            #         text = tmp[0])
-            # else:
-            #     tree.insert('', k, values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]), tags=['line2'])
-
-        if True:
+            k_all +=1
+        #
+        if True:  # 用于更新进度条
             refresh_unit = int(n_max / 1)
             #
             if k % refresh_unit == 0:  # 刷新
@@ -1956,13 +2033,20 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
             # str_btm.set('即将完成……')
         else:
             pass
+    #
+    # 最后再把文件夹放在最后面：
+    #
+    if var_group_by_folder and len(lst_my_path_long_selected) == 1:
+        for itm in lst_sub_items:
+            # k1+=1
+            tree.move(itm,'','end')
 
     print('添加列表项消耗时间：')
     print(time.time() - time0)
 
     # str_btm.set("找到 " + str(k) + " 个结果，用时"+str(time.time()-time0)+"秒")
     # "在"+str(len(dT))+"个项目中找到 " + str(k) + " 个文件，"
-    str_btm.set("找到 " + str(k) + " 个文件")  # "，用时"+str(time.time()-time0)+"秒")
+    str_btm.set("找到 " + str(k_all) + " 个文件")  # "，用时"+str(time.time()-time0)+"秒")
     if flag_inited:
         set_prog_bar(100)
         tree.focus()
@@ -2102,20 +2186,36 @@ def exec_tree_file_open(event=None):  # 单击
 
     """
     # 为了避免短时间三次点击鼠标导致重复打开，增加计时功能；
-    if (time.time() - app.file_open_time)<1:  # 要求至少间隔1秒。
+    if (time.time() - app.file_open_time) < 1:  # 要求至少间隔1秒。
         app.file_open_time = time.time()
         return
     else:
         app.file_open_time = time.time()
 
     for item in tree.selection():
+        if not is_tree_item_enable(item):
+            continue
         item_text = tree.item(item, "values")
         print('正在打开文件：')
-        print(item_text[-1])
+        tmp_tar = item_text[-1]
+        print(tmp_tar)
         try:
-            exec_run(item_text[-1])  # 打开这个文件
+            if is_tree_item_enable(item):
+                exec_run(tmp_tar)  # 打开这个文件
         except:
             print('打开文件失败')
+
+
+def is_tree_item_enable(itm):
+    """
+    用于检查选中项目是否可用（如果是分组，就不可用）
+    """
+    item_text = tree.item(itm, 'values')
+    tmp_tar = item_text[-1]
+    if tmp_tar == '':
+        return 0
+    else:
+        return 1
 
 
 def exec_file_duplicate(tar=None):  # 文件原地建立副本
@@ -2134,6 +2234,8 @@ def exec_tree_file_rename(tar=None):  # 对文件重命名
         print('暂不支持多文件重命名')
         return
     for item in tree.selection():
+        if not is_tree_item_enable(item):
+            continue
         # 获得目标文件
         item_text = tree.item(item, "values")
         tmp_full_path = item_text[-1]
@@ -2145,7 +2247,7 @@ def exec_tree_file_rename(tar=None):  # 对文件重命名
         print('文件名：', tmp_file_name)
         # res = simpledialog.askstring('文件重命名',prompt='请输入新的文件名',initialvalue =tmp_file_name) # 有bug，不能输入#号
         [fname, fename] = os.path.splitext(tmp_file_name)  # 文件名，扩展名，其中扩展名包括点号。
-        print(fname,'  ',fename)
+        print(fname, '  ', fename)
         res = show_window_input('文件重命名', body_value='请输入新的文件名', init_value=fname)  # 有bug，不能输入#号
         #
         if res is not None:
@@ -2162,8 +2264,6 @@ def exec_tree_file_rename(tar=None):  # 对文件重命名
                 pass
 
 
-
-
 def exec_tree_file_delete(tar=None):
     """
     删除tree选中项对应的文件。
@@ -2173,6 +2273,8 @@ def exec_tree_file_delete(tar=None):
     if tk.messagebox.askokcancel("删除确认", "要将选中项删除到回收站吗？"):
         #
         for item in tree.selection():
+            if not is_tree_item_enable(item):
+                continue
             # 获取文件全路径
             item_text = tree.item(item, "values")
             tmp_full_path = item_text[-1]
@@ -2304,6 +2406,8 @@ def tree_open_folder(event=None, VMETHOD=1):
     不需要传入路径参数，本函数会自动从tree里面读取。
     """
     for item in tree.selection():
+        if not is_tree_item_enable(item):
+            continue
         item_text = tree.item(item, "values")
         tmp_file = item_text[-1]
         tmp_file = tmp_file.replace('/', '\\')
@@ -2527,6 +2631,8 @@ def input_new_tag(event=None, tag_name=None):
 
     taged_files = []
     for item in tree.selection():
+        if not is_tree_item_enable(item):
+            continue
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
         # tmp_file_name = get_file_part(tmp_full_name)['ffname'] # 没有用到
@@ -2638,7 +2744,7 @@ def exec_file_add_tag(filename, tag0, need_update=True):
         old_n = path_old + '/' + fname + fename
         new_n = old_n
         for i in tag_list:
-            if  i not in tag_old:
+            if i not in tag_old:
                 new_n = path_old + os.sep + fname + V_SEP + i + fename
                 print(old_n)
                 print(new_n)
@@ -2684,6 +2790,8 @@ def exec_fast_add_tag(tag):
     TAG_STAR = tag
     taged_files = []
     for item in tree.selection():
+        if not is_tree_item_enable(item):
+            continue
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
         taged_files.append(exec_file_add_tag(tmp_full_name, TAG_STAR))
@@ -2985,10 +3093,12 @@ def on_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文
         app.bt_folder_drop.configure(state=tk.DISABLED)
         v_sub_folders.current(0)
         v_sub_folders.configure(state=tk.DISABLED)
+        app.folder_layers.configure(state=tk.DISABLED)
     else:
         bt_new.configure(state=tk.NORMAL)
         app.bt_folder_drop.configure(state=tk.NORMAL)
         v_sub_folders.configure(state='readonly')
+        app.folder_layers.configure(state='readonly')
     #
     # 如果前后的选项没有变化的话，就不刷新文件夹列表
     #
@@ -3033,6 +3143,7 @@ def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的
         app.bt_folder_drop.configure(state=tk.DISABLED)
         v_sub_folders.current(0)
         v_sub_folders.configure(state=tk.DISABLED)
+        app.folder_layers.configure(state=tk.DISABLED)
 
     elif sub_folder is not None:
         tmp = sub_folder
@@ -3041,6 +3152,7 @@ def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的
         bt_new.configure(state=tk.NORMAL)
         app.bt_folder_drop.configure(state=tk.NORMAL)
         v_sub_folders.configure(state='readonly')
+        app.folder_layers.configure(state='readonly')
         pass
     else:
         tmp = get_folder_s2l(tmp)  # 将显示值转换为实际值
@@ -3049,6 +3161,7 @@ def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的
         bt_new.configure(state=tk.NORMAL)
         app.bt_folder_drop.configure(state=tk.NORMAL)
         v_sub_folders.configure(state='readonly')
+        app.folder_layers.configure(state='readonly')
 
     if not lst_path_ori == lst_my_path_long_selected:  # 如果前后的选项没有变化的话，就不刷新文件夹列表
         if refresh == 1:
@@ -3459,20 +3572,20 @@ def exec_tree_drag_enter(files, drag_type=None):
     new_file_lst = []
 
     # 特殊排序，将markdown文件放在后面操作
-    files1=[]
-    files2=[]
+    files1 = []
+    files2 = []
     for item in files:
         try:
             itm = item.decode('gbk')
         except:
             itm = item
             pass
-        if len(str(itm))>3 and str(itm)[-3:] in EXP_EXTS:
+        if len(str(itm)) > 3 and str(itm)[-3:] in EXP_EXTS:
             files2.append(item)
         else:
             files1.append(item)
 
-    files = files1+files2  #
+    files = files1 + files2  #
     # print('\nfiles=',files)
     #
     for item in files:
@@ -3511,8 +3624,8 @@ def exec_tree_drag_enter(files, drag_type=None):
         if drag_type in ['copy', 'move']:
             #
             # 2021年10月30日新增：markdown特殊处理
-            if MARKDOWN_IMGS is True and len(old_name)>3 and old_name[-3:] in EXP_EXTS:
-                MarkdownRel.copy_md_linked_files(old_name,long_name)
+            if MARKDOWN_IMGS is True and len(old_name) > 3 and old_name[-3:] in EXP_EXTS:
+                MarkdownRel.copy_md_linked_files(old_name, long_name)
             #
             res = exec_safe_copy(old_name, new_name, opt_type=drag_type)
             str_btm.set('拖动添加文件成功')
@@ -3897,7 +4010,7 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
     #
     the_note_name = NOTE_NAME
     # res = simpledialog.askstring('新建 Tagdox 笔记',prompt='请输入文件名',initialvalue =the_note_name)
-    res = show_window_input('新建 Tagdox 笔记（'+ NOTE_EXT +"）", body_value='请输入文件名', init_value=the_note_name)
+    res = show_window_input('新建 Tagdox 笔记（' + NOTE_EXT + "）", body_value='请输入文件名', init_value=the_note_name)
     if res is not None:
         print('获得新笔记标题：')
         print(res)
@@ -3948,7 +4061,7 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
                     # 打开
                     exec_run(fpth)  # 打开这个文件
 
-                    if TAG_METHOD == 'FILE_STREAM' :  # 流模式下新增标签的方法
+                    if TAG_METHOD == 'FILE_STREAM':  # 流模式下新增标签的方法
                         for tg in tags:
                             exec_file_add_tag(fpth, tg, need_update=False)
 
@@ -3981,6 +4094,8 @@ def exec_create_note_here(event=None):
     """
     global lst_my_path_long_selected
     for item in tree.selection():
+        if not is_tree_item_enable(item):
+            continue
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
     tmp_path = '/'.join(get_split_path(tmp_full_name)[0:-1])
@@ -4141,6 +4256,8 @@ def exec_tree_file_drop_tag(event=None):
     res_lst = []
     #
     for item in tree.selection():
+        if not is_tree_item_enable(item):
+            continue
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]  # 完整文件名
         # NTFS流模式
@@ -4246,8 +4363,8 @@ def exec_tree_left_click(event):
     """
     # print(event.keycode)
     # if event.keysym in ['<Shift_L>','<Shift_R>','<Control_L>','<Control_R>']:  # 按 ctrl 或者 shift 的时候不操作
-        # print(event)
-        # return
+    # print(event)
+    # return
     tmp = app.tree.identify_row(event.y)
     if tmp not in app.tree.get_children():
         app.tree.selection_set(tmp)
@@ -4280,7 +4397,7 @@ def show_popup_menu_file(event):
     #
     menu_tags_to_drop = tk.Menu(window, tearoff=0)
     menu_tags_to_add = tk.Menu(window, tearoff=0)
-    menu_create_note = tk.Menu(window, tearoff=0) # 新建笔记
+    menu_create_note = tk.Menu(window, tearoff=0)  # 新建笔记
 
     menu_create_note.add_command(label='.docx', command=lambda x=1: exec_create_note(None, '.docx'))
     menu_create_note.add_command(label='.md', command=lambda x=1: exec_create_note(None, '.md'))
@@ -4299,7 +4416,7 @@ def show_popup_menu_file(event):
     # menu_file.add_command(label="在相同位置创建笔记",command=exec_create_note_here)
     menu_file.add_separator()
     if len(lst_my_path_long_selected) == 1:
-        menu_file.add_command(label="新建笔记（"+NOTE_EXT+"）", command=exec_create_note, accelerator='Ctrl+N')
+        menu_file.add_command(label="新建笔记（" + NOTE_EXT + "）", command=exec_create_note, accelerator='Ctrl+N')
         menu_file.add_cascade(label="新建更多格式的笔记", menu=menu_create_note)
     else:
         menu_file.add_command(label="新建笔记", state=tk.DISABLED, command=exec_create_note, accelerator='Ctrl+N')
@@ -4345,7 +4462,8 @@ def show_popup_menu_file(event):
     menu_file_no_selection.add_command(label="打开当前文件夹", command=tree_open_current_folder)
     menu_file_no_selection.add_separator()
     if len(lst_my_path_long_selected) == 1:
-        menu_file_no_selection.add_command(label="新建笔记（"+NOTE_EXT+"）", command=exec_create_note, accelerator='Ctrl+N')
+        menu_file_no_selection.add_command(label="新建笔记（" + NOTE_EXT + "）", command=exec_create_note,
+                                           accelerator='Ctrl+N')
         menu_file_no_selection.add_cascade(label="新建更多格式的笔记", menu=menu_create_note)
     else:
         menu_file_no_selection.add_command(label="新建笔记", state=tk.DISABLED, command=exec_create_note,
@@ -4366,6 +4484,8 @@ def show_popup_menu_file(event):
 
         # tmp_file_name=get_split_path(tmp_full_name)[-1]
         for item in tree.selection():
+            if not is_tree_item_enable(item):
+                continue
             item_text = tree.item(item, "values")
             tmp_full_name = item_text[-1]
         tmp_file_name = get_file_part(tmp_full_name)['fname']
@@ -4426,7 +4546,8 @@ def show_popup_menu_file(event):
         tmp_tags_from_files = []
         file_checked = 0
         for item in tree.selection():
-
+            if not is_tree_item_enable(item):
+                continue
             item_text = tree.item(item, "values")
             tmp_full_name = item_text[-1]
             tmp_file_name = get_file_part(tmp_full_name)['fname']
@@ -4631,6 +4752,7 @@ def set_style(style):
             for tar in [app.tree_lst_folder, app.tree_lst_sub_folder, app.tree]:
                 # tar.tag_configure('line_mouse', background="#dddfe2")
                 tar.tag_configure('line1', background="#F2F2F2")
+                tar.tag_configure('line_folder', background="#dbe2e8")
                 # tar.tag_configure('line1',background="#F8F8F8")
                 # tar.tag_configure('line1',background="#FFFFFF")
                 # tar.tag_configure('folder2',background="#FFFFFF")
@@ -4827,6 +4949,8 @@ def exec_tree_file_pick_up(event=None, need_clear=False):
     #
     # 添加到列表中：
     for item in app.tree.selection():
+        if not is_tree_item_enable(item):
+            continue
         #
         item_text = tree.item(item, "values")
         tmp_full_name = item_text[-1]
@@ -4921,7 +5045,7 @@ def exec_tree_file_put_down(event=None):
     global lst_pick_up_files
     global lst_pick_up_items
     # state_pick_up = 'move' 默认
-    exec_tree_drag_enter(lst_pick_up_files, drag_type=state_pick_up) # 调用的是拖动函数
+    exec_tree_drag_enter(lst_pick_up_files, drag_type=state_pick_up)  # 调用的是拖动函数
     # lst_pick_up_files=[]
     # lst_pick_up_items = []
     exec_tree_file_pick_nothing(fastmode=True)
@@ -5045,7 +5169,7 @@ class MainApp:
         self.frameMenu = ttk.Frame(self.frame0,
                                    relief='flat',
                                    style='Dark.TFrame',
-                                   width=320 - 16*1,
+                                   width=320 - 16 * 1,
                                    borderwidth=0,
                                    )  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
         self.frameMenu.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10, pady=5)
@@ -5158,7 +5282,7 @@ class MainApp:
             self.v_tag_search = tk.Entry(self.frameSubTags)
             self.bar_sub_tag_v = tk.Scrollbar(self.frameSubTags, width=16)
             if TREE_SUB_SHOW == 'tag':
-                #v_tag_search.pack(side=tk.TOP,expand=0,fill=tk.X)
+                # v_tag_search.pack(side=tk.TOP,expand=0,fill=tk.X)
                 pass
 
             self.tree_lst_sub_tag = ttk.Treeview(self.frameSubTags,
@@ -5177,7 +5301,7 @@ class MainApp:
             self.tree_lst_sub_tag.column('tags', width=220, anchor='w')
             self.bar_sub_tag_v.config(command=self.tree_lst_sub_tag.yview)
             #
-            if True:#TREE_SUB_SHOW == 'tag':
+            if True:  # TREE_SUB_SHOW == 'tag':
                 self.bar_sub_tag_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
                 self.tree_lst_sub_tag.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=0)
         #
@@ -5295,7 +5419,7 @@ class MainApp:
             # 2021年12月2日 隐藏了标签下拉框
             # self.v_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
             nx += 1
-            #self.lable_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
+            # self.lable_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
             nx += 1
             #
 
@@ -5308,6 +5432,15 @@ class MainApp:
                                                command=exec_search,
                                                onvalue=1, offvalue=0)
             self.this_folder.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)
+            # 文件夹分层
+            self.v_folder_layers = tk.IntVar()
+            self.v_folder_layers.set(1)
+            self.folder_layers = ttk.Checkbutton(self.frame0,
+                                                 text='按子文件夹分组',
+                                                 variable=self.v_folder_layers,
+                                                 command=exec_search,
+                                                 onvalue=1, offvalue=0)
+            self.folder_layers.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)
             #
             # 只看笔记
             self.v_note_only = tk.IntVar()
@@ -5428,29 +5561,30 @@ class MainApp:
         if len(self.tree.selection()) == 1:
             try:
                 t = self.tree.selection()[0]
-                pth = self.tree.item(t, "values")[-1]
-                res = get_file_part(pth)
+                if is_tree_item_enable(t):
+                    pth = self.tree.item(t, "values")[-1]
+                    res = get_file_part(pth)
 
-                msg_lst = ["完整文件名：\n    ",
-                           str(res['ffname']),
-                           '\n\n',
-                           "文件名（去标签）：\n    ",
-                           str(res['fname_0']),
-                           '\n\n',
-                           '标签：\n    ',
-                           res['ftags'],
-                           '\n\n',
-                           '修改日期：\n    ',
-                           res['file_mdf_time'],
-                           '\n\n',
-                           '大小（kB）：\n    ',
-                           res['fsize'],
-                           '\n\n',
-                           '完整路径：\n    ',
-                           str(res['full_path']),
-                           ]
-                msg = map(str, msg_lst)
-                TdSpaceWindow(self.window, '详情', ''.join(msg))
+                    msg_lst = ["完整文件名：\n    ",
+                               str(res['ffname']),
+                               '\n\n',
+                               "文件名（去标签）：\n    ",
+                               str(res['fname_0']),
+                               '\n\n',
+                               '标签：\n    ',
+                               res['ftags'],
+                               '\n\n',
+                               '修改日期：\n    ',
+                               res['file_mdf_time'],
+                               '\n\n',
+                               '大小（kB）：\n    ',
+                               res['fsize'],
+                               '\n\n',
+                               '完整路径：\n    ',
+                               str(res['full_path']),
+                               ]
+                    msg = map(str, msg_lst)
+                    TdSpaceWindow(self.window, '详情', ''.join(msg))
             except:
                 TdSpaceWindow(self.window, '错误', '文件加载异常')
 

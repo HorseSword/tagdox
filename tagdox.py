@@ -50,10 +50,16 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.23.0.1'  # 版本号
+VER = 'v0.23.0.3'  # 版本号
 
 """
 ## 近期更新说明
+#### v0.23.0.3 2022年3月7日
+尝试修复了tree定位高亮项目的错误。
+
+#### v0.23.0.2 2022年3月5日
+尝试修复输入框与中文输入法之间的兼容性问题。
+
 #### v0.23.0.1 2022年3月5日
 实现了按照子文件夹分组显示的功能，
 修复了文件夹分组的背景色问题；
@@ -1850,7 +1856,7 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
     # tmp_search_items = get_search_items_sub_folder()  # 列表
     #
     k = 0
-    k1 = 0 # 存储根目录下的编号
+    k1 = 0  # 存储根目录下的编号
     k2 = 0
     k_all = 0
 
@@ -1873,7 +1879,7 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
     var_group_by_folder = app.v_folder_layers.get()  # 按文件夹分组
     is_this_folder = 1  # 是否是当前文件夹
     item_sub_folder = None
-    tmp_current_path = lst_my_path_long_selected[0].replace('\\','/')  # 当前路径
+    tmp_current_path = lst_my_path_long_selected[0].replace('\\', '/')  # 当前路径
     #
     # 如果是分组模式，就检查子文件夹，并预先要做分组：
 
@@ -1889,10 +1895,10 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
             if _dir in EXP_FOLDERS:
                 continue
             lst_sub_folders_full.append(_dir)
-            lst_sub_items.append( tree.insert('', 'end',
-                                          text = _dir,
-                                          tags=['line_folder'],  # if k % 2 == 1 else ['line2'],
-                                          values=(0, '', '', '', '', '')))
+            lst_sub_items.append(tree.insert('', 'end',
+                                             text=_dir,
+                                             tags=['line_folder'],  # if k % 2 == 1 else ['line2'],
+                                             values=(0, '', '', '', '', '')))
             lst_k.append(0)
             tree.item(lst_sub_items[-1], open=True)
     #
@@ -1929,10 +1935,10 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
                     else:
                         for f_index in range(len(lst_sub_folders_full)):
                             tmp_sub_pth = str.lower('/'.join([tmp_current_path, lst_sub_folders_full[f_index]]))
-                            tmp_full_pth = str.lower(tmp_fpath).replace('\\','/')
+                            tmp_full_pth = str.lower(tmp_fpath).replace('\\', '/')
                             if tmp_sub_pth in tmp_full_pth:
                                 the_node = lst_sub_items[f_index]
-                                lst_k[f_index]+=1
+                                lst_k[f_index] += 1
                                 k2 = lst_k[f_index]
                                 break
 
@@ -2018,7 +2024,7 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
                         image=tmp_imag,
                         tags=['line1'] if k % 2 == 1 else ['line2'],
                         values=(k, tmp[0], tmp[1], tmp[2], tmp[3], tmp[-1]))
-            k_all +=1
+            k_all += 1
         #
         if True:  # 用于更新进度条
             refresh_unit = int(n_max / 1)
@@ -2039,7 +2045,7 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
     if var_group_by_folder and len(lst_my_path_long_selected) == 1:
         for itm in lst_sub_items:
             # k1+=1
-            tree.move(itm,'','end')
+            tree.move(itm, '', 'end')
 
     print('添加列表项消耗时间：')
     print(time.time() - time0)
@@ -2313,6 +2319,60 @@ def function_for_testing(event=None):  #
     pass
 
 
+def tree_scroll_to_selection(full_path='', the_tree=None, the_bar=None, the_col=None):
+    """
+    用于将tree滚动到选中项目的位置上；
+    """
+    #
+    #
+    n_selected = 0
+    n_cnt = 0
+    if the_tree is None:
+        the_tree = tree
+    if the_bar is None:
+        the_bar = bar_tree_v
+    if the_col is None:
+        the_col = -1
+    # the_tree = tree
+    # the_item = None
+    try:
+        (b1, b2) = the_bar.get()
+    except:
+        print(f'查询滚动条位置出现错误')
+        print(the_bar.get())
+        return -1
+    b0 = b2 - b1  # 滚动条长度
+
+    #
+    # 从第一行开始，
+    def check_node(itm, n, c):
+        for itm0 in the_tree.get_children(itm):
+            c += 1
+            tmp_value = the_tree.item(itm0, "values")
+            if tmp_value[the_col] == full_path:
+                the_tree.selection_add(itm0)  # 增加选中项目
+            if itm0 in the_tree.selection() and n == 0:
+                n = c
+            if len(the_tree.get_children(itm0)) > 0 and the_tree.item(itm0, 'open'):
+                n, c = check_node(itm0, n, c)
+        return n, c
+
+    n_selected, n_cnt = check_node(None, n_selected, n_cnt)
+
+    b_top = n_selected / n_cnt - 0.5 * b0
+    b_bottom = n_selected / n_cnt + 0.5 * b0
+
+    if b_top <= 0:
+        b_top = 0
+    elif b_bottom >= 1:
+        b_top = 1 - b0
+
+    the_tree.yview_moveto(b_top)
+    print("n_selected, n_cnt = ", n_selected, n_cnt)
+    print('b_top=', b_top)
+    return n_selected, n_cnt
+
+
 def exec_tree_find(full_path='', need_update=True, the_tree=None, the_bar=None, the_col=None):  #
     """
     用于在 任意 treeview（默认是tree） 里面找到项目，并加高亮。
@@ -2323,7 +2383,7 @@ def exec_tree_find(full_path='', need_update=True, the_tree=None, the_bar=None, 
     如果返回-1，代表没有找到。
     """
     if full_path == '' or full_path is None:
-        return (-1)
+        return -1
     #
     # 默认值
     if the_tree is None:
@@ -2336,50 +2396,58 @@ def exec_tree_find(full_path='', need_update=True, the_tree=None, the_bar=None, 
     # 根据完整路径，找到对应的文件并高亮
     if need_update:
         the_tree.update()  # 必须在定位之前刷新列表，否则定位会错误
-    tc = the_tree.get_children()
-    tc_cnt = len(tc)
-    print('条目数量为：%s' % tc_cnt)
-    n = 0
-    print('开始查找高亮的位置')
-    try:
-        (b1, b2) = the_bar.get()
-    except:
-        print(f'查询滚动条位置出现错误')
-        print(the_bar.get())
-        return (-1)
-    b0 = b2 - b1
-    # b0=0
-    print('b0=')
-    print(b0)
-    for i in tc:
-        tmp = the_tree.item(i, "values")
-        # print(tmp[the_col])
-        if tmp[the_col] == full_path:
-            # the_tree.focus(i) #这个并不能高亮
-            the_tree.selection_add(i)
-            # the_tree.selection_add(tc[0])
-            print('在第%d处检查到了相应结果' % n)
-            print(1953)
-            b1 = n / tc_cnt - 0.5 * b0
-            b2 = n / tc_cnt + 0.5 * b0
-            print((b0, b1, b2))
-            if b1 < 0:
-                b1 = 0
-                b2 = b0
-            elif b2 > 1:
-                b2 = 1
-                b1 = 1 - b0
-            print((b1, b2))
-            # the_bar.set(b1,b2)
-            the_tree.yview_moveto(b1)
-            return (n)
-            break
-        else:
-            n += 1
-    print('居然没找到：')
-    print(full_path)
-    return (-1)
-    # for i in range()
+    # if False:
+    #     tc = the_tree.get_children()
+    #     tc_cnt = len(tc)
+    #     print('条目数量为：%s' % tc_cnt)
+    #     n = 0
+    #     print('开始查找高亮的位置')
+    #     try:
+    #         (b1, b2) = the_bar.get()
+    #     except:
+    #         print(f'查询滚动条位置出现错误')
+    #         print(the_bar.get())
+    #         return -1
+    #     b0 = b2 - b1
+    #     # b0=0
+    #     print('b0=')
+    #     print(b0)
+    #
+    #     for i in tc:
+    #         tmp = the_tree.item(i, "values")
+    #         # print(tmp[the_col])
+    #         if tmp[the_col] == full_path:
+    #             # the_tree.focus(i) #这个并不能高亮
+    #             the_tree.selection_add(i)
+    #             # the_tree.selection_add(tc[0])
+    #
+    #
+    #                 print('在第%d处检查到了相应结果' % n)
+    #                 print(1953)
+    #                 b1 = n / tc_cnt - 0.5 * b0
+    #                 b2 = n / tc_cnt + 0.5 * b0
+    #                 print((b0, b1, b2))
+    #                 if b1 < 0:
+    #                     b1 = 0
+    #                     b2 = b0
+    #                 elif b2 > 1:
+    #                     b2 = 1
+    #                     b1 = 1 - b0
+    #                 print((b1, b2))
+    #                 # the_bar.set(b1,b2)
+    #                 the_tree.yview_moveto(b1)
+    #             return n
+    #             break
+    #         else:
+    #             n += 1
+    #     print('居然没找到：')
+    #     print(full_path)
+    #
+    #     return -1
+    #     # for i in range()
+    # else:
+    n_selected, n_cnt = tree_scroll_to_selection(full_path)
+    return n_selected
 
 
 def exec_tree_find_lst(inp_lst):

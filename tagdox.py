@@ -50,10 +50,17 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.23.0.3'  # 版本号
+VER = 'v0.23.1.1'  # 版本号
 
 """
 ## 近期更新说明
+#### v0.23.1.1 2022年3月9日
+修复了点击列表空白处的bug。
+
+#### v0.23.1.0 2022年3月8日
+实现了隐藏空分组的功能。
+已知bug：按住Ctrl的时候，点击分组内的项目，不能选中。
+
 #### v0.23.0.3 2022年3月7日
 尝试修复了tree定位高亮项目的错误。
 
@@ -2045,7 +2052,10 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
     if var_group_by_folder and len(lst_my_path_long_selected) == 1:
         for itm in lst_sub_items:
             # k1+=1
-            tree.move(itm, '', 'end')
+            if len(tree.get_children(itm))==0:
+                tree.detach(itm)
+            else:
+                tree.move(itm, '', 'end')
 
     print('添加列表项消耗时间：')
     print(time.time() - time0)
@@ -4434,7 +4444,10 @@ def exec_tree_left_click(event):
     # print(event)
     # return
     tmp = app.tree.identify_row(event.y)
-    if tmp not in app.tree.get_children():
+    print(len(tmp))
+
+    # if tmp not in app.tree.get_children():
+    if len(tmp) == 0: # not in app.tree.get_children():
         app.tree.selection_set(tmp)
     # exec_tree_mouse_highlight(event, clear_only=True)
 

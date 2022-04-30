@@ -135,6 +135,13 @@ def copy_md(file_path_old: str, file_path_new: str, mode='copy'):
         print(e)
 
 
+def mv_md(file_path_old: str, file_path_new: str):
+    """
+    移动文件
+    """
+    copy_md(file_path_old, file_path_new, mode='move')
+
+
 if __name__ == '__main__':
     file_old = r"D:\MaJian\Desktop\@短文剪辑\Python 图像库 PIL 的类 Image 及其方法介绍_leemboy 的博客 - CSDN 博客_pil.md"
     file_new = r'd:/to_delete/a/b/c/d\\e/PIL.md'

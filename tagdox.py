@@ -17,7 +17,7 @@ from tkinter import simpledialog
 from tkinter.constants import NORMAL
 # from tkinter import font
 # from tkinter.constants import INSERT
-import windnd
+import windnd  # 用于拖拽
 #
 from os.path import isdir
 from os.path import isfile
@@ -50,10 +50,13 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.23.1.1'  # 版本号
+VER = 'v0.23.1.2'  # 版本号
 
 """
 ## 近期更新说明
+#### v0.23.1.2 2022年4月30日
+修复了文件夹名称存在包含关系时，较长文件夹的内部文件会出现在较短文件夹内部的bug。
+
 #### v0.23.1.1 2022年3月9日
 修复了点击列表空白处的bug。
 
@@ -1896,7 +1899,7 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
         lst_sub_items = []
         lst_k = []
         for _root, _dirs, _ in os.walk(tmp_current_path):
-            lst_sub_folders += _dirs
+            lst_sub_folders += _dirs  # 子文件夹
             break
         for _dir in exec_list_sort(lst_sub_folders):
             if _dir in EXP_FOLDERS:
@@ -1943,7 +1946,7 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
                         for f_index in range(len(lst_sub_folders_full)):
                             tmp_sub_pth = str.lower('/'.join([tmp_current_path, lst_sub_folders_full[f_index]]))
                             tmp_full_pth = str.lower(tmp_fpath).replace('\\', '/')
-                            if tmp_sub_pth in tmp_full_pth:
+                            if tmp_sub_pth+'//' in tmp_full_pth+'//':  # 判断文件在哪个子文件夹内。添加两个斜线是为了避免文本包含。
                                 the_node = lst_sub_items[f_index]
                                 lst_k[f_index] += 1
                                 k2 = lst_k[f_index]
@@ -2019,7 +2022,7 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
             #
             #         the_node = item_sub_folder
 
-            # 开始插入内容
+            # 开始插入内容，插入位置是『the_node』
             if the_node == '':
                 k1 += 1
                 k = k1
@@ -2052,7 +2055,7 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
     if var_group_by_folder and len(lst_my_path_long_selected) == 1:
         for itm in lst_sub_items:
             # k1+=1
-            if len(tree.get_children(itm))==0:
+            if len(tree.get_children(itm)) == 0:
                 tree.detach(itm)
             else:
                 tree.move(itm, '', 'end')
@@ -2553,7 +2556,7 @@ def exec_folder_add_from_sub(event=None):
 
 def exec_sub_folder_new(event=None):
     """
-    新建子文件夹
+    新建子文件夹，也就是新建文件夹的意思。目前正在使用。
     """
     # 
     # 获取名称
@@ -4447,7 +4450,7 @@ def exec_tree_left_click(event):
     print(len(tmp))
 
     # if tmp not in app.tree.get_children():
-    if len(tmp) == 0: # not in app.tree.get_children():
+    if len(tmp) == 0:  # not in app.tree.get_children():
         app.tree.selection_set(tmp)
     # exec_tree_mouse_highlight(event, clear_only=True)
 
@@ -5130,6 +5133,33 @@ def exec_tree_file_put_down(event=None):
     # lst_pick_up_files=[]
     # lst_pick_up_items = []
     exec_tree_file_pick_nothing(fastmode=True)
+
+
+def exec_tree_file_group(event=None):
+    """
+    快速打包
+    """
+    file_lst = []  # 文件列表
+    tar_folder = ''  # 目标位置
+    #
+    # 判断是否满足条件；
+    if len(app.tree.selection()) <= 0:  # 没有选中文件
+        return -1
+    elif get_folder_depth() == 0:  # 选中的是文件夹分组。而不是文件夹
+        return -1
+    elif get_folder_depth() >= 1:
+        current_folder = get_folder_long_v2()
+    #
+    # 获得文件列表：
+    group_name = show_window_input('快速打包','请输入分组文件夹名称')
+    if group_name is not None:
+        tar_folder = current_folder + '/' + group_name
+
+    for i in app.tree.selection():
+        file_full_path = app.tree.item(i)  # 获得路径
+
+    update_folder_list()  # 刷新文件夹列表
+    # 刷新树
 
 
 # %%

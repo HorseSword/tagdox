@@ -1944,9 +1944,13 @@ def exec_tree_add_items(tree, dT, search_items=None) -> None:
                         canadd = 0
                     else:
                         for f_index in range(len(lst_sub_folders_full)):
+                            # 文件夹
                             tmp_sub_pth = str.lower('/'.join([tmp_current_path, lst_sub_folders_full[f_index]]))
+                            # 完整文件路径（不含文件名）
                             tmp_full_pth = str.lower(tmp_fpath).replace('\\', '/')
-                            if tmp_sub_pth+'//' in tmp_full_pth+'//':  # 判断文件在哪个子文件夹内。添加两个斜线是为了避免文本包含。
+                            #
+                            # print(tmp_sub_pth, tmp_full_pth) # 调试用
+                            if tmp_sub_pth+'/' in tmp_full_pth+'/':  # 判断文件在哪个子文件夹内。添加斜线是为了避免文本包含。
                                 the_node = lst_sub_items[f_index]
                                 lst_k[f_index] += 1
                                 k2 = lst_k[f_index]

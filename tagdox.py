@@ -50,7 +50,7 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.23.1.2'  # 版本号
+VER = 'v0.24.0.0'  # 版本号
 
 """
 ## 近期更新说明
@@ -5460,17 +5460,17 @@ class MainApp:
         self.tree.column('#0', width=700, anchor='w')  # ,stretch=tk.NO)
         self.tree.column('index', width=30, anchor='center')
         self.tree.column('file', width=600, minwidth=100, anchor='w')
-        self.tree.column('tags', width=200, minwidth=100, anchor='w')
-        self.tree.column('modify_time', width=120, minwidth=120, anchor='w')  # ,stretch=tk.NO)
-        self.tree.column('size', width=60, minwidth=80, anchor='w')  # ,stretch=tk.NO)
+        self.tree.column('tags', width=200, minwidth=100, anchor='e')
+        self.tree.column('modify_time', width=120, minwidth=120, anchor='e')  # ,stretch=tk.NO)
+        self.tree.column('size', width=60, minwidth=80, anchor='e')  # ,stretch=tk.NO)
         self.tree.column('file0', width=80, anchor='w')
         #
         self.tree.heading('#0', text='名称', anchor='w', command=tree_order_filename)
         self.tree.heading("index", text="序号", anchor='center')
         self.tree.heading("file", text="文件名", anchor='w', command=tree_order_filename)
-        self.tree.heading("tags", text="标签", anchor='w', command=tree_order_tag)
-        self.tree.heading("modify_time", text="修改时间", anchor='w', command=tree_order_modi_time)
-        self.tree.heading("size", text="大小(kB)", anchor='w', command=tree_order_size)
+        self.tree.heading("tags", text="标签", anchor='e', command=tree_order_tag)
+        self.tree.heading("modify_time", text="修改时间", anchor='e', command=tree_order_modi_time)
+        self.tree.heading("size", text="大小(kB)", anchor='e', command=tree_order_size)
         self.tree.heading("file0", text="完整路径", anchor='w', command=tree_order_path)
         #
         vPDX = 10  # 10

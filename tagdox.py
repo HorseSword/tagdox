@@ -50,10 +50,16 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.24.0.0'  # 版本号
+VER = 'v0.25.0.0'  # 版本号
 
 """
 ## 近期更新说明
+#### v0.25.0.0 2022年5月22日
+左侧文件夹列表优化，现在右键操作可直接作用于鼠标选中对象，而不是只能操作打开的文件夹。
+
+#### v0.24.0.0
+调整UI显示，将标签、日期、大小都放在右侧。
+
 #### v0.23.1.2 2022年4月30日
 修复了文件夹名称存在包含关系时，较长文件夹的内部文件会出现在较短文件夹内部的bug。
 
@@ -2185,12 +2191,15 @@ def get_folder_depth(itm=None):
     return int(path_depth)
 
 
-def get_folder_values_v2():
+def get_folder_values_v2(point=False):
     """
     优化架构下的文件夹列表获取方法。
     """
-    for item in tree_lst_folder.selection():
-        res = tree_lst_folder.item(item, "values")
+    if point:
+        res = tree_lst_folder.item(app.last_focus, "values")
+    else:
+        for item in tree_lst_folder.selection():
+            res = tree_lst_folder.item(item, "values")
     return res
 
 
@@ -2542,7 +2551,8 @@ def tree_open_current_folder(event=None):
 
 def exec_folder_from_menu(event=None):
     """通过菜单添加关注的文件夹"""
-    folder_path = get_folder_long_v2()
+    # folder_path = get_folder_long_v2()
+    folder_path = app.tree_lst_folder.item(app.last_focus,"values")[-1]
     exec_folder_add([folder_path])
 
 
@@ -2562,7 +2572,16 @@ def exec_sub_folder_new(event=None):
     """
     新建子文件夹，也就是新建文件夹的意思。目前正在使用。
     """
-    # 
+    # 获取当前文件夹
+    if True:
+        cur_folder = app.tree_lst_folder.item(app.last_focus,"values")[-1]
+    else:
+        if len(lst_my_path_long_selected) == 1:
+            cur_folder = lst_my_path_long_selected[0]
+        else:
+            t = tk.messagebox.showerror(title='ERROR', message='未选中唯一文件夹')
+            return False
+
     # 获取名称
     new_folder_name = ''
     lp = 1
@@ -2575,11 +2594,7 @@ def exec_sub_folder_new(event=None):
             new_folder_name = path
         #
         # 补充完整路径
-        if len(lst_my_path_long_selected) == 1:
-            tmp_path = lst_my_path_long_selected[0] + '/' + path
-        else:
-            t = tk.messagebox.showerror(title='ERROR', message='未选中唯一文件夹')
-            return False
+        tmp_path = cur_folder + '/' + path
         #
         # 新路径是否存在
         isExists = os.path.exists(tmp_path)
@@ -2613,9 +2628,13 @@ def exec_folder_del(event=None):
     """
     将文件夹删掉（移动到回收站）
     """
-    fd = get_folder_long_v2()
-    fd = fd.replace('\\', '/')
-    if tk.messagebox.askokcancel("删除确认", "要将选中的文件夹删除到回收站吗？"):
+    if True:
+        fd = app.tree_lst_folder.item(app.last_focus,"values")[-1]
+        folder_base,folder_name = os.path.split(fd)
+    else:
+        fd = get_folder_long_v2()
+        fd = fd.replace('\\', '/')
+    if tk.messagebox.askokcancel("删除确认", "要将文件夹【"+str(folder_name)+"】删除到回收站吗？"):
         # 删除操作
         exec_remove_to_trash(fd)
         update_folder_list()
@@ -2627,10 +2646,14 @@ def exec_folder_rename(event=None):
     """
     文件夹重命名
     """
-    tmp_i = tree_lst_folder.selection()[0]
-    old_path = tree_lst_folder.item(tmp_i, "values")[-1]  # 完整路径
-    old_base = tree_lst_folder.item(tmp_i, "values")[0]
-    old_folder = tree_lst_folder.item(tmp_i, "text")
+    if True:
+        old_path = app.tree_lst_folder.item(app.last_focus,"values")[-1]
+        old_base,old_folder = os.path.split(old_path)
+    else:
+        tmp_i = tree_lst_folder.selection()[0]
+        old_path = tree_lst_folder.item(tmp_i, "values")[-1]  # 完整路径
+        old_base = tree_lst_folder.item(tmp_i, "values")[0]
+        old_folder = tree_lst_folder.item(tmp_i, "text")
     # old_folder = str.replace(old_path,old_base,'')
     #
     # 新文件夹名称
@@ -2665,9 +2688,14 @@ def exec_sub_folder_rename(event=None):
     子文件夹重命名
     """
     # 确定旧文件夹名称
-    if len(get_sub_folder_selected()) > 0:
-        old_folder = get_sub_folder_selected()
-        old_path = lst_my_path_long_selected[0] + '/' + old_folder
+    # 获取当前文件夹
+
+    old_path = app.tree_lst_folder.item(app.last_focus,"values")[-1] # 不带斜线
+    _, old_folder = os.path.split(old_path)
+
+    # if len(get_sub_folder_selected()) > 0:
+    #     old_folder = get_sub_folder_selected()
+    #     old_path = lst_my_path_long_selected[0] + '/' + old_folder
     #
     # 新文件夹名称
     new_folder = show_window_input('重命名文件夹', '请输入文件夹名称', old_folder)
@@ -3786,7 +3814,8 @@ def exec_folder_cut(event=None):
     """
     exec_folder_clear_clipoard()
     #
-    fd = get_folder_long_v2()
+    # fd = get_folder_long_v2()  # 用函数获取
+    fd = app.tree_lst_folder.item(app.last_focus,"values")[-1]  # 用 last_focus 获取
     global folder_to_move
     folder_to_move = fd
     # 清空文件剪切板
@@ -3806,7 +3835,8 @@ def exec_folder_paste(event=None, tar_folder_from=None,
         fd_from = tar_folder_from
     #
     if tar_folder_to is None:
-        fd_to = get_folder_long_v2()
+        fd_to = app.tree_lst_folder.item(app.last_focus, "values")[-1]  # 用 last_focus 获取
+        # fd_to = get_folder_long_v2()
     else:
         fd_to = tar_folder_to
 
@@ -3878,16 +3908,25 @@ def exec_folder_set_group(event=None, group_name=None, short_name=None, need_upd
     #
     global json_data
     #
-    if short_name is None:
-        # 获取当前选中的文件夹
-        short_name = get_folder_short()
-        print(short_name)
-        #
-    if short_name == '':
-        pass
+    if True:
+        if short_name is None:
+            long_name = app.tree_lst_folder.item(app.last_focus,"values")[-1]
+        elif short_name == '':
+            pass
+        else:
+            long_name = get_folder_s2l(short_name)  # 将显示值转换为实际值
+            print(long_name)
     else:
-        long_name = get_folder_s2l(short_name)  # 将显示值转换为实际值
-        print(long_name)
+        if short_name is None:
+            # 获取当前选中的文件夹
+            short_name = get_folder_short()
+            print(short_name)
+            #
+        if short_name == '':
+            pass
+        else:
+            long_name = get_folder_s2l(short_name)  # 将显示值转换为实际值
+            print(long_name)
 
     # 在 json 里面找到对应项目并增加分组
     n = 0
@@ -3907,7 +3946,8 @@ def exec_folder_rename_group(event=None):
     重命名文件夹分组
     """
     # 获得旧分组名称
-    fd_0 = tree_lst_folder.selection()[0]
+    fd_0 = app.last_focus # 新方法：直接获取鼠标指向的对象，不需要看展开项目
+    # fd_0 = tree_lst_folder.selection()[0]
     group_name_old = tree_lst_folder.item(fd_0, "text")
     #
     # 获得新名称
@@ -3915,11 +3955,14 @@ def exec_folder_rename_group(event=None):
     if group_name is None:
         return None
     #
-    for fd_0 in tree_lst_folder.selection():
-        for fd_1 in tree_lst_folder.get_children(fd_0):
-            sht_name = tree_lst_folder.item(fd_1, "text")
-            exec_folder_set_group(group_name=group_name, short_name=sht_name, need_update=False)
-            pass
+    # 写分组值
+    # for fd_0 in tree_lst_folder.selection():
+    fd_0 = app.last_focus
+    for fd_1 in app.tree_lst_folder.get_children(fd_0):
+        sht_name = app.tree_lst_folder.item(fd_1, "values")[0]  # sht_name = tree_lst_folder.item(fd_1, "text")
+        print(sht_name)
+        exec_folder_set_group(group_name=group_name, short_name=sht_name, need_update=False)
+        pass
     # 刷新并写入配置文件
     update_folder_and_json_file()
 
@@ -3958,15 +4001,19 @@ def exec_folder_drop():  # 删除关注的目录
     """
     global json_data
     # 获取当前选中的文件夹
-    short_name = get_folder_short()
-    print(short_name)
-    if short_name == '':
-        pass
+    if True:
+        long_name = app.tree_lst_folder.item(app.last_focus,"values")[-1]
+        short_name = app.tree_lst_folder.item(app.last_focus,"values")[0]
     else:
-        long_name = get_folder_s2l(short_name)  # 将显示值转换为实际值
-        print(long_name)
+        short_name = get_folder_short()
+        print(short_name)
+        if short_name == '':
+            pass
+        else:
+            long_name = get_folder_s2l(short_name)  # 将显示值转换为实际值
+            print(long_name)
     # 增加确认
-    if tk.messagebox.askokcancel("操作确认", "真的要取消关注选中的文件夹吗？\n该文件夹将从关注列表中移除，但其本身数据并不会受到影响。"):
+    if tk.messagebox.askokcancel("操作确认", "真的要取消关注文件夹【"+short_name+"】吗？\n该文件夹将从关注列表中移除，但其本身数据并不会受到影响。"):
         pass
     else:
         return
@@ -4060,14 +4107,28 @@ def exec_folder_move_top(event=None):
 
 
 def exec_folder_open(tar=None):  # 打开目录
-    # 获得当前选中的长目录
-    if len(lst_my_path_long_selected) != 1:
-        pass
-    else:
+    METHOD=1
+    if METHOD ==1:
+        # 打开左侧高亮文件夹
         try:
-            exec_run(lst_my_path_long_selected[0])
-        except:
+            print(app.tree_lst_folder.item(app.last_focus, "values"))
+            l_folder = app.tree_lst_folder.item(app.last_focus,"values")[-1]
+            print(l_folder)
+            exec_run(l_folder)
+            return
+        except Exception as e:
+            print(e)
+            print('并没有获取到app.last_focus')
             pass
+    elif METHOD ==2:
+        # 获得当前选中的长目录
+        if len(lst_my_path_long_selected) != 1:
+            pass
+        else:
+            try:
+                exec_run(lst_my_path_long_selected[0])
+            except:
+                pass
 
 
 def exec_create_txt_note(event=None):
@@ -4246,12 +4307,19 @@ def show_popup_menu_folder(event):
     """
     文件夹区域的右键菜单
     """
-    v_lst = get_folder_values_v2()
+    v_lst = get_folder_values_v2(True)
     try:
+        # print(app.last_focus == '')
         vtype = int(v_lst[1])
     except:
-        vtype = 0
+        if(app.last_focus == ''):
+            vtype=-1
+        else:
+            vtype = 0
     print('vtype=', vtype)
+    # 检查文件夹是否存在
+    ise = os.path.isdir(app.tree_lst_folder.item(app.last_focus,"values")[-1])
+
     #
     # 备用语句：state=tk.DISABLED if int(vtype)>1 else tk.NORMAL, 
     #
@@ -4268,23 +4336,31 @@ def show_popup_menu_folder(event):
     menu_folder_group.add_command(label="自定义分组…", command=exec_folder_set_group)
     #
     menu_folder = tk.Menu(window, tearoff=0)
-    if vtype >= 1: menu_folder.add_command(label="打开所选文件夹", command=exec_folder_open)
-    # if vtype==1:menu_folder.add_command(label="置顶",command=exec_folder_move_top)
-    # if vtype==1:menu_folder.add_command(label="向上移动", command=exec_folder_move_up)
-    # if vtype==1:menu_folder.add_command(label="向下移动",command=exec_folder_move_down)
-    # if vtype>=1:menu_folder.add_separator()    
-    if vtype >= 1: menu_folder.add_separator()
 
-    if vtype >= 1: menu_folder.add_command(label="新建子文件夹", command=exec_sub_folder_new)
-    if vtype > 1: menu_folder.add_command(label="重命名文件夹", command=exec_folder_rename)
-    if vtype > 1: menu_folder.add_command(label="删除文件夹", command=exec_folder_del)
-    if vtype >= 1: menu_folder.add_separator()
+    if ise:
+        if vtype >= 1: menu_folder.add_command(label="打开所选文件夹", command=exec_folder_open)
+        if vtype >= 1: menu_folder.add_separator()
+        if vtype >= 1: menu_folder.add_command(label="新建子文件夹", command=exec_sub_folder_new)
+        if vtype > 1: menu_folder.add_command(label="重命名文件夹", command=exec_folder_rename)
+        if vtype > 1: menu_folder.add_command(label="删除文件夹", command=exec_folder_del)
+        if vtype >= 1: menu_folder.add_separator()
 
-    if vtype > 1: menu_folder.add_command(label="剪切文件夹", command=exec_folder_cut)
-    if vtype >= 1: menu_folder.add_command(label="粘贴为子文件夹", state=tk.DISABLED if len(folder_to_move) < 1 else tk.NORMAL,
-                                           command=exec_folder_paste)
+        if vtype > 1: menu_folder.add_command(label="剪切文件夹", command=exec_folder_cut)
+        if vtype >= 1: menu_folder.add_command(label="粘贴为子文件夹",
+                                               state=tk.DISABLED if len(folder_to_move) < 1  else tk.NORMAL,
+                                               command=exec_folder_paste)
+    else: # 当前点击的文件夹不存在
+        if vtype >= 1: menu_folder.add_command(label="打开所选文件夹（文件夹不存在）", state=tk.DISABLED,command=exec_folder_open)
+        if vtype >= 1: menu_folder.add_separator()
+        if vtype >= 1: menu_folder.add_command(label="新建子文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_sub_folder_new)
+        if vtype > 1: menu_folder.add_command(label="重命名文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_folder_rename)
+        if vtype > 1: menu_folder.add_command(label="删除文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_folder_del)
+        if vtype >= 1: menu_folder.add_separator()
+        if vtype > 1: menu_folder.add_command(label="剪切文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_folder_cut)
+        if vtype >= 1: menu_folder.add_command(label="粘贴为子文件夹（文件夹不存在）", state=tk.DISABLED,)
+
     if vtype == 0: menu_folder.add_command(label="重命名分组", command=exec_folder_rename_group)
-    menu_folder.add_separator()
+    if vtype >= 0:menu_folder.add_separator()
 
     if vtype > 1: menu_folder.add_command(label="添加当前选中文件夹到关注列表", command=exec_folder_from_menu)
     if vtype == 1: menu_folder.add_command(label="将所选文件夹从关注列表移除", command=exec_folder_drop)
@@ -4466,10 +4542,14 @@ def exec_tree_folder_right_click(event):
     :param event:
     :return:
     """
+    exec_tree_folder_mouse_highlight(event) # 刷新 app.focus 保证右击在正确对象上
     tmp = app.tree_lst_folder.identify_row(event.y)
-    if tmp not in app.tree_lst_folder.selection():
-        app.tree_lst_folder.selection_set(tmp)
-    on_folder_choose()
+    # 选中被点击的对象，之前是直接选中，但体验比较差
+    # if tmp not in app.tree_lst_folder.selection():
+    #     app.tree_lst_folder.selection_set(tmp)
+    # 执行切换文件夹的功能
+    # on_folder_choose()
+    # 显示菜单
     show_popup_menu_folder(event)
 
 
@@ -4830,8 +4910,8 @@ def set_style(style):
             #
             # 独立设定效果
             app.tree.tag_configure('line_mouse', background="#dddfe2")
-            app.tree_lst_folder.tag_configure('line_mouse', background="#242425")
-            app.tree_lst_folder.tag_configure('line_mouse', background="#242425")
+            app.tree_lst_folder.tag_configure('line_mouse', background="#242425",foreground="#2eb8ac",)
+            # app.tree_lst_folder.tag_configure('line_mouse', background="#242425")
             app.tree_lst_sub_tag.tag_configure('line_mouse', background="#FFFFFF")
             app.tree_lst_sub_tag.tag_configure('line1', background="#EBEFF2")
             #

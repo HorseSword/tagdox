@@ -50,10 +50,22 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.25.0.0'  # 版本号
+VER = 'v0.25.1.2'  # 版本号
 
 """
 ## 近期更新说明
+#### v0.25.1.2 2022年8月15日
+增加标签页拖拽为剪切移动的功能；调整标签为左对齐。
+
+#### v0.25.1.1 2022年7月20日
+优化询问拖拽是否保留原始文件的表达。
+
+#### v0.25.1.0 2022年7月5日
+外部文件拖拽进入主窗口时，可以通过对话框设定是否保留原始文件。
+
+#### v0.25.0.1 2022年5月22日
+修复了文件夹区域左键单击时，当前对象没有正常高亮的bug。
+
 #### v0.25.0.0 2022年5月22日
 左侧文件夹列表优化，现在右键操作可直接作用于鼠标选中对象，而不是只能操作打开的文件夹。
 
@@ -3124,6 +3136,8 @@ def on_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文
     #     exec_tree_clear(tree_lst_sub_folder) # 新增语句
     #     pass
 
+    exec_tree_folder_mouse_highlight(event)  # 添加这句话，保证当前左键点击项目获得高亮
+
     global lst_my_path_long_selected  #
     global flag_running
     global flag_root_folder
@@ -3366,7 +3380,7 @@ def show_window_setting():  #
     global TAG_EASY
     global json_data
     #
-    dict_file_drag = {"复制": "copy", "移动": "move"}
+    dict_file_drag = {"复制": "copy", "移动": "move", "每次询问": "ask"}
     dict_window_mode = {"标签模式": "tag", "子文件夹模式": "sub_folder"}
     dict_tag_mode = {"包含匹配": 1, "严格全字匹配": 0}
     dict_yes_no = {"是": 1, "否": 0}
@@ -3608,20 +3622,29 @@ def exec_folder_add_drag(files):  #
         exec_folder_add(folders)
 
 
-def exec_tree_drag_enter_popupmenu(files):
+def exec_tree_drag_enter_popupmenu(files, method=None):
     """
     ###########################################
     弹出菜单，判断是移动还是复制。
-    （存在逻辑问题，还没有启用）
     #######################################
     """
     global FILE_DRAG_MOVE
-    menu_move_or_copy = tk.Menu(window, tearoff=0)
-    menu_move_or_copy.add_command(label="复制", command=lambda x=files: exec_tree_drag_enter(x, 'copy'))
-    menu_move_or_copy.add_command(label="移动", command=lambda x=files: exec_tree_drag_enter(x, 'move'))
-    # menu_move_or_copy.post(event.x_root, event.y_root)
-    menu_move_or_copy.post(0, 0)
-    # exec_tree_drag_enter(files)
+    # 弹出对话框
+    if FILE_DRAG_MOVE in ['copy', 'move']:
+        exec_tree_drag_enter(files)
+    elif FILE_DRAG_MOVE == 'area':
+        exec_tree_drag_enter(files, method)
+    else:  # 如果是弹窗选择的话：
+        res = tk.messagebox.askyesno(title='拖拽文件到指定位置', message='是否保留原文件？\n点击“是”保留，点击“否”删除。')
+        print(res)
+        if res:
+            exec_tree_drag_enter(files, "copy")
+        else:
+            exec_tree_drag_enter(files, "move")
+
+
+def exec_tree_drag_enter_move(files):
+    exec_tree_drag_enter(files, "move")
 
 
 def exec_tree_drag_enter(files, drag_type=None):
@@ -3641,14 +3664,14 @@ def exec_tree_drag_enter(files, drag_type=None):
     #
     arg_change_glob = False
     #
-    if drag_type is None:
+    if drag_type is None:  # 参数为空的时候，读取变量值
         drag_type = FILE_DRAG_MOVE
         pass
     else:
         if arg_change_glob:
             FILE_DRAG_MOVE = drag_type  # 并不会生效
 
-    if not drag_type in ['copy', 'move']:
+    if drag_type not in ['copy', 'move']:
         drag_type = 'copy'
     #
     # 确定目录（目标）
@@ -5540,7 +5563,7 @@ class MainApp:
         self.tree.column('#0', width=700, anchor='w')  # ,stretch=tk.NO)
         self.tree.column('index', width=30, anchor='center')
         self.tree.column('file', width=600, minwidth=100, anchor='w')
-        self.tree.column('tags', width=200, minwidth=100, anchor='e')
+        self.tree.column('tags', width=200, minwidth=100, anchor='w')
         self.tree.column('modify_time', width=120, minwidth=120, anchor='e')  # ,stretch=tk.NO)
         self.tree.column('size', width=60, minwidth=80, anchor='e')  # ,stretch=tk.NO)
         self.tree.column('file0', width=80, anchor='w')
@@ -5548,7 +5571,7 @@ class MainApp:
         self.tree.heading('#0', text='名称', anchor='w', command=tree_order_filename)
         self.tree.heading("index", text="序号", anchor='center')
         self.tree.heading("file", text="文件名", anchor='w', command=tree_order_filename)
-        self.tree.heading("tags", text="标签", anchor='e', command=tree_order_tag)
+        self.tree.heading("tags", text="标签", anchor='w', command=tree_order_tag)
         self.tree.heading("modify_time", text="修改时间", anchor='e', command=tree_order_modi_time)
         self.tree.heading("size", text="大小(kB)", anchor='e', command=tree_order_size)
         self.tree.heading("file0", text="完整路径", anchor='w', command=tree_order_path)
@@ -5791,8 +5814,9 @@ class MainApp:
         #
         # 设置拖拽反映函数
         windnd.hook_dropfiles(self.tree_lst_folder, func=exec_folder_add_drag)
-        # windnd.hook_dropfiles(tree, func=exec_tree_drag_enter_popupmenu)
-        windnd.hook_dropfiles(self.tree, func=exec_tree_drag_enter)
+        windnd.hook_dropfiles(self.tree, func=exec_tree_drag_enter_popupmenu)
+        windnd.hook_dropfiles(self.tree_lst_sub_tag, func=exec_tree_drag_enter_move)
+        # windnd.hook_dropfiles(self.tree, func=exec_tree_drag_enter)
 
         # 各种功能的绑定
         # tree_lst_folder.bind('<<ListboxSelect>>',on_folder_choose)

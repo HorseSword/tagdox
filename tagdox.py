@@ -50,10 +50,14 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.25.1.2'  # 版本号
+VER = 'v0.25.1.3'  # 版本号
 
 """
 ## 近期更新说明
+#### v0.25.1.3 2022年10月13日
+优化了点击左侧文件夹的时候，增加了对当前文件夹的刷新的逻辑。
+之前启动的时候，文件夹是完整加载，效率太低。现在优化为只加载一层子文件夹，加载速度显著提升。
+
 #### v0.25.1.2 2022年8月15日
 增加标签页拖拽为剪切移动的功能；调整标签为左对齐。
 
@@ -1296,8 +1300,10 @@ def update_folder_list(event=None, need_select=True):
                                             image=PIC_DICT['folder_25_20'],
                                             values=value_tmp_, tags=['folder2'])
                 # 继续迭代下钻
-                add_sub_folder_here(t3, full_dir_, depth + 1)
+                if flag_inited: # 刚启动的时候，不需要加载全部文件夹，从而提高加载速度
+                    add_sub_folder_here(t3, full_dir_, depth + 1)
             break  #
+
 
     #
     tmp = 1
@@ -1398,6 +1404,61 @@ def update_folder_list(event=None, need_select=True):
                 pass
 
 
+def update_current_folder_list(event=None, ):
+    """
+    测试：想要设计为点击左侧文件夹的时候，刷新当前文件夹内部结构，
+    这样可以提高效率。
+    """
+    # 基本思路：删掉子文件，然后重新加载子文件夹
+    def add_sub_folder_here(root_node, root_dir, depth, if_cont=True):
+        """
+        局部函数，用于增加子文件夹。
+        参数 root_node 根节点
+        root_dir 根路径
+        depth 深度编号
+        """
+        tmp = 1
+        for root_, dirs_, files_ in os.walk(root_dir):
+            # dirs_.sort()
+            dirs_sorted = exec_list_sort(dirs_)
+            for sub_dir_ in dirs_sorted:
+                tmp += 1
+                if sub_dir_ in EXP_FOLDERS:  # 排除文件夹
+                    continue
+                if '_nomedia' in files_:
+                    continue
+                #
+                full_dir_ = root_dir + '/' + sub_dir_
+                value_tmp_ = (root_dir, depth +1, full_dir_)  # values 格式 根路径，深度，全路径(-1)
+                t3 = tree_lst_folder.insert(root_node, tmp, text=sub_dir_,
+                                            image=PIC_DICT['folder_25_20'],
+                                            values=value_tmp_, tags=['folder2'])
+                # 继续迭代下钻
+                if if_cont:
+                    add_sub_folder_here(t3, full_dir_, depth + 1, False)
+            break  #
+
+    # 获取当前点击的节点
+    for root_node in tree_lst_folder.selection():
+        root_dir = tree_lst_folder.item(root_node, "values")[-1]
+        root_depth = int(tree_lst_folder.item(root_node, "values")[1])
+        print(root_dir)
+        print(root_depth)
+        break
+
+    if root_depth:#1:
+        # 删掉子目录
+        for item in tree_lst_folder.get_children(root_node):
+            tree_lst_folder.delete(item)
+
+        # 添加子目录节点，并展开当前节点
+        try:
+            add_sub_folder_here(root_node, root_dir, root_depth)
+            tree_lst_folder.update()
+        except Exception as e:
+            print('2022年10月13日：文件夹读取失败')
+            pass
+
 def update_sub_folder_list_via_menu(event=None):
     """
     在右键菜单里面执行刷新子文件夹列表操作。
@@ -1470,6 +1531,7 @@ def update_sub_folder_list(sub_folder_list=None, refresh=True):
         # update_main_window(0,fast_mode=True)#reload_setting=2)
     except Exception as e:
         print(e)
+        update_folder_list()
         pass
 
 
@@ -3135,6 +3197,7 @@ def on_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文
     # elif TREE_SUB_SHOW=='sub_folder': # 如果是子文件夹模式，先清空子文件夹；
     #     exec_tree_clear(tree_lst_sub_folder) # 新增语句
     #     pass
+    update_current_folder_list() # 2022年10月13日新增，点击的时候刷新
 
     exec_tree_folder_mouse_highlight(event)  # 添加这句话，保证当前左键点击项目获得高亮
 
@@ -3244,6 +3307,7 @@ def on_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文
     # flag_running=0 # 标记为没有任务
     flag_root_folder = 0
     print('on_folder_choose 函数结束')
+    # update_current_folder_list()  # 2022年10月13日新增，点击的时候刷新
 
 
 def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的文件夹之后
@@ -5668,7 +5732,7 @@ class MainApp:
                                            variable=self.v_note_only,
                                            command=exec_search,
                                            onvalue=1, offvalue=0)
-            self.cb_note.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)
+            # self.cb_note.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)
             #
         self.bt_test = ttk.Button(self.frame0, text='测试功能', command=function_for_testing)
         if DEVELOP_MODE:

@@ -50,10 +50,15 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.25.1.3'  # 版本号
+VER = 'v0.25.1.4'  # 版本号
 
 """
 ## 近期更新说明
+
+#### v0.25.1.4 2022年10月15日
+fixed: #I5VX6P 修复了点击分组（0级目录）的时候，不能查看分组文件的bug。
+优化文件夹取消关注的表达。
+
 #### v0.25.1.3 2022年10月13日
 优化了点击左侧文件夹的时候，增加了对当前文件夹的刷新的逻辑。
 之前启动的时候，文件夹是完整加载，效率太低。现在优化为只加载一层子文件夹，加载速度显著提升。
@@ -1441,7 +1446,10 @@ def update_current_folder_list(event=None, ):
     # 获取当前点击的节点
     for root_node in tree_lst_folder.selection():
         root_dir = tree_lst_folder.item(root_node, "values")[-1]
-        root_depth = int(tree_lst_folder.item(root_node, "values")[1])
+        try:
+            root_depth = int(tree_lst_folder.item(root_node, "values")[1])
+        except Exception as e:
+            root_depth = 0
         print(root_dir)
         print(root_depth)
         break
@@ -4450,7 +4458,7 @@ def show_popup_menu_folder(event):
     if vtype >= 0:menu_folder.add_separator()
 
     if vtype > 1: menu_folder.add_command(label="添加当前选中文件夹到关注列表", command=exec_folder_from_menu)
-    if vtype == 1: menu_folder.add_command(label="将所选文件夹从关注列表移除", command=exec_folder_drop)
+    if vtype == 1: menu_folder.add_command(label="取消关注", command=exec_folder_drop)
     if vtype == 1: menu_folder.add_cascade(label="设置文件夹分组", menu=menu_folder_group)
     if vtype >= 1: menu_folder.add_separator()
 
@@ -4678,10 +4686,10 @@ def show_popup_menu_file(event):
     menu_file.add_separator()
     if n_selection == 1:
         # menu_file.add_command(label="打开选中项所在文件夹", command=tree_open_folder)
-        menu_file.add_command(label="打开选中项所在文件夹，并选中文件", command=tree_open_folder_select)
+        menu_file.add_command(label="打开所在文件夹", command=tree_open_folder_select)
     elif n_selection > 1:
         menu_file.add_command(label="打开选中项所在文件夹", state=tk.DISABLED, command=tree_open_folder)
-    menu_file.add_command(label="打开当前文件夹", command=tree_open_current_folder)
+    # menu_file.add_command(label="打开当前文件夹", command=tree_open_current_folder)
     menu_file.add_separator()
     menu_file.add_command(label='添加标签 ', command=exec_tree_add_tag_via_dialog, accelerator='Ctrl+T')
     menu_file.add_cascade(label="快速添加标签", menu=menu_tags_to_add)

@@ -50,10 +50,13 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.25.1.4'  # 版本号
+VER = 'v0.25.1.5'  # 版本号
 
 """
 ## 近期更新说明
+
+#### v0.25.1.5 2023年1月22日
+增加了对1080p以上分辨率的缩放适配.
 
 #### v0.25.1.4 2022年10月15日
 fixed: #I5VX6P 修复了点击分组（0级目录）的时候，不能查看分组文件的bug。
@@ -1117,8 +1120,8 @@ def show_window_info():
     """
     screenwidth = SCREEN_WIDTH
     screenheight = SCREEN_HEIGHT
-    w_width = 660
-    w_height = 560
+    w_width = int(660*app.ui_ratio)
+    w_height = int(560*app.ui_ratio)
     info_window = tk.Toplevel(window, background='white')
     info_window.geometry(
         '%dx%d+%d+%d' % (w_width, w_height, (screenwidth - w_width) / 2, (screenheight - w_height) / 2))
@@ -3511,8 +3514,8 @@ def show_window_setting():  #
     form_setting.grab_set()
     screenwidth = SCREEN_WIDTH
     screenheight = SCREEN_HEIGHT
-    w_width = 500  # int(screenwidth*0.8)
-    w_height = 400  # int(screenheight*0.8)
+    w_width = int(500*app.ui_ratio)  # int(screenwidth*0.8)
+    w_height = int(400*app.ui_ratio)  # int(screenheight*0.8)
     # 主窗口中央：
     x_pos = window.winfo_x() + (window.winfo_width() - w_width) / 2
     y_pos = window.winfo_y() + (window.winfo_height() - w_height) / 2
@@ -5043,7 +5046,7 @@ def set_style(style):
 
         style.configure("Treeview.Heading",
                         font=FONT_TREE_HEADING, \
-                        rowheight=int(LARGE_FONT * 4),
+                        rowheight=int(LARGE_FONT * 4 * app.ui_ratio),
                         height=int(LARGE_FONT * 4), \
                         background='white',
                         foreground='black',
@@ -5054,7 +5057,7 @@ def set_style(style):
 
         style.configure("Treeview",
                         font=FONT_TREE_BODY,
-                        rowheight=int(MON_FONTSIZE * 4),
+                        rowheight=int(MON_FONTSIZE * 4 * app.ui_ratio),
                         fieldbackground='#e8e8e7',
                         background='#e8e8e7',
                         foreground='black',
@@ -5147,11 +5150,11 @@ def set_style(style):
         #
         # treeview
         style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
-                        rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4), \
+                        rowheight=int(LARGE_FONT * 4 * app.ui_ratio), height=int(LARGE_FONT * 4), \
                         relief='flat', borderwidth=0)
 
         style.configure("Treeview", font=FONT_TREE_BODY, \
-                        rowheight=int(MON_FONTSIZE * 3.5), \
+                        rowheight=int(MON_FONTSIZE * 3.5 * app.ui_ratio), \
                         fieldbackground='white', background='#666666', \
                         relief='flat', borderwidth=0)
         # style.configure("Treeview.Item",font=5)
@@ -5167,7 +5170,7 @@ def set_style(style):
         style.configure("TButton", fieldbackground='#666666',
                         background='#999900',
                         activeforeground=" #ff0000", activebackground="#00ff00",
-                        height=16,
+                        height=int(16*app.ui_ratio),
                         borderwidth=1, relief='flat')
         #
         style.configure("TEntry", fieldbackground='#FFFFFF', background='#EEEEEE', \
@@ -5175,9 +5178,9 @@ def set_style(style):
 
     else:
         style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
-                        rowheight=int(LARGE_FONT * 4), height=int(LARGE_FONT * 4))
+                        rowheight=int(LARGE_FONT * 4 * app.ui_ratio), height=int(LARGE_FONT * 4))
         style.configure("Treeview", font=FONT_TREE_BODY, \
-                        rowheight=int(MON_FONTSIZE * 3.5), relief='flat', borderwidth=0)
+                        rowheight=int(MON_FONTSIZE * 3.5 * app.ui_ratio), relief='flat', borderwidth=0)
         # style.configure("Vertical.TScrollbar", width=8)
 
         for tar in [app.tree_lst_folder, app.tree_lst_sub_folder, app.tree_lst_sub_tag, app.tree]:
@@ -5363,6 +5366,7 @@ class MainApp:
         self.the_tree = None
         self.file_open_time = time.time()  # 最近一次tree_file_open 的时间；
         self.window = tk.Tk()
+        self.ui_ratio = 1.5  # 界面的放大倍率，之后会提供前端修改的功能
         #
         # 调整清晰度 ############################################
         try:
@@ -5378,11 +5382,13 @@ class MainApp:
             #
             SCREEN_WIDTH = self.window.winfo_screenwidth() * ScaleFactor / 100  # 必须考虑分辨率导致的偏移
             SCREEN_HEIGHT = self.window.winfo_screenheight() * ScaleFactor / 100  #
+            print ('w,h = ', SCREEN_WIDTH, SCREEN_HEIGHT)
+
         except:
             SCREEN_WIDTH = self.window.winfo_screenwidth()
             SCREEN_HEIGHT = self.window.winfo_screenheight()
         pass
-
+        self.ui_ratio = (SCREEN_WIDTH / 1920)
         #
         self.PIC_DICT = {
             "龙猫": tk.PhotoImage(file="./src/龙猫.gif"),
@@ -5452,14 +5458,14 @@ class MainApp:
         #
         # 上面功能区：frame0
         self.frame0 = ttk.Frame(self.frame_window, relief='flat',
-                                height=120)  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
+                                height=int(120*self.ui_ratio))  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
         self.frame0.pack(expand=0, fill=tk.X, padx=0, pady=0)  # padx=10, pady=5)
         #
         # 菜单区
         self.frameMenu = ttk.Frame(self.frame0,
                                    relief='flat',
                                    style='Dark.TFrame',
-                                   width=320 - 16 * 1,
+                                   width=int((320 - 16 * 1)*self.ui_ratio),
                                    borderwidth=0,
                                    )  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
         self.frameMenu.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10, pady=5)
@@ -5471,7 +5477,7 @@ class MainApp:
                                    # width=int(w_width * 0.4),
                                    padding=(0, 0, 0, 0),
                                    borderwidth=0,
-                                   width=320,  # 没有用，因为 Frame 默认是根据控件大小改变的。
+                                   width=int(self.ui_ratio *320),  # 没有用，因为 Frame 默认是根据控件大小改变的。
                                    relief='flat')  # ,)
         self.frameLeft.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
         self.frameLeft.pack_propagate(0)  # 有这句话才能使框架的尺寸生效
@@ -5493,7 +5499,7 @@ class MainApp:
         # self.frameSubTags.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=10, pady=5)  # padx=10,pady=5)
         #
         # 文件夹下面的控制区
-        self.frameFolderCtl = ttk.Frame(self.frameLeft, height=10, borderwidth=0, relief=tk.SOLID)
+        self.frameFolderCtl = ttk.Frame(self.frameLeft, height=int(10*self.ui_ratio), borderwidth=0, relief=tk.SOLID)
         # self.frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
 
         # 主功能区
@@ -5501,7 +5507,7 @@ class MainApp:
         self.frameMain.pack(expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10, pady=0)
 
         # 底部区
-        self.frameBtm = ttk.Frame(self.frame_window, height=120, padding=(0, 0, 0, 0), relief='flat')
+        self.frameBtm = ttk.Frame(self.frame_window, height=int(120*self.ui_ratio), padding=(0, 0, 0, 0), relief='flat')
         self.frameBtm.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=0, pady=0)
 
         self.bt_folder_add = ttk.Button(self.frame0, text='添加文件夹到关注列表')  # state=tk.DISABLED,,command=setting_fun
@@ -5512,18 +5518,18 @@ class MainApp:
         self.v_search = ttk.Entry(self.frame0)  # 搜索框
         self.v_folders = ttk.Combobox(self.frameFolder)  # 文件夹选择框
 
-        self.bar_tree_v = tk.Scrollbar(self.frameMain, width=16)  # 右侧滚动条
+        self.bar_tree_v = tk.Scrollbar(self.frameMain, width=int(16*self.ui_ratio))  # 右侧滚动条
         # self.bar_tree_v = tk.Scrollbar(self.frameMain)  # 右侧滚动条
-        self.bar_tree_h = tk.Scrollbar(self.frameBtm, orient=tk.HORIZONTAL, width=16)  # 底部滚动条
+        self.bar_tree_h = tk.Scrollbar(self.frameBtm, orient=tk.HORIZONTAL, width=int(16*self.ui_ratio))  # 底部滚动条
         # self.bar_tree_h = tk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL)  # 底部滚动条
         # 标签区
         # self.frameSubTags = ttk.Frame(self.frameLeft)  # ,width=600)
-        self.frameSubTags = ttk.Frame(self.frameMain, width=300)
+        self.frameSubTags = ttk.Frame(self.frameMain, width=int(self.ui_ratio*300))
         self.frameSubTags.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
         # 文件夹列表
 
         if True:
-            self.bar_folder_v = tk.Scrollbar(self.frameFolder, width=16)
+            self.bar_folder_v = tk.Scrollbar(self.frameFolder, width=int(16*self.ui_ratio))
             # self.bar_folder_v = ttk.Scrollbar(self.frameFolder)#, width=16)
             self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
             #
@@ -5543,7 +5549,7 @@ class MainApp:
 
         # 子文件夹列表
         if True:
-            self.bar_sub_folder_v = tk.Scrollbar(self.frameSubFolder, width=16)
+            self.bar_sub_folder_v = tk.Scrollbar(self.frameSubFolder, width=int(16*self.ui_ratio))
             if TREE_SUB_SHOW == 'sub_folder':
                 pass
 
@@ -5559,7 +5565,7 @@ class MainApp:
                                                     yscrollcommand=self.bar_sub_folder_v.set)  # , height=18)
 
             self.tree_lst_sub_folder.heading("folders", text="子文件夹", anchor='w')
-            self.tree_lst_sub_folder.column('folders', width=300, anchor='w')
+            self.tree_lst_sub_folder.column('folders', width=int(self.ui_ratio*300), anchor='w')
             self.bar_sub_folder_v.config(command=self.tree_lst_sub_folder.yview)
             #
             # update_sub_folder_list(lst_sub_path) # 填充内容
@@ -5588,7 +5594,7 @@ class MainApp:
                                                  yscrollcommand=self.bar_sub_tag_v.set)  # , height=18)
 
             self.tree_lst_sub_tag.heading("tags", text="全部标签", anchor='w', command=tree_tag_search)
-            self.tree_lst_sub_tag.column('tags', width=220, anchor='w')
+            self.tree_lst_sub_tag.column('tags', width=int(220*self.ui_ratio), anchor='w')
             self.bar_sub_tag_v.config(command=self.tree_lst_sub_tag.yview)
             #
             if True:  # TREE_SUB_SHOW == 'tag':
@@ -5796,7 +5802,7 @@ class MainApp:
         self.bt_new.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
         # 新标签的输入框
-        self.v_inp = ttk.Combobox(self.frameBtm, width=16)
+        self.v_inp = ttk.Combobox(self.frameBtm, width=int(16*self.ui_ratio))
         # v_inp.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
         self.v_inp.bind('<Return>', input_new_tag)
         self.v_inp['value'] = lst_tags

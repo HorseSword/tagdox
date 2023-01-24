@@ -13,14 +13,14 @@ class TdProgressWindow:
 
     # input_window = ''  # =tk.Toplevel(self.form0)
 
-    def __init__(self, parent, prog_value=0, prog_text='') -> None:
+    def __init__(self, parent, prog_value=0, prog_text='', ui_ratio=1) -> None:
         """
         进度条，输入进度数值
         """
 
         # 变量设置
         self.form0 = parent
-
+        self.ui_ratio = ui_ratio
         self.input_value = ''
         self.input_window = tk.Toplevel(self.form0)
         print('———————————— 进度条激活 ——————————')
@@ -31,8 +31,8 @@ class TdProgressWindow:
         #
         # 窗口设置
         self.input_window.overrideredirect(True)  # 这句话可以去掉标题栏，同时也会没有阴影
-        self.w_width = 800
-        self.w_height = 100
+        self.w_width = round(800*self.ui_ratio)
+        self.w_height = round(100*self.ui_ratio)
         #
         # 屏幕中央：
         # self.screenwidth = SCREEN_WIDTH
@@ -109,7 +109,7 @@ class TdInputWindow:
     """
     input_value = ''
 
-    def __init__(self, parent, title='未命名', msg='未定义', default_value='', selection_range=None) -> None:
+    def __init__(self, parent, title='未命名', msg='未定义', default_value='', selection_range=None, ui_ratio=1.0) -> None:
         """
         自制输入窗体的初始化；
         参数：
@@ -119,6 +119,7 @@ class TdInputWindow:
         # 变量设置
         self.form0 = parent  # 父窗格
         #
+        self.ui_ratio = ui_ratio
         self.input_value = ''
         self.title = title
         self.msg = msg
@@ -132,8 +133,8 @@ class TdInputWindow:
         # 窗口设置
         # self.input_window.overrideredirect(True) # 这句话可以去掉标题栏，同时也会没有阴影
         # 上面功能启用之后，好像快捷键会出现问题。
-        self.w_width = 800
-        self.w_height = 160
+        self.w_width = round(800*self.ui_ratio)
+        self.w_height = round(160*self.ui_ratio)
         #
         # 屏幕中央：
         # self.screenwidth = SCREEN_WIDTH
@@ -244,6 +245,7 @@ class TdSpaceWindow:
                  selection_range=None,
                  width=960,
                  height=560,
+                 ui_ratio=1,
                  ) -> None:
         """
         自制输入窗体的初始化；
@@ -254,6 +256,7 @@ class TdSpaceWindow:
         # 变量设置
         self.form0 = parent  # 父窗格
         #
+        self.ui_ratio = ui_ratio
         self.input_value = ''
         self.title = title
         self.msg = msg
@@ -266,8 +269,8 @@ class TdSpaceWindow:
         #
         # 窗口设置
         # self.sub_window.overrideredirect(True) # 这句话可以去掉标题栏，同时也会没有阴影
-        self.w_width = width
-        self.w_height = height
+        self.w_width = round(width * self.ui_ratio)
+        self.w_height = round(height * self.ui_ratio)
         #
         # 屏幕中央：
         # self.screenwidth = SCREEN_WIDTH

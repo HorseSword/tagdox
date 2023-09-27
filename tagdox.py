@@ -50,10 +50,18 @@ URL_HELP = 'https://gitee.com/horse_sword/tagdox'  # 帮助的超链接，目前
 URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
 URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
 TAR = 'Tagdox / 标签文库'  # 程序名称
-VER = 'v0.25.1.6'  # 版本号
+VER = 'v0.25.1.8'  # 版本号
 
 """
 ## 近期更新说明
+
+#### v0.25.1.8 2023年9月27日
+修正了空格唤起的文件预览框缩放不正确的问题。
+将图标等素材统一移动到 resources 文件夹下。
+
+#### v0.25.1.7 2023年7月25日
+将左侧列表的缩进设置为40，提高区分度。之后考虑做成自适应或者可调节的。
+
 #### v0.25.1.6 2023年1月24日
 补充了弹窗对高分屏的适配。
 
@@ -89,7 +97,7 @@ fixed: #I5VX6P 修复了点击分组（0级目录）的时候，不能查看分�
 #
 # 常量，开发用，不准备进入设置的
 DEVELOP_MODE = 0  # 开启调试模式
-LOGO_PATH = './src/LOGO.ico'
+LOGO_PATH = './resources/icons/LOGO.ico'
 cALL_FILES = ''  # 标签为空的表达方式，默认是空字符串
 PROG_STEP = 500  # 进度条刷新参数
 CLEAR_AFTER_CHANGE_FOLDER = 2  # 切换文件夹后，是否清除筛选。0 是保留，其他是清除。
@@ -119,7 +127,7 @@ TAG_EASY = 1  # 标签筛选是严格模式还是简单模式，1是简单模式
 V_SEP = '^'  # 标签分隔符。// 可修改
 V_FOLDERS = 2  # 标签识别文件夹深度，// 可修改
 
-NOTE_EXT_LIST = ['.md', '.txt', '.docx', '.rtf']
+NOTE_EXT_LIST = ['.md', '.txt', '.docx', '.rtf', '.mm']
 NOTE_EXT = '.docx'  # 新建笔记的类型 // 可修改
 QUICK_TAGS = ['@PIN', '@TODO', '@toRead', '@Done']  # 快速添加标签
 FILE_DRAG_MOVE = 'move'  # 文件拖动到列表的时候，是复制，还是移动。// 可修改。
@@ -1099,7 +1107,7 @@ def show_window_info():
     tmp.pack()
 
     global p_logo
-    p_logo = tk.PhotoImage(file='./src/二维码设计.png')
+    p_logo = tk.PhotoImage(file='.//resources/imgs/二维码设计.png')
     logolbl = tk.Label(info_frame, background='white', text='A', image=p_logo)
     logolbl.pack()
 
@@ -4619,6 +4627,7 @@ def show_popup_menu_file(event):
     menu_create_note.add_command(label='.md', command=lambda x=1: exec_create_note(None, '.md'))
     menu_create_note.add_command(label='.txt', command=lambda x=1: exec_create_note(None, '.txt'))
     menu_create_note.add_command(label='.rtf', command=lambda x=1: exec_create_note(None, '.rtf'))
+    menu_create_note.add_command(label='.mm', command=lambda x=1: exec_create_note(None, '.mm'))
 
     #
     if len(QUICK_TAGS) > 0:
@@ -4944,7 +4953,7 @@ def set_style(style):
         """
         第三方主题
         """
-        app.window.tk.call('lappend', 'auto_path', './styles/awthemes-10.4.0')
+        app.window.tk.call('lappend', 'auto_path', './resources/styles/awthemes-10.4.0')
         app.window.tk.call('package', 'require', 'awlight')
         app.window.tk.call('package', 'require', 'awdark')
         #
@@ -4991,7 +5000,7 @@ def set_style(style):
                 tar.tag_configure('pick_copy', foreground="#2d7d9a",
                                   font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
 
-        # app.window.tk.call('source', './styles/ttk-Breeze-master/breeze.tcl')
+        # app.window.tk.call('source', './resources/styles/ttk-Breeze-master/breeze.tcl')
         # style.theme_use('Breeze') # 
 
         style.configure("Treeview.Heading",
@@ -5033,10 +5042,17 @@ def set_style(style):
                         fieldbackground=app.COLOR_DICT['darkback_1'],  # 没有行部分的颜色
                         background='#2a333c',
                         foreground='white',
+                        indent=40,
+                        # rowheight=60, # 行间距
                         # relief='flat',
                         # borderwidth=0,
                         )
-        style.layout("Dark.Treeview", [('Dark.Treeview.treearea', {'sticky': 'nswe'})])  # Remove the borders
+        style.layout("Dark.Treeview", [
+            ('Dark.Treeview.treearea', {'sticky': 'nswe'}) # Remove the borders
+        ])
+        # style.configure("Dark.Treeview", rowheight=60)  # 调整行间距
+        # style.configure("Dark.Treeview.Heading", font=("Arial", 14))  # 调整表头字体
+        # style.configure("Dark.Treeview.Cell", padding=(100, 50))  # 调整图标与文字之间的间距 # 无效
 
         style.configure("TCombobox",
                         relief='flat',
@@ -5341,30 +5357,30 @@ class MainApp:
         self.ui_ratio = (SCREEN_WIDTH / 1920)
         #
         self.PIC_DICT = {
-            "龙猫": tk.PhotoImage(file="./src/龙猫.gif"),
+            "龙猫": tk.PhotoImage(file=".//resources/imgs/龙猫.gif"),
             #
-            "menu": tk.PhotoImage(file="./src/menu.png"),
-            "menu_2": tk.PhotoImage(file="./src/menu_2.png"),
-            "menu_3": tk.PhotoImage(file="./src/menu_4.png"),
-            "search_20": tk.PhotoImage(file="./src/search_20.png"),
-            "search_black": tk.PhotoImage(file="./src/search_20_black.png"),
-            "cancel_20": tk.PhotoImage(file="./src/cancel_20.png"),
-            "cancel_black": tk.PhotoImage(file="./src/cancel_20_black.png"),
+            "menu": tk.PhotoImage(file="./resources/icons/menu.png"),
+            "menu_2": tk.PhotoImage(file="./resources/icons/menu_2.png"),
+            "menu_3": tk.PhotoImage(file="./resources/icons/menu_4.png"),
+            "search_20": tk.PhotoImage(file="./resources/icons/search_20.png"),
+            "search_black": tk.PhotoImage(file="./resources/icons/search_20_black.png"),
+            "cancel_20": tk.PhotoImage(file="./resources/icons/cancel_20.png"),
+            "cancel_black": tk.PhotoImage(file="./resources/icons/cancel_20_black.png"),
             #
-            "word": tk.PhotoImage(file="./src/word.png"),
-            "excel": tk.PhotoImage(file="./src/excel.png"),
-            "ppt": tk.PhotoImage(file="./src/ppt.png"),
-            "pdf": tk.PhotoImage(file="./src/pdf.png"),
-            "zip": tk.PhotoImage(file="./src/zip.png"),
-            "img": tk.PhotoImage(file="./src/img.png"),
-            "html": tk.PhotoImage(file="./src/html.png"),
-            "md": tk.PhotoImage(file="./src/md.png"),
-            "file": tk.PhotoImage(file="./src/file.png"),
+            "word": tk.PhotoImage(file="./resources/icons/word.png"),
+            "excel": tk.PhotoImage(file="./resources/icons/excel.png"),
+            "ppt": tk.PhotoImage(file="./resources/icons/ppt.png"),
+            "pdf": tk.PhotoImage(file="./resources/icons/pdf.png"),
+            "zip": tk.PhotoImage(file="./resources/icons/zip.png"),
+            "img": tk.PhotoImage(file="./resources/icons/img.png"),
+            "html": tk.PhotoImage(file="./resources/icons/html.png"),
+            "md": tk.PhotoImage(file="./resources/icons/md.png"),
+            "file": tk.PhotoImage(file="./resources/icons/file.png"),
             #
-            "folder_100_20": tk.PhotoImage(file="./src/folder_100_20.png"),
-            "folder_75_20": tk.PhotoImage(file="./src/folder_75_20.png"),
-            "folder_50_20": tk.PhotoImage(file="./src/folder_50_20.png"),
-            "folder_25_20": tk.PhotoImage(file="./src/folder_25_20.png"),
+            "folder_100_20": tk.PhotoImage(file="./resources/icons/folder_100_20.png"),
+            "folder_75_20": tk.PhotoImage(file="./resources/icons/folder_75_20.png"),
+            "folder_50_20": tk.PhotoImage(file="./resources/icons/folder_50_20.png"),
+            "folder_25_20": tk.PhotoImage(file="./resources/icons/folder_25_20.png"),
         }
         #
         self.COLOR_DICT = {
@@ -5830,9 +5846,9 @@ class MainApp:
                                str(res['full_path']),
                                ]
                     msg = map(str, msg_lst)
-                    TdSpaceWindow(self.window, '详情', ''.join(msg))
+                    TdSpaceWindow(self.window, '详情', ''.join(msg),ui_ratio=app.ui_ratio,)
             except:
-                TdSpaceWindow(self.window, '错误', '文件加载异常')
+                TdSpaceWindow(self.window, '错误', '文件加载异常',ui_ratio=app.ui_ratio,)
 
     def bind_funcs(self):
         # 功能绑定
@@ -6087,15 +6103,15 @@ if __name__ == '__main__':
     # 增加排序方向的可视化（三角形）
     show_tree_order()
     #
-    PIC_LST = [tk.PhotoImage(file="./src/龙猫.gif"),
-               tk.PhotoImage(file="./src/folder_100_20.png")]
+    PIC_LST = [tk.PhotoImage(file="./resources/imgs/龙猫.gif"),
+               tk.PhotoImage(file="./resources/icons/folder_100_20.png")]
     PIC_DICT = {
-        "龙猫": tk.PhotoImage(file="./src/龙猫.gif"),
-        "folder_100_20": tk.PhotoImage(file="./src/folder_100_20.png"),
-        "folder_75_20": tk.PhotoImage(file="./src/folder_75_20.png"),
-        "folder_50_20": tk.PhotoImage(file="./src/folder_50_20.png"),
-        "folder_25_20": tk.PhotoImage(file="./src/folder_25_20.png")}
-    IMAGE_FOLDER = tk.PhotoImage(file='./src/gitee_homepage.png')
+        "龙猫": tk.PhotoImage(file="./resources/imgs/龙猫.gif"),
+        "folder_100_20": tk.PhotoImage(file="./resources/icons/folder_100_20.png"),
+        "folder_75_20": tk.PhotoImage(file="./resources/icons/folder_75_20.png"),
+        "folder_50_20": tk.PhotoImage(file="./resources/icons/folder_50_20.png"),
+        "folder_25_20": tk.PhotoImage(file="./resources/icons/folder_25_20.png")}
+    IMAGE_FOLDER = tk.PhotoImage(file='./resources/imgs/gitee_homepage.png')
     #
     # 运行
     update_folder_list()  # 文件夹列表

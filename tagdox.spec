@@ -8,7 +8,7 @@ a = Analysis(
     ['tagdox.py'],
     pathex=[],
     binaries=[],
-    datas=[('src', 'src'), ('styles', 'styles')],
+    datas=[('resources', 'resources')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

@@ -5925,6 +5925,47 @@ class MainApp:
         self.bt_settings.bind("<ButtonRelease-1>", show_popup_menu_main)  # 菜单按钮
         self.bt_new.configure(command=exec_create_note)
 
+class td_tree_folder():
+    """
+    将左侧的文件夹列表提取出来作为独立的类
+    """
+    def __init__(self):
+        """
+        """
+        self.name = 'foler_frame'
+        self.body = null
+
+    def update(self):
+        self.body
+
+class td_tree_file():
+    """
+    """
+    def __init__(self):
+        """
+        """
+        self.name = '文件列表'
+
+    def clear(self):
+        """
+        列表清空
+        """
+        pass
+
+    def update(self):
+        """
+        刷新
+        """
+        pass
+
+
+class td_opts():
+    """
+    用于存储设置项
+    """
+    def __init__(self):
+        self.name = 'tagdox'
+
 
 ###########################################################
 ###########################################################

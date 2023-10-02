@@ -19,6 +19,7 @@ class TdProgressWindow:
         """
 
         # 变量设置
+        self.progress = 0
         self.form0 = parent
         self.ui_ratio = ui_ratio
         self.input_value = ''

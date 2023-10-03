@@ -43,19 +43,10 @@ from libs.widgets.windows import TdSpaceWindow as TdSpaceWindow
 #
 from libs.markdown import MarkdownRel  # 对 markdown 的特殊处理
 
+from codes.logic.conf import td_conf
+#
 # import my_logger
 # import send2trash # 回收站（目前作废）
-
-class td_conf():
-    """
-    用于存储设置项.
-    用法： conf = td_conf()
-    """
-    def __init__(self):
-        self.name = 'tagdox'
-        self.ui_ratio = 1.0
-        self.SCREEN_WIDTH = 1920
-        self.SCREEN_HEIGHT = 1080
 
 class td_const():
     """
@@ -125,63 +116,17 @@ HEADING_LST = ['#0', 'tags', 'modify_time', 'size', 'file0']
 HEADING_LST_TXT = ['名称', '标签', '修改时间', '大小(kB)', '完整路径']
 MULTI_PROC = 1  # 并发进程数，设置为1或更低就单独进程。
 MULTI_FILE_COUNT = 400
-DEFAULT_GROUP_NAME = '默认文件夹分组'
+# DEFAULT_GROUP_NAME = '默认文件夹分组'
 #
 # 可以做到设置里面的常量
-ORDER_BY_N = 2  # 初始按哪一列排序，1代表标签，后面按顺序对应
-ORDER_DESC = True  # 是否逆序
-LARGE_FONT = 10  # 表头字号
-MON_FONTSIZE = 9  # 正文字号
-FONT_TREE_HEADING = ('微软雅黑', LARGE_FONT)
-FONT_TREE_BODY = ('微软雅黑', MON_FONTSIZE)
-EXP_FOLDERS = ['_img', '.git']  # 排除文件夹名称，以后会加到自定义里面
-EXP_EXTS = ['.md', '.MD']  # 排除扩展名，这里面的强制采用传统标签；
 ALL_FOLDERS = 2  # 文件夹列表是否带“（全部）”,1 在前面，2在末尾（默认），其余没有
-NOTE_NAME = '未命名笔记'  # 新建笔记的默认名称
 DRAG_FILES_ADD_TAG = True  # 为拖拽进来的新增文件统一添加当前选中的标签
-TREE_SUB_SHOW = ['tag', 'sub_folder'][1]  # 决定左侧布局是标签模式还是子文件夹模式。// 可修改  // 已经基本上作废
-FOLDER_AS_TAG = 0  # 最后多少层文件夹名称，强制作为标签（即使不包括V_SEP） // 可修改
-TAG_EASY = 1  # 标签筛选是严格模式还是简单模式，1是简单模式，名称有就行；0是严格模式。 // 可修改
+# TREE_SUB_SHOW = ['tag', 'sub_folder'][1]  # 决定左侧布局是标签模式还是子文件夹模式。// 可修改  // 已经基本上作废
 
-V_SEP = '^'  # 标签分隔符。// 可修改
-V_FOLDERS = 2  # 标签识别文件夹深度，// 可修改
-
-NOTE_EXT_LIST = ['.md', '.txt', '.docx', '.rtf', '.mm']
-NOTE_EXT = '.docx'  # 新建笔记的类型 // 可修改
-QUICK_TAGS = ['@PIN', '@TODO', '@toRead', '@Done']  # 快速添加标签
-FILE_DRAG_MOVE = 'move'  # 文件拖动到列表的时候，是复制，还是移动。// 可修改。
-# 取值：'move' 'copy'。// 可修改
 FOLDER_TYPE = 2
 TAG_METHOD = 'FILE_STREAM'  # 或者 FILENAME
 MARKDOWN_IMGS = True  # 是否移动markdown的时候，移动相应的相对路径文件；
 #
-try:
-    if isfile('../options_for_tagdox.json'):
-        print('读取上级目录')
-        OPTIONS_FILE = '../options_for_tagdox.json'
-    elif isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
-        print('读取开发模式的配置文件')
-        OPTIONS_FILE = 'D:/MyPython/开发数据/options_for_tagdox.json'
-    else:
-        print('读取当前目录配置文件')
-        OPTIONS_FILE = 'options_for_tagdox.json'  # 配置文件的名称
-except:
-    print('读取标准模式的配置文件')
-    OPTIONS_FILE = 'options_for_tagdox.json'  # 配置文件的名称
-
-OPT_DEFAULT = {
-    "options": {
-        "sep": "^",
-        "vfolders": "2",
-        "note_ext": ".docx",
-        "file_drag_enter": "copy",
-        "TREE_SUB_SHOW": TREE_SUB_SHOW
-    },
-    "folders": [
-    ]
-}
-
-
 # %%
 #######################################################################
 
@@ -195,7 +140,7 @@ def exec_tree_clear(tree_obj) -> None:  #
     x = tree_obj.get_children()
     for item in x:
         tree_obj.delete(item)
-    if flag_inited == 1:
+    if flag.flag_inited == 1:
         app.window.update()
 
 
@@ -222,7 +167,7 @@ def exec_list_sort(lst):
             lst_en.append(i)
     # 英文无论大小写都一起排序
     # 如果是^开头，就忽略这个符号，直接正常排序
-    lst_en = sorted(lst_en, key=lambda x: str.lower(x.replace(V_SEP, '').replace('\xa0', ' ')).encode('gbk'))
+    lst_en = sorted(lst_en, key=lambda x: str.lower(x.replace(conf.V_SEP, '').replace('\xa0', ' ')).encode('gbk'))
     # 中文也排序
     lst_cn = sorted(lst_cn, key=lambda x: str.lower(x.replace('\xa0', ' ')).encode('gbk'))
     # 组合起来
@@ -242,7 +187,7 @@ def safe_get_name(new_name) -> str:
     n = 1
     [tmp_path, tmp_new_name] = os.path.split(new_name)
 
-    p = tmp_new_name.find(V_SEP)
+    p = tmp_new_name.find(conf.V_SEP)
     if p >= 0:
         name_1 = tmp_new_name[:p]
         name_2 = tmp_new_name[p:]
@@ -277,7 +222,7 @@ def exec_safe_rename(old_name, new_name):
     [tmp_path,tmp_new_name]=os.path.split(new_name)
     # tmp_path=''
     # tmp_new_name=new_name
-    p=tmp_new_name.find(V_SEP)
+    p=tmp_new_name.find(conf.V_SEP)
     if p>=0:
         name_1=tmp_new_name[:p]
         name_2=tmp_new_name[p:]
@@ -376,169 +321,6 @@ def exec_safe_copy(old_name: str, new_name: str, opt_type: str = 'copy'):
 
 #######################################################################
 # %%
-# 加载设置项 json 内容。保存到 opt_data 变量中，这是个 dict。
-
-
-def exec_json_file_write(tar=OPTIONS_FILE, data=None):
-    """
-    将 json_data变量的值，写入 json 文件。
-    可以不带参数，随时调用就是写入json。
-    """
-    global json_data
-    if data is None:
-        data = json_data
-    try:
-        with open(tar, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False)
-    except:
-        print('json文件写入异常')
-
-
-def set_json_options(key1, value1, need_write=True):
-    """
-    修改设置项，以键值对的方式修改。
-    会自动触发 exec_update_json（写入json文件）.
-    参数 need_write 代表了是否需要写入文件。默认是修改后立刻写入。
-    """
-    global json_data
-    opt_data = json_data['options']  # 设置
-    opt_data[key1] = value1
-    #
-    if need_write:
-        exec_json_file_write(data=json_data)
-    # exec_json_file_load()
-    pass
-
-
-def exec_json_file_load(load_settings=True, load_folders=True):
-    """
-    读取json文件，获取其中的参数，并存储到相应的变量中。
-
-    如果json文件读取失败，则按照初始化标准重建这个文件。
-
-    依赖函数：update_json。
-    """
-    global json_data
-    global V_SEP, V_FOLDERS
-    global NOTE_EXT, FILE_DRAG_MOVE
-    global lst_my_path_long  # 所有文件夹长路径；
-    global lst_my_path_short
-    global lst_my_path_long_selected
-    global TREE_SUB_SHOW
-    global FOLDER_AS_TAG
-    global TAG_EASY
-    global dict_folder_groups  # 文件夹对应分组
-    dict_folder_groups = dict()
-
-    need_init_json = 0
-    try:
-        with open(OPTIONS_FILE, 'r', encoding='utf8') as fp:
-            json_data = json.load(fp)
-
-        if load_settings:
-            try:
-                opt_data = json_data['options']  # 设置
-            except Exception as e:
-                print(e)
-                pass
-            try:
-                V_SEP = opt_data['sep']  # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
-            except Exception as e:
-                print(e)
-                pass
-            try:
-                V_FOLDERS = int(opt_data['vfolders'])  # 目录最末层数名称检查，作为标签的检查层数
-            except:
-                pass
-            try:
-                NOTE_EXT = opt_data['note_ext']  # 默认笔记类型
-            except Exception as e:
-                print(e)
-                pass
-            try:
-                FILE_DRAG_MOVE = opt_data['file_drag_enter']  # 默认拖动操作
-            except Exception as e:
-                print(e)
-                pass
-            # try:
-            #     TREE_SUB_SHOW = opt_data['TREE_SUB_SHOW']  # 默认布局
-            # except Exception as e:
-            #     print(e)
-            #     pass
-            TREE_SUB_SHOW = 'sub_folder'  # 这个项目不再允许调整。
-            #
-            try:
-                FOLDER_AS_TAG = opt_data['FOLDER_AS_TAG']  # 最后文件夹识别
-            except Exception as e:
-                print(e)
-                pass
-            #
-            try:
-                TAG_EASY = opt_data['TAG_EASY']  # 标签搜索方式
-            except Exception as e:
-                print(e)
-                pass
-            #
-            print('加载基本参数成功')
-
-        if load_folders:
-            # lst_my_path_long_selected=lst_my_path_long.copy() #按文件夹筛选用
-            lst_my_path_long = []
-            lst_my_path_short = []
-
-            json_folders_lst = json_data['folders']
-
-            for i in json_folders_lst:
-                # lst_my_path_long.append(i)
-                tmp_L = i['pth']
-                tmp_L = tmp_L.strip()
-                #
-                try:
-                    tmp_S = i['short']  # 如果有自定义名称，优先加载
-                except:
-                    tmp_S = get_split_path(i['pth'])[-1]
-                #
-                try:
-                    tmp_G = i['group']  # 分组名称
-                except:
-                    tmp_G = DEFAULT_GROUP_NAME
-
-                tmp_S = tmp_S.replace(' ', '_')  # 修复路径空格bug的权宜之计，以后应该可以优化
-
-                # 增加逻辑：避免短路径重名：
-                j = 1
-                tmp_2 = tmp_S
-                while tmp_2 in lst_my_path_short:
-                    j += 1
-                    tmp_2 = tmp_S + "(" + str(j) + ")"
-                    print(tmp_2)
-                tmp_S = tmp_2
-                tmp_S = tmp_S.strip()
-
-                if tmp_S == '' or tmp_L == '':  # 出现空白文件夹
-                    for j in range(len(json_folders_lst) - 1, -1, -1):
-                        if json_folders_lst[j]['pth'].strip() == '':
-                            json_folders_lst.pop(j)
-                else:
-                    lst_my_path_long.append(tmp_L)
-                    lst_my_path_short.append(tmp_S)
-                    #
-                    tmp = {tmp_S: tmp_L}
-                    dict_path.update(tmp)
-                    #
-                    tmp_folder_and_group = {tmp_S: tmp_G}
-                    dict_folder_groups.update(tmp_folder_and_group)
-
-            lst_my_path_long_selected = lst_my_path_long.copy()  # 此处有大量的可优化空间。
-            print('加载关注文件夹列表成功')
-    except:
-        print('加载json异常，正在重置json文件')
-        # need_init_json=1
-        json_data = OPT_DEFAULT
-        exec_json_file_write()
-
-
-# %%
 
 def set_prog_bar(inp, maxv=100):
     """
@@ -551,8 +333,6 @@ def set_prog_bar(inp, maxv=100):
     else:
         app.progressbar_file.pack()
     #
-
-    # global prog_win
     # try:
     #     prog_win
     # except:
@@ -583,7 +363,7 @@ def get_data(ipath=None, update_sub_path=1, need_set_prog=True, is_global=True):
     （1）刷新 子文件夹列表。
     （2）返回所有文件形成的 lst_files_to_go 列表。这个列表可以在 get_dt 里面调用。
     此过程消耗时间较多。
-    参数 ipath 未指定时，自动取为全局变量 lst_my_path_long;
+    参数 ipath 未指定时，自动取为全局变量 conf.lst_my_path_long;
     update_sub_path 的作用是强制修改子文件夹列表【不完善】
     参数 need_set_prog 如果是 False，就不显示或更新进度条。
     """
@@ -595,15 +375,13 @@ def get_data(ipath=None, update_sub_path=1, need_set_prog=True, is_global=True):
         lst_sub_path = []
         pass
 
-    global flag_running  # 必须要有这句话，否则不能修改公共变量
-
     if ipath is None:
-        ipath = lst_my_path_long
+        ipath = conf.lst_my_path_long
 
-    # flag_running=1 # 标记为运行中。
+    # flag.flag_running=1 # 标记为运行中。
 
     lst_sub_path_copy = lst_sub_path.copy()
-    if flag_inited == 1:
+    if flag.flag_inited == 1:
         exec_tree_clear(app.tree)  #
         if need_set_prog: set_prog_bar(1, 30)
         app.str_btm.set("正在加载基础数据……")
@@ -625,7 +403,7 @@ def get_data(ipath=None, update_sub_path=1, need_set_prog=True, is_global=True):
         have_sub_folder = 0  # 应该在这
         n += 1  # 第一轮循环的时候n就是2
         #
-        if flag_inited == 1 and n % PROG_STEP == 0:
+        if flag.flag_inited == 1 and n % PROG_STEP == 0:
             PROG_STEP *= 2
             tmp_prog = 1 + 29 * n / n_max
             if tmp_prog > 30:
@@ -649,7 +427,7 @@ def get_data(ipath=None, update_sub_path=1, need_set_prog=True, is_global=True):
             for tmp2 in tmp_path:
                 if len(tmp2) < 1:
                     continue
-                if tmp2 in EXP_FOLDERS:
+                if tmp2 in conf.EXP_FOLDERS:
                     vpass = 1
                     break
                 elif tmp2[0] == '.':  # 排除.开头的文件夹内容
@@ -669,7 +447,7 @@ def get_data(ipath=None, update_sub_path=1, need_set_prog=True, is_global=True):
                 # new_sub_path = new_sub_path.replace(vPath + '/', '') # 去掉前面部分
                 # if (new_sub_path not in lst_sub_path) \
                 #         and (str(new_sub_path).find('/') < 0) \
-                #         and (str(new_sub_path) not in EXP_FOLDERS): # 只将一级子目录添加到列表中
+                #         and (str(new_sub_path) not in conf.EXP_FOLDERS): # 只将一级子目录添加到列表中
                 #     lst_sub_path.append(new_sub_path)
                 # 子文件夹新方法：
                 if have_sub_folder <= 1:
@@ -677,9 +455,9 @@ def get_data(ipath=None, update_sub_path=1, need_set_prog=True, is_global=True):
                 #
                 lst_files_to_go += tmp
 
-            if flag_break:  # 强行中断
+            if flag.flag_break:  # 强行中断
                 break
-        if flag_break:
+        if flag.flag_break:
             break
 
     print('——————  加载 文件列表 消耗时间：——————\n')
@@ -716,7 +494,7 @@ def get_data(ipath=None, update_sub_path=1, need_set_prog=True, is_global=True):
             pass
     else:
         lst_sub_path = lst_sub_path_copy
-    # if flag_inited==1:
+    # if flag.flag_inited==1:
     #     set_prog_bar(30,30)
 
     return lst_files_to_go
@@ -733,7 +511,7 @@ def get_file_part(tar):  #
 
     [fpath, ffname] = os.path.split(tar)  # fpath 所在文件夹、ffname 原始文件名
     [fname, fename] = os.path.splitext(ffname)  # fname 文件名前半部分，fename 扩展名
-    lst_sp = fname.split(V_SEP)  # 拆分为多个片段
+    lst_sp = fname.split(conf.V_SEP)  # 拆分为多个片段
     fname_0 = lst_sp[0] + fename  # fname_0 去掉标签之后的文件名
     ftags = lst_sp[1:]  # ftags 标签部分
     #
@@ -762,14 +540,14 @@ def get_file_part(tar):  #
     # 对文件目录的解析算法2：
     tmp = get_split_path(fpath)
     tmp2 = []
-    try:  # 只要最后若干层的目录，取变量 V_FOLDERS
-        for i in range(V_FOLDERS):
+    try:  # 只要最后若干层的目录，取变量 conf.V_FOLDERS
+        for i in range(conf.V_FOLDERS):
             tmp2.append(tmp[-i - 1])
     except:
         pass
 
     for i in tmp2:
-        i2 = i.split(V_SEP)
+        i2 = i.split(conf.V_SEP)
         try:
             i3 = i2[1:]  # 取标签符号后面的
             # i3 = i2[0:] # 取整个子文件夹
@@ -778,11 +556,11 @@ def get_file_part(tar):  #
         ftags += i3
     #
     # 增加：最后若干层子文件夹作为标签的功能（默认1层）：
-    for i in range(FOLDER_AS_TAG):
+    for i in range(conf.FOLDER_AS_TAG):
         try:
-            if str(tmp[-1 - i][0]) == V_SEP:
+            if str(tmp[-1 - i][0]) == conf.V_SEP:
                 continue
-            tags_from_folder = tmp[-1 - i].split(V_SEP)
+            tags_from_folder = tmp[-1 - i].split(conf.V_SEP)
             for j in range(len(tags_from_folder)):
                 tags_from_folder[j] = str(tags_from_folder[j]).replace(" ", "_")
             ftags += tags_from_folder
@@ -829,9 +607,8 @@ def dt_sort_by(elem):
     """
     主题表格排序
     """
-    # global ORDER_BY_N
-    tmp = str(elem[ORDER_BY_N])
-    if ORDER_BY_N == 3:
+    tmp = str(elem[conf.ORDER_BY_N])
+    if conf.ORDER_BY_N == 3:
         return float(tmp)  # 数字
     else:
         tmp = str.lower(tmp)
@@ -847,7 +624,7 @@ def sub_get_dt(lst_file_in):
         tmp_v = (str(tmp['fname_0']), tmp['ftags'], str(tmp['file_mdf_time']), tmp['fsize'], str(tmp['full_path']))
         tmp_dt.append(tmp_v)
     q.put(tmp_dt)
-    print([V_FOLDERS, V_SEP, NOTE_EXT])
+    print([conf.V_FOLDERS, conf.V_SEP, conf.NOTE_EXT])
     return tmp_dt
 
 
@@ -861,7 +638,7 @@ def process_update_data(lst1):
 
     lst_files_to_go = []
     n = 0
-    flag_break = 0
+    flag.flag_break = 0
     time0 = time.time()
     global dicT
 
@@ -885,7 +662,7 @@ def process_update_data(lst1):
             for tmp2 in tmp_path:
                 if len(tmp2) < 1:
                     continue
-                if tmp2 in EXP_FOLDERS:
+                if tmp2 in conf.EXP_FOLDERS:
                     vpass = 1
                     break
                 elif tmp2[0] == '.':  # 排除.开头的文件夹内容
@@ -903,9 +680,9 @@ def process_update_data(lst1):
                 #
                 lst_files_to_go += tmp
 
-            if flag_break:  # 强行中断
+            if flag.flag_break:  # 强行中断
                 break
-        if flag_break:
+        if flag.flag_break:
             break
 
     for one_file in lst_files_to_go:
@@ -946,13 +723,13 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
     print('进入 get_dt 函数')
     global dicT  #
 
-    if flag_break:
+    if flag.flag_break:
         return (None, None)
 
     if lst_file0 is None:
         lst_file0 = lst_files_to_go.copy()
 
-    if flag_inited == 1:
+    if flag.flag_inited == 1:
         app.str_btm.set("正在解析标签……")
         app.window.update()
         if need_set_prog: set_prog_bar(30)
@@ -1012,7 +789,7 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
             one_file = one_file.replace('\\', '/')
             # 更新进度条
             n += 1
-            if flag_inited == 1 and n % PROG_STEP == 0:
+            if flag.flag_inited == 1 and n % PROG_STEP == 0:
                 if need_set_prog: set_prog_bar(30 + 60 * n / n_max)
             # 先查字典，这样可以显著加速查询
             if FAST_MODE and one_file in dicT.keys():
@@ -1051,7 +828,7 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
             #     dT.append(tmp_v) # 查重有点费时间
             dT.append(tmp_v)
             #
-            if flag_break:  # 如果被中断的话
+            if flag.flag_break:  # 如果被中断的话
                 break
 
     print('加载dT消耗时间：')
@@ -1065,7 +842,7 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
     dT = dT2
     # dT=list(set(dT))
 
-    if flag_inited == 1:
+    if flag.flag_inited == 1:
         if need_set_prog: set_prog_bar(90)
 
     # 获取所有tag
@@ -1079,7 +856,7 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
     # lst_tags.sort()
 
     try:
-        dT.sort(key=dt_sort_by, reverse=ORDER_DESC)
+        dT.sort(key=dt_sort_by, reverse=conf.ORDER_DESC)
     except:
         print('dT排序出现错误！')
 
@@ -1171,13 +948,13 @@ def show_window_input(title_value, body_value='', init_value='', is_file_name=Tr
 
 def update_folder_list(event=None, need_select=True):
     """
-    根据 lst_my_path_short ，将文件夹列表刷新一次。
+    根据 conf.lst_my_path_short ，将文件夹列表刷新一次。
 
     作用是：刷新主文件夹列表。暂不包括子文件夹刷新。
 
     没有输入输出。
     """
-    global tree_lst_folder, lst_my_path_short
+    global tree_lst_folder
 
     # 根目录的名称列表
     # lst_root_text = list(set(dict_folder_groups.values()))
@@ -1188,7 +965,7 @@ def update_folder_list(event=None, need_select=True):
     #     lst_root_text = [DEFAULT_GROUP_NAME] + lst_root_text
     #
     lst_root_text = get_folder_group_list()
-    lst_my_path_short = exec_list_sort(lst_my_path_short)
+    conf.lst_my_path_short = exec_list_sort(conf.lst_my_path_short)
 
     def find_node_pos_by_text(node, text, pos_min=0):
         """
@@ -1234,7 +1011,7 @@ def update_folder_list(event=None, need_select=True):
     # 保存现在选中的主文件夹；
     v_method = 2
     tmp_lst_open = []  # 保存一路上来的文件夹名称
-    if flag_inited:
+    if flag.flag_inited:
         (b1, b2) = app.bar_folder_v.get()
     try:
         tmp_folder1 = 0
@@ -1274,7 +1051,7 @@ def update_folder_list(event=None, need_select=True):
             dirs_sorted = exec_list_sort(dirs_)
             for sub_dir_ in dirs_sorted:
                 tmp += 1
-                if sub_dir_ in EXP_FOLDERS:  # 排除文件夹
+                if sub_dir_ in conf.EXP_FOLDERS:  # 排除文件夹
                     continue
                 if '_nomedia' in files_:
                     continue
@@ -1285,7 +1062,7 @@ def update_folder_list(event=None, need_select=True):
                                             image=PIC_DICT['folder_25_20'],
                                             values=value_tmp_, tags=['folder2'])
                 # 继续迭代下钻
-                if flag_inited: # 刚启动的时候，不需要加载全部文件夹，从而提高加载速度
+                if flag.flag_inited: # 刚启动的时候，不需要加载全部文件夹，从而提高加载速度
                     add_sub_folder_here(t3, full_dir_, depth + 1)
             break  #
 
@@ -1303,14 +1080,14 @@ def update_folder_list(event=None, need_select=True):
     # root1=app.tree_lst_folder.insert('',1,text='新建分组',values=("（全部）",),open=True)
     #
     # 开始添加文件夹
-    for i in lst_my_path_short:
+    for i in conf.lst_my_path_short:
         #
         # 获得group_name
         # if str.lower(i).find('^') <0:
         #     group_name='关注的文件夹'
         # else:
         #     group_name='新建分组'
-        group_name = dict_folder_groups[i]
+        group_name = conf.dict_folder_groups[i]
         # 找到根节点
         tmp_root_pos = lst_root_text.index(group_name)
         root_node = lst_root_item[tmp_root_pos]
@@ -1318,7 +1095,7 @@ def update_folder_list(event=None, need_select=True):
         tmp += 1
         print(i)
         # 值编码：显示名称、类型、完整路径(总是放在最后一个)
-        full_dir1 = dict_path[str(i)]
+        full_dir1 = conf.dict_path[str(i)]
         value0 = (str(i),
                   1,
                   full_dir1)
@@ -1332,7 +1109,7 @@ def update_folder_list(event=None, need_select=True):
     # 
     # 刷新后，选中第几个项目：
     #
-    if v_method == 2 and flag_inited:
+    if v_method == 2 and flag.flag_inited:
         # print("\n\n\ntmp_lst_open=",tmp_lst_open,'\n\n\n')
         tmp_lst_open.reverse()
         #
@@ -1373,7 +1150,7 @@ def update_folder_list(event=None, need_select=True):
             print(e)
             pass
 
-    else:  # 如果没有 flag_inited 的话，默认选中第一个文件夹
+    else:  # 如果没有 flag.flag_inited 的话，默认选中第一个文件夹
         #
         print('刷新文件夹：选中的文件夹是：', tmp_folder1)
         if need_select:
@@ -1408,7 +1185,7 @@ def update_current_folder_list(event=None, ):
             dirs_sorted = exec_list_sort(dirs_)
             for sub_dir_ in dirs_sorted:
                 tmp += 1
-                if sub_dir_ in EXP_FOLDERS:  # 排除文件夹
+                if sub_dir_ in conf.EXP_FOLDERS:  # 排除文件夹
                     continue
                 if '_nomedia' in files_:
                     continue
@@ -1493,7 +1270,7 @@ def update_sub_folder_list(sub_folder_list=None, refresh=True):
     sub_folder_list = sorted(sub_folder_list, key=lambda x: str.lower(x.replace('\xa0', ' ')).encode('gbk'))
     #
     for i in sub_folder_list:
-        if i in EXP_FOLDERS:
+        if i in conf.EXP_FOLDERS:
             continue
         tmp += 1
         print(i)
@@ -1527,9 +1304,8 @@ def show_tree_order():
     """
     用来显示 tree 排序的视觉效果（也就是加三角）
     """
-    global ORDER_BY_N, ORDER_DESC
-    DIR_VALUE = DIR_LST[1] if ORDER_DESC else DIR_LST[0]
-    app.tree.heading(HEADING_LST[ORDER_BY_N], text=HEADING_LST_TXT[ORDER_BY_N] + DIR_VALUE)
+    DIR_VALUE = DIR_LST[1] if conf.ORDER_DESC else DIR_LST[0]
+    app.tree.heading(HEADING_LST[conf.ORDER_BY_N], text=HEADING_LST_TXT[conf.ORDER_BY_N] + DIR_VALUE)
 
 
 def tree_order_base(inp):
@@ -1537,25 +1313,25 @@ def tree_order_base(inp):
     主列表排序的入口程序。
     """
 
-    global ORDER_BY_N, ORDER_DESC, dT, lst_tags
+    global dT, lst_tags
     # 恢复标题
-    app.tree.heading(HEADING_LST[ORDER_BY_N], text=HEADING_LST_TXT[ORDER_BY_N])
+    app.tree.heading(HEADING_LST[conf.ORDER_BY_N], text=HEADING_LST_TXT[conf.ORDER_BY_N])
     #
-    if ORDER_BY_N == inp:  # 如果同样位置点击，就切换排序方式
-        ORDER_DESC = not ORDER_DESC
+    if conf.ORDER_BY_N == inp:  # 如果同样位置点击，就切换排序方式
+        conf.ORDER_DESC = not conf.ORDER_DESC
     else:  # 如果不同位置点击，就预置排序方式
-        ORDER_BY_N = inp
-        if ORDER_BY_N == 2:  # 按修改时间排序的，第一次是最新的在前面。
-            ORDER_DESC = True
+        conf.ORDER_BY_N = inp
+        if conf.ORDER_BY_N == 2:  # 按修改时间排序的，第一次是最新的在前面。
+            conf.ORDER_DESC = True
         else:
-            ORDER_DESC = False  # 其余排序方法，都是升序。
+            conf.ORDER_DESC = False  # 其余排序方法，都是升序。
     # update_main_window(0) # 这个方法虽然可以排序，但是效率太低
     #
     # 可视化
     show_tree_order()
 
     # 新的排序方法
-    dT.sort(key=dt_sort_by, reverse=ORDER_DESC)
+    dT.sort(key=dt_sort_by, reverse=conf.ORDER_DESC)
     exec_search()
     set_search_tag_values(lst_tags)
     app.v_inp['value'] = lst_tags
@@ -1589,7 +1365,7 @@ def get_search_tag_selected(event=None):
     获取标签项（只是内容字符串，目前还不是列表）。
     '''
     the_tag = ''
-    if TREE_SUB_SHOW == 'tag':
+    if conf.TREE_SUB_SHOW == 'tag':
         for item in app.tree_lst_sub_tag.selection():
             the_tag = app.tree_lst_sub_tag.item(item, "values")[0]
             break
@@ -1747,7 +1523,7 @@ def get_search_items(event=None, res_lst=False):
     #
     # 子文件夹
     if len(get_sub_folder_selected()) > 0:
-        tmp_path = lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
+        tmp_path = conf.lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
         print('进入子文件夹：')
         print(tmp_path)
         res_path = [tmp_path]
@@ -1779,9 +1555,9 @@ def get_sub_folder_selected():
     获取子文件夹名称（没有输入，返回字符串，或者空白）
     【还不完善】
     """
-    if TREE_SUB_SHOW == 'sub_folder':  # sub_folder 模式，子文件夹是选项
+    if conf.TREE_SUB_SHOW == 'sub_folder':  # sub_folder 模式，子文件夹是选项
         METHOD = 2
-    elif TREE_SUB_SHOW == 'tag':  # tag模式，子文件夹是下拉框
+    elif conf.TREE_SUB_SHOW == 'tag':  # tag模式，子文件夹是下拉框
         METHOD = 1
     #
     if METHOD == 1:
@@ -1808,10 +1584,10 @@ def update_tags_in_sub_folder(tmp_path, must=0):
     '''
     # 这里，如果是子文件夹切换，还要刷新文件夹的标签【bug】
     #
-    # if flag_root_folder:
+    # if flag.flag_root_folder:
     global dT
     print(f'正在加载该目录的标签：{tmp_path}')
-    if must or flag_sub_folders_changed:
+    if must or flag.flag_sub_folders_changed:
         # 加载新标签列表
         tmp_tag = get_search_tag_selected()  # 获取当前标签
         # 刷新标签列表 刷新期间不能操作进度条！
@@ -1821,7 +1597,7 @@ def update_tags_in_sub_folder(tmp_path, must=0):
         # dT=dt2
         # print(f'\ndt2={dt2}')
         set_search_tag_values(tags2)
-        if flag_inited:
+        if flag.flag_inited:
             app.v_inp['value'] = tags2
         if len(tmp_tag) > 0:
             # 恢复标签
@@ -1847,11 +1623,11 @@ def get_search_items_sub_folder(event=None, res_lst=False):
     '''
     try:
         if len(get_sub_folder_selected()) > 0:
-            tmp_path = lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
+            tmp_path = conf.lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
             print('运行到 get_search_items_sub_folder, 进入子文件夹：')
             print(tmp_path)
         else:
-            tmp_path = lst_my_path_long_selected[0]
+            tmp_path = conf.lst_my_path_long_selected[0]
     except:
         if res_lst:
             return [], [], []
@@ -1863,8 +1639,8 @@ def get_search_items_sub_folder(event=None, res_lst=False):
     '''
     # 这里，如果是子文件夹切换，还要刷新文件夹的标签【bug】
     #
-    # if flag_root_folder:
-    if not flag_sub_folders_changed:
+    # if flag.flag_root_folder:
+    if not flag.flag_sub_folders_changed:
         # 子文件夹没有切换的时候，不需要刷新标签
         pass
     else:
@@ -1875,7 +1651,7 @@ def get_search_items_sub_folder(event=None, res_lst=False):
         (dt2, tags2) = get_dt(new_files)
         # print(tags2)
         set_search_tag_values(tags2)
-        if flag_inited:
+        if flag.flag_inited:
             app.v_inp['value'] = tags2
         if len(tmp_tag) > 0:
             # 恢复标签
@@ -1949,7 +1725,7 @@ def exec_tree_add_items(tree_obj, dT, search_items=None) -> None:
     print(f'检查的路径是{res_path}')
     #
     # print('app.v_this_folder = ', app.v_this_folder.get())
-    print('主路径是 = ', lst_my_path_long_selected)
+    print('主路径是 = ', conf.lst_my_path_long_selected)
     #
     # 前置条件检查：
     var_note_only = app.v_note_only.get()  # 只看笔记
@@ -1957,11 +1733,11 @@ def exec_tree_add_items(tree_obj, dT, search_items=None) -> None:
     var_group_by_folder = app.v_folder_layers.get()  # 按文件夹分组
     is_this_folder = 1  # 是否是当前文件夹
     item_sub_folder = None
-    tmp_current_path = lst_my_path_long_selected[0].replace('\\', '/')  # 当前路径
+    tmp_current_path = conf.lst_my_path_long_selected[0].replace('\\', '/')  # 当前路径
     #
     # 如果是分组模式，就检查子文件夹，并预先要做分组：
 
-    if var_group_by_folder and len(lst_my_path_long_selected) == 1:
+    if var_group_by_folder and len(conf.lst_my_path_long_selected) == 1:
         lst_sub_folders_full = []
         lst_sub_folders = []
         lst_sub_items = []
@@ -1970,7 +1746,7 @@ def exec_tree_add_items(tree_obj, dT, search_items=None) -> None:
             lst_sub_folders += _dirs  # 子文件夹
             break
         for _dir in exec_list_sort(lst_sub_folders):
-            if _dir in EXP_FOLDERS:
+            if _dir in conf.EXP_FOLDERS:
                 continue
             lst_sub_folders_full.append(_dir)
             lst_sub_items.append(tree_obj.insert('', 'end',
@@ -1998,11 +1774,11 @@ def exec_tree_add_items(tree_obj, dT, search_items=None) -> None:
         #
         # 只看当前文件夹
         the_node = ''
-        if len(lst_my_path_long_selected) == 1 and canadd == 1:
+        if len(conf.lst_my_path_long_selected) == 1 and canadd == 1:
             if var_group_by_folder or var_this_folder:  # app.v_this_folder.get() == 1:
                 [tmp_fpath, tmp_ffname] = os.path.split(tmp[-1])
                 # print(str.lower(tmp_fpath))
-                # print(str.lower(lst_my_path_long_selected[0]))
+                # print(str.lower(conf.lst_my_path_long_selected[0]))
                 if str.lower(tmp_fpath) == str.lower(tmp_current_path):
                     is_this_folder = True
                     # the_node = ''
@@ -2051,7 +1827,7 @@ def exec_tree_add_items(tree_obj, dT, search_items=None) -> None:
                 if tag == '' or tag == cALL_FILES or (tag in tag_lower):
                     canadd = 1
                     # break
-                elif TAG_EASY == 1 and str.lower(tmp[0]).find(tag) >= 0:  # 标签简单模式
+                elif conf.TAG_EASY == 1 and str.lower(tmp[0]).find(tag) >= 0:  # 标签简单模式
                     canadd = 1
                 else:
                     canadd = 0
@@ -2113,7 +1889,7 @@ def exec_tree_add_items(tree_obj, dT, search_items=None) -> None:
             #
             if k % refresh_unit == 0:  # 刷新
                 # refresh_unit=refresh_unit*4
-                if flag_inited:
+                if flag.flag_inited:
                     p = (90 + 9 * n / n_max)
                     if p > 99: p = 99
                     set_prog_bar(p)
@@ -2124,7 +1900,7 @@ def exec_tree_add_items(tree_obj, dT, search_items=None) -> None:
     #
     # 最后再把文件夹放在最后面：
     #
-    if var_group_by_folder and len(lst_my_path_long_selected) == 1:
+    if var_group_by_folder and len(conf.lst_my_path_long_selected) == 1:
         for itm in lst_sub_items:
             # k1+=1
             if len(tree_obj.get_children(itm)) == 0:
@@ -2138,10 +1914,10 @@ def exec_tree_add_items(tree_obj, dT, search_items=None) -> None:
     # app.str_btm.set("找到 " + str(k) + " 个结果，用时"+str(time.time()-time0)+"秒")
     # "在"+str(len(dT))+"个项目中找到 " + str(k) + " 个文件，"
     app.str_btm.set("找到 " + str(k_all) + " 个文件")  # "，用时"+str(time.time()-time0)+"秒")
-    if flag_inited:
+    if flag.flag_inited:
         set_prog_bar(100)
         tree_obj.focus()
-    # flag_running=0
+    # flag.flag_running=0
 
 
 def get_folder_short():
@@ -2218,12 +1994,12 @@ def get_folder_group_list():
     获取排序后的文件夹分组列表。这里已经排序完成。
     """
     # 根目录的名称列表
-    lst_root_text = list(set(dict_folder_groups.values()))
+    lst_root_text = list(set(conf.dict_folder_groups.values()))
     # 排序
     lst_root_text = exec_list_sort(lst_root_text)
-    if DEFAULT_GROUP_NAME in lst_root_text:  # 默认文件夹分组永远在前
-        lst_root_text.remove(DEFAULT_GROUP_NAME)
-        lst_root_text = [DEFAULT_GROUP_NAME] + lst_root_text
+    if conf.DEFAULT_GROUP_NAME in lst_root_text:  # 默认文件夹分组永远在前
+        lst_root_text.remove(conf.DEFAULT_GROUP_NAME)
+        lst_root_text = [conf.DEFAULT_GROUP_NAME] + lst_root_text
     return lst_root_text
 
 
@@ -2599,12 +2375,12 @@ def tree_open_current_folder(event=None):
     支持打开子文件夹。
     """
     if len(get_sub_folder_selected()) > 0:
-        tmp_path = lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
-    elif len(lst_my_path_long_selected) > 1:
+        tmp_path = conf.lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
+    elif len(conf.lst_my_path_long_selected) > 1:
         print('输入多个文件夹，即将打开第一个')
-        tmp_path = lst_my_path_long_selected[0]
+        tmp_path = conf.lst_my_path_long_selected[0]
     else:
-        tmp_path = lst_my_path_long_selected[0]
+        tmp_path = conf.lst_my_path_long_selected[0]
     try:
         exec_run(tmp_path)
     except:
@@ -2624,7 +2400,7 @@ def exec_folder_add_from_sub(event=None):
     """
     try:
         if len(get_sub_folder_selected()) > 0:
-            tmp_path = lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
+            tmp_path = conf.lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
             exec_folder_add([tmp_path])
     except:
         print('请检查 exec_folder_add_from_sub 函数')
@@ -2638,8 +2414,8 @@ def exec_sub_folder_new(event=None):
     if True:
         cur_folder = app.tree_lst_folder.item(app.last_focus,"values")[-1]
     else:
-        if len(lst_my_path_long_selected) == 1:
-            cur_folder = lst_my_path_long_selected[0]
+        if len(conf.lst_my_path_long_selected) == 1:
+            cur_folder = conf.lst_my_path_long_selected[0]
         else:
             t = tk.messagebox.showerror(title='ERROR', message='未选中唯一文件夹')
             return False
@@ -2757,13 +2533,13 @@ def exec_sub_folder_rename(event=None):
 
     # if len(get_sub_folder_selected()) > 0:
     #     old_folder = get_sub_folder_selected()
-    #     old_path = lst_my_path_long_selected[0] + '/' + old_folder
+    #     old_path = conf.lst_my_path_long_selected[0] + '/' + old_folder
     #
     # 新文件夹名称
     new_folder = show_window_input('重命名文件夹', '请输入文件夹名称', old_folder)
     if new_folder is None:
         return
-    new_path = lst_my_path_long_selected[0] + '/' + new_folder
+    new_path = conf.lst_my_path_long_selected[0] + '/' + new_folder
     #
     # 新文件夹名称是否存在
     isExists = os.path.exists(new_path)
@@ -2880,7 +2656,7 @@ def exec_file_add_tag(filename, tag0, need_update=True):
     ntfs_error = False
     #
     # 增加NTFS流的标签解析
-    if TAG_METHOD == 'FILE_STREAM' and not os.path.splitext(filename)[1] in EXP_EXTS:
+    if TAG_METHOD == 'FILE_STREAM' and not os.path.splitext(filename)[1] in conf.EXP_EXTS:
         # 先看有没有这个标签
         tmp = get_file_part(filename)
         tags_old = tmp['ftags']
@@ -2909,8 +2685,8 @@ def exec_file_add_tag(filename, tag0, need_update=True):
             # dicT[filename] = tmp_v
         # return tmp_final_name
 
-    if TAG_METHOD != 'FILE_STREAM' or ntfs_error or os.path.splitext(filename)[1] in EXP_EXTS:
-        tag_list = tag0.split(V_SEP)
+    if TAG_METHOD != 'FILE_STREAM' or ntfs_error or os.path.splitext(filename)[1] in conf.EXP_EXTS:
+        tag_list = tag0.split(conf.V_SEP)
         tag_old = get_file_part(filename)['ftags']  # 已有标签
         file_old = get_file_part(filename)['ffname']  # 原始的文件名
         path_old = get_file_part(filename)['fpath']  # 路径
@@ -2920,7 +2696,7 @@ def exec_file_add_tag(filename, tag0, need_update=True):
         new_n = old_n
         for i in tag_list:
             if i not in tag_old:
-                new_n = path_old + os.sep + fname + V_SEP + i + fename
+                new_n = path_old + os.sep + fname + conf.V_SEP + i + fename
                 print(old_n)
                 print(new_n)
                 try:
@@ -3008,7 +2784,7 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
     global lst_files_to_go, dT
     global lst_tags, lst_sub_path
 
-    # if TREE_SUB_SHOW =='tag' and event is None:
+    # if conf.TREE_SUB_SHOW =='tag' and event is None:
     #     event=1
 
     # 原始值
@@ -3017,14 +2793,14 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
 
     if reload_setting == True:
         # 按需加载设置参数
-        exec_json_file_load(load_folders=False)
+        conf.exec_json_file_load(load_folders=False)
 
     tmp_sub_folder = get_sub_folder_selected()
     #
     if len(tmp_sub_folder) > 0:
-        path_lst = [lst_my_path_long_selected[0] + '/' + tmp_sub_folder]
+        path_lst = [conf.lst_my_path_long_selected[0] + '/' + tmp_sub_folder]
     else:
-        path_lst = lst_my_path_long_selected.copy()
+        path_lst = conf.lst_my_path_long_selected.copy()
 
     if event == 0:
         # 什么都不做
@@ -3043,7 +2819,7 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
         '''
         exec_clear_entry(app.v_search)
         set_search_tag_selected(0)
-        if TREE_SUB_SHOW == 'tag':  # 在 tag 模式，需要连子文件夹也刷新
+        if conf.TREE_SUB_SHOW == 'tag':  # 在 tag 模式，需要连子文件夹也刷新
             set_sub_folder_selected(0)
         print('已经全部清空')
 
@@ -3053,10 +2829,10 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
     # on_folder_choose(refresh=0)
     print('—— 刷新核心过程 start ———')
     #
-    if TREE_SUB_SHOW == 'tag':
-        path_lst = lst_my_path_long_selected
-    elif TREE_SUB_SHOW == 'sub_folder':
-        path_lst = lst_my_path_long_selected
+    if conf.TREE_SUB_SHOW == 'tag':
+        path_lst = conf.lst_my_path_long_selected
+    elif conf.TREE_SUB_SHOW == 'sub_folder':
+        path_lst = conf.lst_my_path_long_selected
 
     if len(tmp_sub_folder) > 0:  # 如果子文件夹选中，则不刷新子文件夹
         # 注意，这里修改了 lst_files_to_go 所以会导致全局的文件列表出现错乱。
@@ -3064,7 +2840,7 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
     else:
         lst_files_to_go = get_data(path_lst)
     print(f'\n ———— 当前的数据来自文件夹：{path_lst}\n')
-    # lst_files_to_go = get_data(lst_my_path_long_selected)
+    # lst_files_to_go = get_data(conf.lst_my_path_long_selected)
     #
     (dT, lst_tags) = get_dt(FAST_MODE=fast_mode)
     # if event in [0]: 
@@ -3076,7 +2852,7 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
     # exec_tree_clear(app.tree)
     #
     # 恢复子文件夹选项（即将作废）
-    if event in [0, 1] and TREE_SUB_SHOW == 'sub_folder':
+    if event in [0, 1] and conf.TREE_SUB_SHOW == 'sub_folder':
         try:  # 用一种【不太优雅】，但是暴力有效的方法修复了bug……
             if len(tmp_sub_folder) > 0:
                 tmp_n = lst_sub_path.index(tmp_sub_folder)
@@ -3088,27 +2864,27 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
     #
     # 恢复标签
     app.window.update()
-    if TREE_SUB_SHOW == 'tag':
+    if conf.TREE_SUB_SHOW == 'tag':
         if event in [0, 1]:  # 【此处从逻辑上好像有bug】
-            tags_ = update_tags_in_sub_folder(lst_my_path_long_selected[0] + '/' + old_sub_folder, 1)
-    elif TREE_SUB_SHOW == 'sub_folder':
-        if len(lst_my_path_long_selected) > 1:
-            # tags_=update_tags_in_sub_folder(lst_my_path_long_selected)
+            tags_ = update_tags_in_sub_folder(conf.lst_my_path_long_selected[0] + '/' + old_sub_folder, 1)
+    elif conf.TREE_SUB_SHOW == 'sub_folder':
+        if len(conf.lst_my_path_long_selected) > 1:
+            # tags_=update_tags_in_sub_folder(conf.lst_my_path_long_selected)
             pass
         else:
-            tags_ = update_tags_in_sub_folder(lst_my_path_long_selected[0] + '/' + old_sub_folder, 1)
+            tags_ = update_tags_in_sub_folder(conf.lst_my_path_long_selected[0] + '/' + old_sub_folder, 1)
         if event in [0, 1]:
             set_search_tag_selected(old_tag)
     exec_search()  # 目的是按照刷新后的筛选条件对内容进行筛选
     #
 
     try:
-        if event in [0, 1] and TREE_SUB_SHOW == 'tag':
+        if event in [0, 1] and conf.TREE_SUB_SHOW == 'tag':
             '''
             if old_sub_folder =='':
-                tags_=update_tags_in_sub_folder(lst_my_path_long_selected[0],1)
+                tags_=update_tags_in_sub_folder(conf.lst_my_path_long_selected[0],1)
             else:
-                tags_=update_tags_in_sub_folder(lst_my_path_long_selected[0]+'/'+ tmp_sub_folder,1)
+                tags_=update_tags_in_sub_folder(conf.lst_my_path_long_selected[0]+'/'+ tmp_sub_folder,1)
             '''
             pass
         else:
@@ -3116,7 +2892,7 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
     except Exception as e:
         print(e)
 
-    # if not (event  in [0,1] and TREE_SUB_SHOW =='tag'):
+    # if not (event  in [0,1] and conf.TREE_SUB_SHOW =='tag'):
     #     set_search_tag_values(lst_tags) # 这个导致总是刷新全部标签
 
     app.v_inp['value'] = lst_tags  # 这句没啥用吧
@@ -3169,7 +2945,7 @@ def get_folder_s2l(folder_short_name):
     '''
     文件夹短路径转长路径。
     '''
-    return dict_path[folder_short_name]
+    return conf.dict_path[folder_short_name]
     pass
 
 
@@ -3180,28 +2956,25 @@ def on_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文
     sub_folder：输入完整路径，但是没有被任何函数调用过
     """
     # 
-    # if TREE_SUB_SHOW=='tag':
+    # if conf.TREE_SUB_SHOW=='tag':
     #     pass
-    # elif TREE_SUB_SHOW=='sub_folder': # 如果是子文件夹模式，先清空子文件夹；
+    # elif conf.TREE_SUB_SHOW=='sub_folder': # 如果是子文件夹模式，先清空子文件夹；
     #     exec_tree_clear(app.tree_lst_sub_folder) # 新增语句
     #     pass
     update_current_folder_list() # 2022年10月13日新增，点击的时候刷新
 
     exec_tree_folder_mouse_highlight(event)  # 添加这句话，保证当前左键点击项目获得高亮
 
-    global lst_my_path_long_selected  #
-    global flag_running
-    global flag_root_folder
     #
-    flag_root_folder = 1
-    # if flag_running: # 如果正在查，就先不启动新任务。这样处理还不理想。
+    flag.flag_root_folder = 1
+    # if flag.flag_running: # 如果正在查，就先不启动新任务。这样处理还不理想。
     # return
     print('调用 on_folder_choose 函数')
     #
     # 缓存之前选中的文件夹；
     #
     if sub_folder is None:  # 如果没有指定输入参数
-        lst_path_ori = lst_my_path_long_selected.copy()
+        lst_path_ori = conf.lst_my_path_long_selected.copy()
     else:
         lst_path_ori = []
     #
@@ -3211,8 +2984,8 @@ def on_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文
     need_disabled = 0
     #
     if get_folder_depth() == 0:  # 如果选中的文件夹是0级；
-        # lst_my_path_long_selected = lst_my_path_long.copy()
-        lst_my_path_long_selected = get_folder_group()
+        # conf.lst_my_path_long_selected = conf.lst_my_path_long.copy()
+        conf.lst_my_path_long_selected = get_folder_group()
         # 设置按钮为无效
         need_disabled = 1
         app.this_folder.configure(state=tk.DISABLED)
@@ -3261,7 +3034,7 @@ def on_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文
                     app.tree_lst_folder.item(itm2, open=False)  # 选中项的子文件夹折叠
         #
         print('folder_long=', folder_long)
-        lst_my_path_long_selected = [folder_long]
+        conf.lst_my_path_long_selected = [folder_long]
         # 设置按钮有效
         need_disabled = 0
     # 
@@ -3280,20 +3053,20 @@ def on_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文
     #
     # 如果前后的选项没有变化的话，就不刷新文件夹列表
     #
-    if lst_path_ori == lst_my_path_long_selected:  # 如果选项没变化
+    if lst_path_ori == conf.lst_my_path_long_selected:  # 如果选项没变化
         print('选项没有变化')
         print(lst_path_ori)
         pass
     else:  # 选项发生变化：
-        if TREE_SUB_SHOW == 'sub_folder':
+        if conf.TREE_SUB_SHOW == 'sub_folder':
             exec_tree_clear(app.tree_lst_sub_folder)  # 新增语句
         if refresh:
-            # update_main_window(lst_my_path_long_selected)
+            # update_main_window(conf.lst_my_path_long_selected)
             update_main_window(CLEAR_AFTER_CHANGE_FOLDER, fast_mode=True)
         app.tree.yview_moveto(0)
 
-    # flag_running=0 # 标记为没有任务
-    flag_root_folder = 0
+    # flag.flag_running=0 # 标记为没有任务
+    flag.flag_root_folder = 0
     print('on_folder_choose 函数结束')
     # update_current_folder_list()  # 2022年10月13日新增，点击的时候刷新
 
@@ -3303,20 +3076,19 @@ def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的
     选择左侧文件夹后启动。
     注意，这个V2函数并没有启用。
     """
-    global lst_my_path_long_selected, flag_running, flag_root_folder
     #
-    flag_root_folder = 1
-    # if flag_running: # 如果正在查，就先不启动新任务。这样处理还不理想。
+    flag.flag_root_folder = 1
+    # if flag.flag_running: # 如果正在查，就先不启动新任务。这样处理还不理想。
     # return
     print('调用 on_folder_choose 函数')
     if sub_folder is None:
-        lst_path_ori = lst_my_path_long_selected.copy()
+        lst_path_ori = conf.lst_my_path_long_selected.copy()
     else:
         lst_path_ori = []
 
     tmp = get_folder_short()
     if tmp == '':
-        lst_my_path_long_selected = lst_my_path_long.copy()
+        conf.lst_my_path_long_selected = conf.lst_my_path_long.copy()
         # 设置按钮为无效
         app.bt_new.configure(state=tk.DISABLED)
         app.bt_folder_drop.configure(state=tk.DISABLED)
@@ -3326,7 +3098,7 @@ def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的
 
     elif sub_folder is not None:
         tmp = sub_folder
-        lst_my_path_long_selected = [tmp]
+        conf.lst_my_path_long_selected = [tmp]
         # 设置按钮有效
         app.bt_new.configure(state=tk.NORMAL)
         app.bt_folder_drop.configure(state=tk.NORMAL)
@@ -3335,21 +3107,21 @@ def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的
         pass
     else:
         tmp = get_folder_s2l(tmp)  # 将显示值转换为实际值
-        lst_my_path_long_selected = [tmp]
+        conf.lst_my_path_long_selected = [tmp]
         # 设置按钮有效
         app.bt_new.configure(state=tk.NORMAL)
         app.bt_folder_drop.configure(state=tk.NORMAL)
         app.v_sub_folders.configure(state='readonly')
         app.folder_layers.configure(state='readonly')
 
-    if not lst_path_ori == lst_my_path_long_selected:  # 如果前后的选项没有变化的话，就不刷新文件夹列表
+    if not lst_path_ori == conf.lst_my_path_long_selected:  # 如果前后的选项没有变化的话，就不刷新文件夹列表
         if refresh == 1:
-            # update_main_window(lst_my_path_long_selected)
+            # update_main_window(conf.lst_my_path_long_selected)
             update_main_window(CLEAR_AFTER_CHANGE_FOLDER)
         app.tree.yview_moveto(0)
 
-    # flag_running=0 # 标记为没有任务
-    flag_root_folder = 0
+    # flag.flag_running=0 # 标记为没有任务
+    flag.flag_root_folder = 0
     print('on_folder_choose 函数结束')
 
 
@@ -3357,27 +3129,27 @@ def X_sub_folder_choose_not_used(event=None):
     '''
     还没弄完。功能没有被启用。
     '''
-    global lst_sub_path, lst_my_path_long_selected
+    global lst_sub_path
     if get_sub_folder_selected() == '':
         on_folder_choose()
 
     print('sub处理前')
     print('lst_sub_path=', lst_sub_path)
-    print('lst_my_path_long_selected=', lst_my_path_long_selected)
+    print('conf.lst_my_path_long_selected=', conf.lst_my_path_long_selected)
     tmp_lst_sub_path = lst_sub_path.copy()
-    tmp_lst_my_path = lst_my_path_long_selected.copy()
+    tmp_lst_my_path = conf.lst_my_path_long_selected.copy()
 
-    tmp_path = lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
+    tmp_path = conf.lst_my_path_long_selected[0] + '/' + get_sub_folder_selected()
     tmp_folder = tmp_path
 
     on_folder_choose(sub_folder=tmp_folder)
-    lst_my_path_long_selected = tmp_lst_my_path.copy()
+    conf.lst_my_path_long_selected = tmp_lst_my_path.copy()
     tmp_lst_sub_path.sort()
     app.v_sub_folders['value'] = [''] + tmp_lst_sub_path  # 强制修改子文件夹列表，但这样写不太好
     lst_sub_path = tmp_lst_sub_path.copy()
     print('sub处理后')
     print(lst_sub_path)
-    print(lst_my_path_long_selected)
+    print(conf.lst_my_path_long_selected)
     # app.v_sub_folders.current(0)
 
 
@@ -3387,16 +3159,16 @@ def exec_search(event=None):
     纯前端函数。
     清空tree，并按照dT为tree增加行。
     '''
-    if TREE_SUB_SHOW == 'sub_folder':
+    if conf.TREE_SUB_SHOW == 'sub_folder':
         app.v_tag.configure(state=tk.DISABLED)
     exec_tree_clear(app.tree)
     # exec_tree_add_items(app.tree,dT,tag=tmp_tag)
-    # if flag_sub_folders_changed == 1:
+    # if flag.flag_sub_folders_changed == 1:
     # get_data(get_sub_folder_selected())
     # (dT, lst_tags) =get_dt()
     exec_tree_add_items(app.tree, dT)
     app.tree.update()
-    if TREE_SUB_SHOW == 'sub_folder':
+    if conf.TREE_SUB_SHOW == 'sub_folder':
         app.v_tag.configure(state='readonly')
 
 
@@ -3404,19 +3176,18 @@ def on_sub_folders_choose(event=None):
     '''
     切换子文件夹后执行
     '''
-    global flag_sub_folders_changed
     # 如果正在加载中就直接停止
-    if TREE_SUB_SHOW == 'tag':  # 运行期间，不允许切换子文件夹
+    if conf.TREE_SUB_SHOW == 'tag':  # 运行期间，不允许切换子文件夹
         app.v_sub_folders.configure(state=tk.DISABLED)
-    flag_sub_folders_changed = 1
+    flag.flag_sub_folders_changed = 1
     # 这里需要刷新DT之后再进入
     exec_search()
 
-    flag_sub_folders_changed = 0
-    if TREE_SUB_SHOW == 'tag':
+    flag.flag_sub_folders_changed = 0
+    if conf.TREE_SUB_SHOW == 'tag':
         app.v_sub_folders.configure(state='readonly')  # 此方法有效
         # update_main_window(CLEAR_AFTER_CHANGE_FOLDER)
-    elif TREE_SUB_SHOW == 'sub_folder':  # 子文件夹模式切换的时候，清空标签
+    elif conf.TREE_SUB_SHOW == 'sub_folder':  # 子文件夹模式切换的时候，清空标签
         set_search_tag_selected(0)
 
 
@@ -3427,10 +3198,6 @@ def show_window_setting():  #
     """
     设置窗口
     """
-    global V_SEP, V_FOLDERS, NOTE_EXT, FILE_DRAG_MOVE
-    global FOLDER_AS_TAG
-    global TAG_EASY
-    global json_data
     #
     dict_file_drag = {"复制": "copy", "移动": "move", "每次询问": "ask"}
     dict_window_mode = {"标签模式": "tag", "子文件夹模式": "sub_folder"}
@@ -3442,35 +3209,31 @@ def show_window_setting():  #
         还没有功能
         '''
         # 获得新参数
-        global V_SEP, V_FOLDERS, NOTE_EXT, FILE_DRAG_MOVE
-        global FOLDER_AS_TAG
-        global TAG_EASY
-        global TREE_SUB_SHOW
         need_reboot = False
         # 先处理要重启的：
         #
-        if dict_window_mode[v_inp_mode.get()] != TREE_SUB_SHOW \
-                or dict_yes_no[v_last_folder_as_tag.get()] != FOLDER_AS_TAG:
+        if dict_window_mode[v_inp_mode.get()] != conf.TREE_SUB_SHOW \
+                or dict_yes_no[v_last_folder_as_tag.get()] != conf.FOLDER_AS_TAG:
             if tk.messagebox.askokcancel("请确认", "部分设置需要重启才能生效。确定要保存设置并【关闭程序】吗？"):
                 need_reboot = True
             else:
                 return
-        NOTE_EXT = v_inp_note_type.get()
-        V_FOLDERS = v_inp_folder_depth.get()
-        V_SEP = v_inp_sep.get()
-        FILE_DRAG_MOVE = dict_file_drag[v_inp_drag_type.get()]
-        TREE_SUB_SHOW = dict_window_mode[v_inp_mode.get()]
-        FOLDER_AS_TAG = dict_yes_no[v_last_folder_as_tag.get()]
-        TAG_EASY = dict_tag_mode[v_tag_easy.get()]
+        conf.NOTE_EXT = v_inp_note_type.get()
+        conf.V_FOLDERS = v_inp_folder_depth.get()
+        conf.V_SEP = v_inp_sep.get()
+        conf.FILE_DRAG_MOVE = dict_file_drag[v_inp_drag_type.get()]
+        conf.TREE_SUB_SHOW = dict_window_mode[v_inp_mode.get()]
+        conf.FOLDER_AS_TAG = dict_yes_no[v_last_folder_as_tag.get()]
+        conf.TAG_EASY = dict_tag_mode[v_tag_easy.get()]
         #
         # 保存到设置文件中
-        set_json_options('sep', V_SEP, need_write=False)
-        set_json_options('vfolders', V_FOLDERS, need_write=False)
-        set_json_options('note_ext', NOTE_EXT, need_write=False)
-        set_json_options('file_drag_enter', FILE_DRAG_MOVE, need_write=False)
-        set_json_options('TREE_SUB_SHOW', TREE_SUB_SHOW)
-        set_json_options('FOLDER_AS_TAG', FOLDER_AS_TAG)
-        set_json_options('TAG_EASY', TAG_EASY)
+        conf.set_json_options('sep', conf.V_SEP, need_write=False)
+        conf.set_json_options('vfolders', conf.V_FOLDERS, need_write=False)
+        conf.set_json_options('note_ext', conf.NOTE_EXT, need_write=False)
+        conf.set_json_options('file_drag_enter', conf.FILE_DRAG_MOVE, need_write=False)
+        conf.set_json_options('TREE_SUB_SHOW', conf.TREE_SUB_SHOW)
+        conf.set_json_options('FOLDER_AS_TAG', conf.FOLDER_AS_TAG)
+        conf.set_json_options('TAG_EASY', conf.TAG_EASY)
         #
         # 关闭窗口
         form_setting.destroy()
@@ -3504,9 +3267,9 @@ def show_window_setting():  #
     form_setting.focus_force()
     form_setting.iconbitmap(LOGO_PATH)  # 左上角图标
     # v2sep=tk.StringVar()
-    # v2sep.set(V_SEP)
+    # v2sep.set(conf.V_SEP)
 
-    # v2sep=V_SEP
+    # v2sep=conf.V_SEP
     frame_setting2 = ttk.Frame(form_setting, width=800)
     frame_setting2.pack(side=tk.BOTTOM, expand=0, fill=tk.X)
     frame_setting2.columnconfigure(0, weight=1)
@@ -3523,9 +3286,9 @@ def show_window_setting():  #
     lable_set_sep = ttk.Label(frame_setting1, text='标签分隔符')
     lable_set_sep.grid(row=0, column=0, padx=10, pady=5, sticky=tk.W)
 
-    v_inp_sep = ttk.Entry(frame_setting1, width=16, text=V_SEP)
+    v_inp_sep = ttk.Entry(frame_setting1, width=16, text=conf.V_SEP)
     exec_clear_entry(v_inp_sep)
-    v_inp_sep.insert(0, V_SEP)
+    v_inp_sep.insert(0, conf.V_SEP)
     v_inp_sep.grid(row=0, column=1, padx=10, pady=5, sticky=tk.EW)
 
     lable_set_folder_depth = ttk.Label(frame_setting1, text='识别为标签的文件夹层数')
@@ -3535,7 +3298,7 @@ def show_window_setting():  #
     lst_folder_depth = ['0', '1', '2', '3', '4', '5', '6', '7', '8']
     v_inp_folder_depth['values'] = lst_folder_depth
     v_inp_folder_depth['state'] = 'readonly'
-    tmp_n = lst_folder_depth.index(str(V_FOLDERS))
+    tmp_n = lst_folder_depth.index(str(conf.V_FOLDERS))
     v_inp_folder_depth.current(tmp_n)
     v_inp_folder_depth.grid(row=1, column=1, padx=10, pady=5, sticky=tk.EW)
 
@@ -3552,7 +3315,7 @@ def show_window_setting():  #
     v_last_folder_as_tag.current(0)
     tmp_list = list(dict_yes_no.values())
     print(tmp_list)
-    tmp_n = tmp_list.index(FOLDER_AS_TAG)
+    tmp_n = tmp_list.index(conf.FOLDER_AS_TAG)
     v_last_folder_as_tag.current(tmp_n)
     v_last_folder_as_tag.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
 
@@ -3563,10 +3326,10 @@ def show_window_setting():  #
     lable_set_note_type.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
 
     v_inp_note_type = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
-    v_inp_note_type['values'] = NOTE_EXT_LIST
+    v_inp_note_type['values'] = conf.NOTE_EXT_LIST
     v_inp_note_type['state'] = 'readonly'
     v_inp_note_type.current(0)
-    tmp_n = NOTE_EXT_LIST.index(NOTE_EXT)
+    tmp_n = conf.NOTE_EXT_LIST.index(conf.NOTE_EXT)
     v_inp_note_type.current(tmp_n)
     v_inp_note_type.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
 
@@ -3579,7 +3342,7 @@ def show_window_setting():  #
     v_inp_drag_type = ttk.Combobox(frame_setting1, width=16)
     the_combo = v_inp_drag_type
     the_dict = dict_file_drag
-    the_val = FILE_DRAG_MOVE
+    the_val = conf.FILE_DRAG_MOVE
     #
     the_combo['values'] = list(the_dict.keys())
     the_combo['state'] = 'readonly'
@@ -3598,7 +3361,7 @@ def show_window_setting():  #
     v_tag_easy = ttk.Combobox(frame_setting1, width=16)
     the_combo = v_tag_easy
     the_dict = dict_tag_mode
-    the_val = TAG_EASY
+    the_val = conf.TAG_EASY
     #
     the_combo['values'] = list(the_dict.keys())
     the_combo['state'] = 'readonly'
@@ -3620,7 +3383,7 @@ def show_window_setting():  #
     v_inp_mode.current(0)
     tmp_list = list(dict_window_mode.values())
     print(tmp_list)
-    tmp_n = tmp_list.index(TREE_SUB_SHOW)
+    tmp_n = tmp_list.index(conf.TREE_SUB_SHOW)
     v_inp_mode.current(tmp_n)
     if FOLDER_TYPE == 1:
         v_inp_mode.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
@@ -3680,11 +3443,10 @@ def exec_tree_drag_enter_popupmenu(files, method=None):
     弹出菜单，判断是移动还是复制。
     #######################################
     """
-    global FILE_DRAG_MOVE
     # 弹出对话框
-    if FILE_DRAG_MOVE in ['copy', 'move']:
+    if conf.FILE_DRAG_MOVE in ['copy', 'move']:
         exec_tree_drag_enter(files)
-    elif FILE_DRAG_MOVE == 'area':
+    elif conf.FILE_DRAG_MOVE == 'area':
         exec_tree_drag_enter(files, method)
     else:  # 如果是弹窗选择的话：
         res = tk.messagebox.askyesno(title='拖拽文件到指定位置', message='是否保留原文件？\n点击“是”保留，点击“否”删除。')
@@ -3707,9 +3469,7 @@ def exec_tree_drag_enter(files, drag_type=None):
     drag_type = copy 是复制， = move 是移动。
     """
     # 变量定义
-    global flag_file_changed
-    flag_folder_changed = 0
-    global FILE_DRAG_MOVE
+    flag.flag_folder_changed = 0
     v_method = 2  # 树形架构下，采用方案2
     #
     print('files=', files)
@@ -3717,11 +3477,11 @@ def exec_tree_drag_enter(files, drag_type=None):
     arg_change_glob = False
     #
     if drag_type is None:  # 参数为空的时候，读取变量值
-        drag_type = FILE_DRAG_MOVE
+        drag_type = conf.FILE_DRAG_MOVE
         pass
     else:
         if arg_change_glob:
-            FILE_DRAG_MOVE = drag_type  # 并不会生效
+            conf.FILE_DRAG_MOVE = drag_type  # 并不会生效
 
     if drag_type not in ['copy', 'move']:
         drag_type = 'copy'
@@ -3768,7 +3528,7 @@ def exec_tree_drag_enter(files, drag_type=None):
         except:
             itm = item
             pass
-        if len(str(itm)) > 3 and str(itm)[-3:] in EXP_EXTS:
+        if len(str(itm)) > 3 and str(itm)[-3:] in conf.EXP_EXTS:
             files2.append(item)
         else:
             files1.append(item)
@@ -3788,8 +3548,8 @@ def exec_tree_drag_enter(files, drag_type=None):
             print(item, '不是文件')
             if isdir(item):
                 exec_folder_paste(tar_folder_from=item, tar_folder_to=long_name, need_update=False)
-                flag_folder_changed = 1
-                flag_file_changed = 1
+                flag.flag_folder_changed = 1
+                flag.flag_file_changed = 1
                 continue
             else:
                 continue  # 跳过
@@ -3801,18 +3561,18 @@ def exec_tree_drag_enter(files, drag_type=None):
         [fname, fename] = os.path.splitext(ffname)  # fname 文件名前半部分，fename 扩展名
         #
         if DRAG_FILES_ADD_TAG:  # 为拖拽进来的新增文件统一添加当前选中的标签
-            if len(str(fname).split(V_SEP)) > 0:
-                tag_orig = str(fname).split(V_SEP)[1:]
+            if len(str(fname).split(conf.V_SEP)) > 0:
+                tag_orig = str(fname).split(conf.V_SEP)[1:]
             for tag in res_tag:
                 if not tag in tag_orig:
-                    fname = fname + V_SEP + tag
+                    fname = fname + conf.V_SEP + tag
             ffname = fname + fename
         #
         new_name = long_name + '/' + ffname
         if drag_type in ['copy', 'move']:
             #
             # 2021年10月30日新增：markdown特殊处理
-            if MARKDOWN_IMGS is True and len(old_name) > 3 and old_name[-3:] in EXP_EXTS:
+            if MARKDOWN_IMGS is True and len(old_name) > 3 and old_name[-3:] in conf.EXP_EXTS:
                 MarkdownRel.copy_md_linked_files(old_name, long_name)
             #
             res = exec_safe_copy(old_name, new_name, opt_type=drag_type)
@@ -3828,15 +3588,15 @@ def exec_tree_drag_enter(files, drag_type=None):
         # tmp_v=(tmp['fname_0'],tmp['ftags'],tmp['file_mdf_time'],tmp['full_path'])
         # tmp=tmp_v
         # app.tree.insert('',k,values=(k,tmp[0],tmp[1],tmp[2],tmp[3]))
-        flag_file_changed = 1
+        flag.flag_file_changed = 1
 
     # 刷新：
-    if flag_folder_changed:
+    if flag.flag_folder_changed:
         update_folder_list()
         # update_main_window(fast_mode=True)
         pass
 
-    if flag_file_changed:
+    if flag.flag_file_changed:
         update_main_window(0, fast_mode=True)  # 这里不刷新的话，后面排序或者筛选都会出错。
         # 高亮文件
         try:
@@ -3853,8 +3613,8 @@ def update_folder_and_json_file(ind=None, need_update=True):  # 刷新左侧的�
     输入参数是要选中的文件夹编号。
     """
     # 更新json文件
-    exec_json_file_write(data=json_data)
-    exec_json_file_load()
+    conf.exec_json_file_write(data=conf.json_data)
+    conf.exec_json_file_load()
     #
     # 更新左侧列表
     update_folder_list(need_select=False)
@@ -3981,8 +3741,6 @@ def exec_folder_set_group(event=None, group_name=None, short_name=None, need_upd
         if group_name is None:
             return None
     #
-    global json_data
-    #
     if True:
         if short_name is None:
             long_name = app.tree_lst_folder.item(app.last_focus,"values")[-1]
@@ -4005,9 +3763,9 @@ def exec_folder_set_group(event=None, group_name=None, short_name=None, need_upd
 
     # 在 json 里面找到对应项目并增加分组
     n = 0
-    for i in json_data['folders']:
+    for i in conf.json_data['folders']:
         if i['pth'] == long_name:
-            json_data['folders'][n] = {"pth": long_name, "group": group_name}
+            conf.json_data['folders'][n] = {"pth": long_name, "group": group_name}
             break
         n += 1
 
@@ -4047,7 +3805,6 @@ def exec_folder_add(tar_list):
     添加关注的目录,输入必须是列表。
     列表内是文件夹完整路径。
     """
-    global json_data
     need_update = 0
     for tmp_path_long in tar_list:
         if len(tmp_path_long) > 0:  # 用于避免空白项目，虽然不知道哪里来的
@@ -4055,8 +3812,8 @@ def exec_folder_add(tar_list):
             tmp_tar = {"pth": tmp_path_long}
             #
             # 判断是否已经存在
-            if not tmp_path_long in lst_my_path_long:
-                json_data['folders'].append(tmp_tar)
+            if not tmp_path_long in conf.lst_my_path_long:
+                conf.json_data['folders'].append(tmp_tar)
                 need_update = 1
             else:
                 tk.messagebox.showerror(title='错误',
@@ -4074,7 +3831,6 @@ def exec_folder_drop():  # 删除关注的目录
     取消关注选中的文件夹。
     没有输入输出。
     """
-    global json_data
     # 获取当前选中的文件夹
     if True:
         long_name = app.tree_lst_folder.item(app.last_focus,"values")[-1]
@@ -4094,9 +3850,9 @@ def exec_folder_drop():  # 删除关注的目录
         return
     # 在 json 里面找到对应项目并删除
     n = 0
-    for i in json_data['folders']:
+    for i in conf.json_data['folders']:
         if i['pth'] == long_name:
-            json_data['folders'].pop(n)
+            conf.json_data['folders'].pop(n)
             break
         n += 1
     # 刷新目录
@@ -4106,11 +3862,10 @@ def exec_folder_drop():  # 删除关注的目录
 def exec_folder_move_up(event=None, d='up'):
     """
     文件夹列表上下移动，默认上移，参数可以为 'up' 、 'down'、'top'。
-    json_data['folders']是列表，
+    conf.json_data['folders']是列表，
     每一项的'pth'是长路径。
     """
-    # 
-    global json_data
+    #
     # 获取当前选中的文件夹
     short_name = get_folder_short()
     print(short_name)
@@ -4120,7 +3875,7 @@ def exec_folder_move_up(event=None, d='up'):
         long_name = get_folder_s2l(short_name)  # 将显示值转换为实际值
         print(long_name)
     # 在 json 里面找到对应项目，并交换顺序
-    tar_lst = json_data['folders']  # 这个列表只包括文件夹，不包括“所有”。
+    tar_lst = conf.json_data['folders']  # 这个列表只包括文件夹，不包括“所有”。
     n = 0
     min_pos = 0
     max_pos = len(tar_lst) - 1
@@ -4137,7 +3892,7 @@ def exec_folder_move_up(event=None, d='up'):
                     part_2 = tar_lst[n + 1:]
                 else:
                     part_2 = []
-                json_data['folders'] = [part_1] + part_0 + part_2
+                conf.json_data['folders'] = [part_1] + part_0 + part_2
                 print('文件夹置顶成功')
                 break
             n += 1
@@ -4197,11 +3952,11 @@ def exec_folder_open(tar=None):  # 打开目录
             pass
     elif METHOD ==2:
         # 获得当前选中的长目录
-        if len(lst_my_path_long_selected) != 1:
+        if len(conf.lst_my_path_long_selected) != 1:
             pass
         else:
             try:
-                exec_run(lst_my_path_long_selected[0])
+                exec_run(conf.lst_my_path_long_selected[0])
             except:
                 pass
 
@@ -4211,44 +3966,41 @@ def exec_create_txt_note(event=None):
 
 
 def exec_create_note(event=None, my_ext=None):  # 添加笔记
-    global lst_my_path_long_selected
-    global NOTE_NAME
-    global NOTE_EXT
     if my_ext is None:
         pass
     else:
-        old_ext = NOTE_EXT
-        NOTE_EXT = my_ext
+        old_ext = conf.NOTE_EXT
+        conf.NOTE_EXT = my_ext
 
     tags = ['笔记']
     if not get_search_tag_selected() == '':  # 新笔记自动增加选中的标签
         tags += [get_search_tag_selected()]
 
-    if len(lst_my_path_long_selected) != 1:
+    if len(conf.lst_my_path_long_selected) != 1:
         t = tk.messagebox.showerror(title='ERROR', message='未选中文件夹，新建笔记功能暂不可用')
         print('新建笔记功能锁定，暂不可用')
         return
     #
-    the_note_name = NOTE_NAME
+    the_note_name = conf.NOTE_NAME_DEFAULT
     # res = simpledialog.askstring('新建 Tagdox 笔记',prompt='请输入文件名',initialvalue =the_note_name)
-    res = show_window_input('新建 Tagdox 笔记（' + NOTE_EXT + "）", body_value='请输入文件名', init_value=the_note_name)
+    res = show_window_input('新建 Tagdox 笔记（' + conf.NOTE_EXT + "）", body_value='请输入文件名', init_value=the_note_name)
     if res is not None:
         print('获得新笔记标题：')
         print(res)
         the_note_name = res
         if len(tags) > 0:
-            stags = V_SEP + V_SEP.join(tags)
+            stags = conf.V_SEP + conf.V_SEP.join(tags)
         else:
             stags = ''
 
-        if TAG_METHOD == 'FILE_STREAM' and not NOTE_EXT in EXP_EXTS:  # 如果流模式，就不通过文件名的方式加标签了；
+        if TAG_METHOD == 'FILE_STREAM' and not conf.NOTE_EXT in conf.EXP_EXTS:  # 如果流模式，就不通过文件名的方式加标签了；
             stags = ''
 
-        if len(lst_my_path_long_selected) > 1:
+        if len(conf.lst_my_path_long_selected) > 1:
             pass
 
-        if len(lst_my_path_long_selected) == 1:
-            pth = lst_my_path_long_selected[0]
+        if len(conf.lst_my_path_long_selected) == 1:
+            pth = conf.lst_my_path_long_selected[0]
 
             if not event == 'exec_create_note_here':
                 # 增加对子文件夹的判断逻辑。
@@ -4259,23 +4011,23 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
 
             print('即将在此新建笔记：')
             print(pth)
-            if True:  # pth in lst_my_path_long: # 后面这个判断有点多余
-                fpth = pth + '/' + the_note_name + stags + NOTE_EXT
+            if True:  # pth in conf.lst_my_path_long: # 后面这个判断有点多余
+                fpth = pth + '/' + the_note_name + stags + conf.NOTE_EXT
 
                 # 检查是否有这个文件
                 i = 0
                 while isfile(fpth):
                     i += 1
-                    fpth = pth + '/' + the_note_name + '(' + str(i) + ')' + stags + NOTE_EXT
+                    fpth = pth + '/' + the_note_name + '(' + str(i) + ')' + stags + conf.NOTE_EXT
 
                 # 创建文件
                 print('创建文件：')
                 print(fpth)
                 try:
-                    if NOTE_EXT in NOTE_EXT_LIST:
+                    if conf.NOTE_EXT in conf.NOTE_EXT_LIST:
                         with open(fpth, 'w') as _:
                             pass
-                    elif NOTE_EXT in ['.docxXXXXX']:
+                    elif conf.NOTE_EXT in ['.docxXXXXX']:
                         # d=Document()
                         # d.save(fpth)
                         pass
@@ -4306,14 +4058,13 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
     if my_ext is None:
         pass
     else:
-        NOTE_EXT = old_ext
+        conf.NOTE_EXT = old_ext
 
 
 def exec_create_note_here(event=None):
     """
     树状图里面，可以右击直接在选中文件的相同位置新建笔记。
     """
-    global lst_my_path_long_selected
     for item in app.tree.selection():
         if not is_tree_item_enable(item):
             continue
@@ -4322,11 +4073,11 @@ def exec_create_note_here(event=None):
     tmp_path = '/'.join(get_split_path(tmp_full_name)[0:-1])
     print('当前路径')
     print(tmp_path)
-    lst_tmp = lst_my_path_long_selected.copy()
-    lst_my_path_long_selected = [tmp_path]
+    lst_tmp = conf.lst_my_path_long_selected.copy()
+    conf.lst_my_path_long_selected = [tmp_path]
 
     fpth = exec_create_note('exec_create_note_here')
-    lst_my_path_long_selected = lst_tmp.copy()
+    conf.lst_my_path_long_selected = lst_tmp.copy()
 
     if fpth is not None:
         update_main_window(1)
@@ -4400,10 +4151,10 @@ def show_popup_menu_folder(event):
     #
     menu_folder_group = tk.Menu(app.window, tearoff=0)
     tmp_lst_groups = get_folder_group_list()
-    if DEFAULT_GROUP_NAME in tmp_lst_groups:
-        tmp_lst_groups.remove(DEFAULT_GROUP_NAME)
-    menu_folder_group.add_command(label=DEFAULT_GROUP_NAME,
-                                  command=lambda x=DEFAULT_GROUP_NAME: exec_folder_set_group(group_name=x))
+    if conf.DEFAULT_GROUP_NAME in tmp_lst_groups:
+        tmp_lst_groups.remove(conf.DEFAULT_GROUP_NAME)
+    menu_folder_group.add_command(label=conf.DEFAULT_GROUP_NAME,
+                                  command=lambda x=conf.DEFAULT_GROUP_NAME: exec_folder_set_group(group_name=x))
     if len(tmp_lst_groups) > 0: menu_folder_group.add_separator()
     for i in tmp_lst_groups:
         menu_folder_group.add_command(label=i, command=lambda x=i: exec_folder_set_group(group_name=x))
@@ -4540,7 +4291,7 @@ def exec_tree_file_drop_tag(event=None):
             tmp_rv = ''.join(tmp_rv)
             print(tmp_rv)
             #
-            tmp_r_tag = list(V_SEP + tag_value)
+            tmp_r_tag = list(conf.V_SEP + tag_value)
             tmp_r_tag.reverse()
             tmp_r_tag = ''.join(tmp_r_tag)
             print(tmp_r_tag)
@@ -4554,8 +4305,8 @@ def exec_tree_file_drop_tag(event=None):
             file_name_ori = tmp_rv
             print('从右向左替换')
             print(file_name_ori)
-        new_name = file_name_ori.replace(V_SEP + tag_value + V_SEP, V_SEP)
-        new_name = new_name.replace(V_SEP + tag_value + '.', ".")
+        new_name = file_name_ori.replace(conf.V_SEP + tag_value + conf.V_SEP, conf.V_SEP)
+        new_name = new_name.replace(conf.V_SEP + tag_value + '.', ".")
 
         new_full_name = file_path + '/' + new_name
         print('原始文件名：')
@@ -4649,8 +4400,8 @@ def show_popup_menu_file(event):
     menu_create_note.add_command(label='.mm', command=lambda x=1: exec_create_note(None, '.mm'))
 
     #
-    if len(QUICK_TAGS) > 0:
-        for i in QUICK_TAGS:
+    if len(conf.QUICK_TAGS) > 0:
+        for i in conf.QUICK_TAGS:
             menu_tags_to_add.add_command(label=i, command=lambda x=i: exec_fast_add_tag(x))
         menu_tags_to_add.add_separator()
     menu_tags_to_add.add_command(label='自定义标签…', command=exec_tree_add_tag_via_dialog)
@@ -4659,8 +4410,8 @@ def show_popup_menu_file(event):
     menu_file.add_command(label="打开文件", command=exec_tree_file_open, accelerator='Enter')
     # menu_file.add_command(label="在相同位置创建笔记",command=exec_create_note_here)
     menu_file.add_separator()
-    if len(lst_my_path_long_selected) == 1:
-        menu_file.add_command(label="新建笔记（" + NOTE_EXT + "）", command=exec_create_note, accelerator='Ctrl+N')
+    if len(conf.lst_my_path_long_selected) == 1:
+        menu_file.add_command(label="新建笔记（" + conf.NOTE_EXT + "）", command=exec_create_note, accelerator='Ctrl+N')
         menu_file.add_cascade(label="新建更多格式的笔记", menu=menu_create_note)
     else:
         menu_file.add_command(label="新建笔记", state=tk.DISABLED, command=exec_create_note, accelerator='Ctrl+N')
@@ -4705,8 +4456,8 @@ def show_popup_menu_file(event):
     # menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=exec_tree_file_open)
     menu_file_no_selection.add_command(label="打开当前文件夹", command=tree_open_current_folder)
     menu_file_no_selection.add_separator()
-    if len(lst_my_path_long_selected) == 1:
-        menu_file_no_selection.add_command(label="新建笔记（" + NOTE_EXT + "）", command=exec_create_note,
+    if len(conf.lst_my_path_long_selected) == 1:
+        menu_file_no_selection.add_command(label="新建笔记（" + conf.NOTE_EXT + "）", command=exec_create_note,
                                            accelerator='Ctrl+N')
         menu_file_no_selection.add_cascade(label="新建更多格式的笔记", menu=menu_create_note)
     else:
@@ -4734,7 +4485,7 @@ def show_popup_menu_file(event):
             tmp_full_name = item_text[-1]
         tmp_file_name = get_file_part(tmp_full_name)['fname']
         tmp_tags_all = get_file_part(tmp_full_name)['ftags']
-        tmp_tags = tmp_file_name.split(V_SEP)
+        tmp_tags = tmp_file_name.split(conf.V_SEP)
         # print(tmp_res)
         tmp_tags.pop(0)
         #
@@ -4796,7 +4547,7 @@ def show_popup_menu_file(event):
             tmp_full_name = item_text[-1]
             tmp_file_name = get_file_part(tmp_full_name)['fname']
             tmp_tags_all = get_file_part(tmp_full_name)['ftags']  # 自带标签+路径标签
-            tmp_tags = tmp_file_name.split(V_SEP)  # 选中项自带标签
+            tmp_tags = tmp_file_name.split(conf.V_SEP)  # 选中项自带标签
             # print(tmp_res)
             tmp_tags.pop(0)
             # 新增：检查流中的标签
@@ -5003,9 +4754,9 @@ def set_style(style):
                 tar.tag_configure('folder0', foreground=app.COLOR_DICT['blue_light'])
                 tar.tag_configure('folder2', background="#1e1e1e")
                 tar.tag_configure('pick_up', foreground="#f37625",
-                                  font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
+                                  font=(conf.FONT_TREE_BODY[0], conf.FONT_TREE_BODY[1], "italic"))
                 tar.tag_configure('pick_copy', foreground="#2d7d9a",
-                                  font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
+                                  font=(conf.FONT_TREE_BODY[0], conf.FONT_TREE_BODY[1], "italic"))
 
         else:
             for tar in [app.tree_lst_folder, app.tree_lst_sub_folder, app.tree_lst_sub_tag, app.tree]:
@@ -5015,27 +4766,27 @@ def set_style(style):
                 # tar.tag_configure('folder2',background="#FFFFFF")
                 # tar.tag_configure('folder2',background="#1e1e1e")
                 tar.tag_configure('pick_up', foreground="#f37625",
-                                  font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
+                                  font=(conf.FONT_TREE_BODY[0], conf.FONT_TREE_BODY[1], "italic"))
                 tar.tag_configure('pick_copy', foreground="#2d7d9a",
-                                  font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
+                                  font=(conf.FONT_TREE_BODY[0], conf.FONT_TREE_BODY[1], "italic"))
 
         # app.window.tk.call('source', './resources/styles/ttk-Breeze-master/breeze.tcl')
         # style.theme_use('Breeze') # 
 
         style.configure("Treeview.Heading",
-                        font=FONT_TREE_HEADING, \
-                        rowheight=int(LARGE_FONT * 4 * conf.ui_ratio),
-                        height=int(LARGE_FONT * 4), \
+                        font=conf.FONT_TREE_HEADING, \
+                        rowheight=int(conf.LARGE_FONT * 4 * conf.ui_ratio),
+                        height=int(conf.LARGE_FONT * 4), \
                         background='white',
                         foreground='black',
                         relief='flat',
                         borderwidth=0,
-                        padding=(int(LARGE_FONT / 2), int(LARGE_FONT / 2), 0, int(LARGE_FONT / 2)),
+                        padding=(int(conf.LARGE_FONT / 2), int(conf.LARGE_FONT / 2), 0, int(conf.LARGE_FONT / 2)),
                         )
 
         style.configure("Treeview",
-                        font=FONT_TREE_BODY,
-                        rowheight=int(MON_FONTSIZE * 4 * conf.ui_ratio),
+                        font=conf.FONT_TREE_BODY,
+                        rowheight=int(conf.MON_FONTSIZE * 4 * conf.ui_ratio),
                         fieldbackground='#e8e8e7',
                         background='#e8e8e7',
                         foreground='black',
@@ -5045,9 +4796,9 @@ def set_style(style):
         style.layout("Treeview", [('Dark.Treeview.treearea', {'sticky': 'nswe'})])  # Remove the borders
 
         style.configure("Taglist.Treeview",
-                        # font=FONT_TREE_BODY,
+                        # font=conf.FONT_TREE_BODY,
                         # fontsize=-15,
-                        # rowheight=int(MON_FONTSIZE * 3.5), \
+                        # rowheight=int(conf.MON_FONTSIZE * 3.5), \
                         fieldbackground='#5c6164',  # 没有行部分的颜色
                         background='#dbe2e8',  # 空白行的颜色
                         foreground='black',
@@ -5055,9 +4806,9 @@ def set_style(style):
                         # borderwidth=0,
                         )
         style.configure("Dark.Treeview",
-                        # font=FONT_TREE_BODY,
+                        # font=conf.FONT_TREE_BODY,
                         # fontsize=-15,
-                        # rowheight=int(MON_FONTSIZE * 3.5), \
+                        # rowheight=int(conf.MON_FONTSIZE * 3.5), \
                         fieldbackground=app.COLOR_DICT['darkback_1'],  # 没有行部分的颜色
                         background='#2a333c',
                         foreground='white',
@@ -5098,7 +4849,7 @@ def set_style(style):
 
         style.configure("TButton",
                         relief='flat',
-                        font=FONT_TREE_BODY,
+                        font=conf.FONT_TREE_BODY,
                         background=app.COLOR_DICT['blue'],  # '#3a92c5',
                         foreground='white',
                         )  # 静态
@@ -5134,12 +4885,12 @@ def set_style(style):
         style.theme_use('clam')  # winnative clam
         #
         # treeview
-        style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
-                        rowheight=int(LARGE_FONT * 4 * conf.ui_ratio), height=int(LARGE_FONT * 4), \
+        style.configure("Treeview.Heading", font=conf.FONT_TREE_HEADING, \
+                        rowheight=int(conf.LARGE_FONT * 4 * conf.ui_ratio), height=int(conf.LARGE_FONT * 4), \
                         relief='flat', borderwidth=0)
 
-        style.configure("Treeview", font=FONT_TREE_BODY, \
-                        rowheight=int(MON_FONTSIZE * 3.5 * conf.ui_ratio), \
+        style.configure("Treeview", font=conf.FONT_TREE_BODY, \
+                        rowheight=int(conf.MON_FONTSIZE * 3.5 * conf.ui_ratio), \
                         fieldbackground='white', background='#666666', \
                         relief='flat', borderwidth=0)
         # style.configure("Treeview.Item",font=5)
@@ -5162,10 +4913,10 @@ def set_style(style):
                         borderwidth=1, relief='solid')
 
     else:
-        style.configure("Treeview.Heading", font=FONT_TREE_HEADING, \
-                        rowheight=int(LARGE_FONT * 4 * conf.ui_ratio), height=int(LARGE_FONT * 4))
-        style.configure("Treeview", font=FONT_TREE_BODY, \
-                        rowheight=int(MON_FONTSIZE * 3.5 * conf.ui_ratio), relief='flat', borderwidth=0)
+        style.configure("Treeview.Heading", font=conf.FONT_TREE_HEADING, \
+                        rowheight=int(conf.LARGE_FONT * 4 * conf.ui_ratio), height=int(conf.LARGE_FONT * 4))
+        style.configure("Treeview", font=conf.FONT_TREE_BODY, \
+                        rowheight=int(conf.MON_FONTSIZE * 3.5 * conf.ui_ratio), relief='flat', borderwidth=0)
         # style.configure("Vertical.TScrollbar", width=8)
 
         for tar in [app.tree_lst_folder, app.tree_lst_sub_folder, app.tree_lst_sub_tag, app.tree]:
@@ -5174,8 +4925,8 @@ def set_style(style):
             # tar.tag_configure('line1',background="#FFFFFF")
             # tar.tag_configure('folder2',background="#FFFFFF")
             tar.tag_configure('folder2', background="#F2F2F2")
-            tar.tag_configure('pick_up', foreground="#f37625", font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
-            tar.tag_configure('pick_copy', foreground="#2d7d9a", font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
+            tar.tag_configure('pick_up', foreground="#f37625", font=(conf.FONT_TREE_BODY[0], conf.FONT_TREE_BODY[1], "italic"))
+            tar.tag_configure('pick_copy', foreground="#2d7d9a", font=(conf.FONT_TREE_BODY[0], conf.FONT_TREE_BODY[1], "italic"))
 
 
 def exec_tree_file_pick_up(event=None, need_clear=False):
@@ -5335,12 +5086,12 @@ class td_main_app:
     主窗口类
     """
 
-    options = {
-        'V_SEP': '^',
-        'ScaleFactor': None,
-        'SCREEN_WIDTH': None,
-        'SCREEN_HEIGHT': None,
-    }
+    # options = {
+    #     'V_SEP': '^',
+    #     'ScaleFactor': None,
+    #     'SCREEN_WIDTH': None,
+    #     'SCREEN_HEIGHT': None,
+    # }
 
     def __init__(self) -> None:
         """
@@ -5539,7 +5290,7 @@ class td_main_app:
         # 子文件夹列表
         if True:
             self.bar_sub_folder_v = tk.Scrollbar(self.frameSubFolder, width=int(16*conf.ui_ratio))
-            if TREE_SUB_SHOW == 'sub_folder':
+            if conf.TREE_SUB_SHOW == 'sub_folder':
                 pass
 
             self.tree_lst_sub_folder = ttk.Treeview(self.frameSubFolder,
@@ -5558,7 +5309,7 @@ class td_main_app:
             self.bar_sub_folder_v.config(command=self.tree_lst_sub_folder.yview)
             #
             # update_sub_folder_list(lst_sub_path) # 填充内容
-            if TREE_SUB_SHOW == 'sub_folder':
+            if conf.TREE_SUB_SHOW == 'sub_folder':
                 self.bar_sub_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
                 self.tree_lst_sub_folder.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=0)
         #
@@ -5566,7 +5317,7 @@ class td_main_app:
         if True:
             self.v_tag_search = tk.Entry(self.frameSubTags)
             self.bar_sub_tag_v = tk.Scrollbar(self.frameSubTags, width=16)
-            if TREE_SUB_SHOW == 'tag':
+            if conf.TREE_SUB_SHOW == 'tag':
                 # v_tag_search.pack(side=tk.TOP,expand=0,fill=tk.X)
                 pass
 
@@ -5586,7 +5337,7 @@ class td_main_app:
             self.tree_lst_sub_tag.column('tags', width=int(220*conf.ui_ratio), anchor='w')
             self.bar_sub_tag_v.config(command=self.tree_lst_sub_tag.yview)
             #
-            if True:  # TREE_SUB_SHOW == 'tag':
+            if True:  # conf.TREE_SUB_SHOW == 'tag':
                 self.bar_sub_tag_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
                 self.tree_lst_sub_tag.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=0)
         #
@@ -5615,7 +5366,7 @@ class td_main_app:
 
         if True:  # 子文件夹搜索
             self.lable_sub_folders = tk.Label(self.frame0, text='子文件夹')
-            if TREE_SUB_SHOW == 'tag':
+            if conf.TREE_SUB_SHOW == 'tag':
                 pass
 
             self.v_sub_folders['value'] = [''] + lst_sub_path
@@ -5646,12 +5397,12 @@ class td_main_app:
         nx += 1
         self.lable_search.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
         #
-        if TREE_SUB_SHOW == 'tag':
+        if conf.TREE_SUB_SHOW == 'tag':
             nx += 1
             self.v_sub_folders.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
             nx += 1
             self.lable_sub_folders.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
-        elif TREE_SUB_SHOW == 'sub_folder':
+        elif conf.TREE_SUB_SHOW == 'sub_folder':
             nx += 1
             self.lable_tag = ttk.Label(self.frame0, text='标签')
             #
@@ -5773,8 +5524,8 @@ class td_main_app:
             # tar.tag_configure('line1',background="#FFFFFF")
             # tar.tag_configure('folder2',background="#FFFFFF")
             tar.tag_configure('folder2',background="#F2F2F2")
-            tar.tag_configure('pick_up',foreground="#f37625",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))
-            tar.tag_configure('pick_copy',foreground="#2d7d9a",font=(FONT_TREE_BODY[0], FONT_TREE_BODY[1], "italic"))'''
+            tar.tag_configure('pick_up',foreground="#f37625",font=(conf.FONT_TREE_BODY[0], conf.FONT_TREE_BODY[1], "italic"))
+            tar.tag_configure('pick_copy',foreground="#2d7d9a",font=(conf.FONT_TREE_BODY[0], conf.FONT_TREE_BODY[1], "italic"))'''
         self.window.iconbitmap(LOGO_PATH)  # 左上角图标 #
 
 
@@ -5863,6 +5614,7 @@ class td_tree_folder():
         """
         self.name = 'foler_frame'
         self.body = null
+        self.tree_folder = self.body
 
     def update(self):
         self.body
@@ -5932,7 +5684,8 @@ class td_tree_file():
         self.tree.heading("file0", text="完整路径", anchor='w', command=tree_order_path)
         #
         # 后续处理工作
-        self.bind_func()
+        self.bind_func()  # 绑定功能
+
     def clear(self):
         """
         列表清空
@@ -6067,12 +5820,21 @@ def check_single_instance():  # 检查是否已经运行；
 # have_exe = check_single_instance()
 # if __name__ == '__main__' and have_exe==0:
 
+
+class td_flag:
+    def __init__(self):
+        self.flag_inited = 0  # 代表是否已经加载完成
+        self.flag_break = 0  # 代表是否中断查询
+        self.flag_running = 0  # 代表是否有正在运行的查询
+        self.flag_root_folder = 0
+        self.flag_sub_folders_changed = 0
+        self.flag_file_changed = 0
+        self.flag_folder_changed = 0
+
+
 if __name__ == '__main__':
     # 变量 ###########################################################
-    #
-    #
     q = queue.Queue()
-    #
     #
     lst_files_to_go = []  # 所有文件的完整路径
     dT = []
@@ -6080,10 +5842,6 @@ if __name__ == '__main__':
     #
     lst_tags = []  # 全部标签
     lst_tags_selected = []
-    #
-    lst_my_path_long = []  # json里面，要扫描的文件夹列表
-    lst_my_path_short = []
-    lst_my_path_long_selected = []
     #
     lst_sub_path = []  # 子文件夹得到全局变量
     lst_sub_path_selected = []
@@ -6093,19 +5851,14 @@ if __name__ == '__main__':
     state_pick_up = 'move'
     folder_to_move = ''  # 待移动的文件夹
     #
-    dict_path = dict()  # 用于列表简写和实际值
-    dict_folder_groups = dict()  # 文件夹对应分组
+    # dict_path = dict()  # 用于列表简写和实际值
+    # dict_folder_groups = dict()  # 文件夹对应分组
     #
-    flag_inited = 0  # 代表是否已经加载完成
-    flag_break = 0  # 代表是否中断查询
-    flag_running = 0  # 代表是否有正在运行的查询
-    flag_root_folder = 0
-    flag_sub_folders_changed = 0
-    flag_file_changed = 0
+    flag = td_flag()
     #
     # 加载设置参数。
-    json_data = OPT_DEFAULT  # 用于后面处理的变量。
-    exec_json_file_load()
+    # conf.json_data = OPT_DEFAULT  # 用于后面处理的变量。
+    conf.exec_json_file_load()
     ###########################################################
     #
 
@@ -6119,7 +5872,6 @@ if __name__ == '__main__':
     # %%
     #
     # 样式
-
     # from ttkbootstrap import Style as TB_Style
     # style = TB_Style(theme='yeti')
     style = ttk.Style()
@@ -6134,63 +5886,17 @@ if __name__ == '__main__':
     vPDX = 10
     vPDY = 5
     #
-    # 下面的简称，都是之后要逐步去掉的，否则影响程序结构
-    #
-    # str_btm = app.str_btm
-    # prog = app.prog
-    # prog_win = app.prog_win
-    # progressbar_file = app.progressbar_file
-
-    # frame_window = app.frame_window
-    #
-    # frame0 = app.frame0  # TOP
-    # frameMain = app.frameMain
-    # frameBtm = app.frameBtm
-    #
-    # frameFolder = app.frameFolder
-    # frameFolderCtl = app.frameFolderCtl
-    # frameSubFolder = app.frameSubFolder
-    #
-    # frame_prog = app.frame_prog
-    #
-    # bar_tree_v = app.bar_tree_v
-    # bar_tree_h = app.bar_tree_h
-    # bar_folder_v = app.bar_folder_v
-    # bar_sub_folder_v = app.bar_sub_folder_v
-    # bar_sub_tag_v = app.bar_sub_tag_v
-    #
-    # tree = app.tree
-    # tree_lst_folder = app.tree_lst_folder
-    # tree_lst_sub_folder = app.tree_lst_sub_folder
-    # tree_lst_sub_tag = app.tree_lst_sub_tag
-
-    # bt_search = app.bt_search
-    # bt_clear = app.bt_clear
-    # bt_test = app.bt_test
-    # bt_settings = app.bt_settings
-    # bt_new = app.bt_new
-
-    # lable_sub_folders = app.lable_sub_folders
-    # lable_search = app.lable_search
-    # lable_sum = app.lable_sum
-
-    # v_sub_folders = app.v_sub_folders
-    # v_tag = app.v_tag
-    # v_search = app.v_search
-    # v_folders = app.v_folders
-    # v_inp = app.v_inp
-
     # %%
     # ###########################################################
     #
     # 数据初始化
     '''if ALL_FOLDERS == 1:  # 对应是否带有“所有文件夹”这个功能的开关
-        lst_my_path_long_selected = lst_my_path_long.copy()  # 用这个变量修复添加文件夹之后定位不准确的问题。
-        lst_files_to_go = get_data(lst_my_path_long_selected)
+        conf.lst_my_path_long_selected = conf.lst_my_path_long.copy()  # 用这个变量修复添加文件夹之后定位不准确的问题。
+        lst_files_to_go = get_data(conf.lst_my_path_long_selected)
     else:
         try:
-            lst_my_path_long_selected = [lst_my_path_long[0]] # 默认加载第一个文件夹的内容
-            lst_files_to_go = get_data(lst_my_path_long_selected)
+            conf.lst_my_path_long_selected = [conf.lst_my_path_long[0]] # 默认加载第一个文件夹的内容
+            lst_files_to_go = get_data(conf.lst_my_path_long_selected)
         except:
             lst_files_to_go = get_data()  # 此处有隐患，还没条件测试
     #
@@ -6216,8 +5922,8 @@ if __name__ == '__main__':
         tmp_itm_sel = app.tree_lst_folder.get_children()[0]
         tmp_itm_sel = app.tree_lst_folder.get_children(tmp_itm_sel)[0]
         tmp_path_long = app.tree_lst_folder.item(tmp_itm_sel, "values")[-1]
-        lst_my_path_long_selected = [tmp_path_long]  # 默认加载第一个文件夹的内容
-        lst_files_to_go = get_data(lst_my_path_long_selected)
+        conf.lst_my_path_long_selected = [tmp_path_long]  # 默认加载第一个文件夹的内容
+        lst_files_to_go = get_data(conf.lst_my_path_long_selected)
     except:
         lst_files_to_go = get_data()  # 此处有隐患，还没条件测试
     #
@@ -6236,11 +5942,11 @@ if __name__ == '__main__':
         pass
     #
     #
-    flag_inited = 1  # 代表前面的部分已经运行过一次了
+    flag.flag_inited = 1  # 代表前面的部分已经运行过一次了
     set_prog_bar(0)
     #
     if True:
-        sub_task = threading.Thread(target=process_update_data, args=(lst_my_path_long,))
+        sub_task = threading.Thread(target=process_update_data, args=(conf.lst_my_path_long,))
         sub_task.setDaemon(True)
         sub_task.start()
     #

@@ -64,6 +64,7 @@ class td_conf:
         self.ORDER_DESC = True  # 是否逆序 # 已改完
         self.NOTE_NAME_DEFAULT = '未命名笔记'  # 新建笔记的默认名称 # 已改完
         self.EXP_FOLDERS = ['_img', '.git']  # 排除文件夹名称，以后会加到自定义里面 # 已改完
+        self.EXP_DOT_FOLDERS = True  # 排除点开头的文件夹
         self.EXP_EXTS = ['.md', '.MD']  # 排除扩展名，这里面的强制采用传统标签； # 已改完
 
         self.LARGE_FONT = 10  # 表头字号

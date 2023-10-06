@@ -57,13 +57,15 @@ class td_const():
         self.URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
         self.URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
         self.TAR = 'Tagdox / 标签文库'  # 程序名称
-        self.VER = 'v0.25.1.8'  # 版本号
+        self.VER = 'v0.25.1.9'  # 版本号
 
 conf = td_conf()  # 关键参数
 cst = td_const()  # 常量
 
 """
 ## 近期更新说明
+#### v0.25.1.9 2023年10月6日
+增加功能：可以在左侧文件夹列表自动忽略点开头的文件夹。这个功能以后可以作为设置项。
 
 #### v0.25.1.8 2023年9月27日
 修正了空格唤起的文件预览框缩放不正确的问题。
@@ -1186,6 +1188,8 @@ def update_current_folder_list(event=None, ):
             for sub_dir_ in dirs_sorted:
                 tmp += 1
                 if sub_dir_ in conf.EXP_FOLDERS:  # 排除文件夹
+                    continue
+                if conf.EXP_DOT_FOLDERS and str(sub_dir_).startswith('.'):
                     continue
                 if '_nomedia' in files_:
                     continue
@@ -3206,7 +3210,7 @@ def show_window_setting():  #
 
     def setting_yes(event=None):
         '''
-        还没有功能
+        点击确定之后，使参数生效
         '''
         # 获得新参数
         need_reboot = False
@@ -3218,21 +3222,26 @@ def show_window_setting():  #
                 need_reboot = True
             else:
                 return
-        conf.NOTE_EXT = v_inp_note_type.get()
-        conf.V_FOLDERS = v_inp_folder_depth.get()
-        conf.V_SEP = v_inp_sep.get()
-        conf.FILE_DRAG_MOVE = dict_file_drag[v_inp_drag_type.get()]
-        conf.TREE_SUB_SHOW = dict_window_mode[v_inp_mode.get()]
-        conf.FOLDER_AS_TAG = dict_yes_no[v_last_folder_as_tag.get()]
-        conf.TAG_EASY = dict_tag_mode[v_tag_easy.get()]
         #
-        # 保存到设置文件中
-        conf.set_json_options('sep', conf.V_SEP, need_write=False)
-        conf.set_json_options('vfolders', conf.V_FOLDERS, need_write=False)
+        conf.NOTE_EXT = v_inp_note_type.get()
         conf.set_json_options('note_ext', conf.NOTE_EXT, need_write=False)
+        #
+        conf.V_FOLDERS = v_inp_folder_depth.get()
+        conf.set_json_options('vfolders', conf.V_FOLDERS, need_write=False)
+        #
+        conf.V_SEP = v_inp_sep.get()
+        conf.set_json_options('sep', conf.V_SEP, need_write=False)
+        #
+        conf.FILE_DRAG_MOVE = dict_file_drag[v_inp_drag_type.get()]
         conf.set_json_options('file_drag_enter', conf.FILE_DRAG_MOVE, need_write=False)
+        #
+        conf.TREE_SUB_SHOW = dict_window_mode[v_inp_mode.get()]
         conf.set_json_options('TREE_SUB_SHOW', conf.TREE_SUB_SHOW)
+        #
+        conf.FOLDER_AS_TAG = dict_yes_no[v_last_folder_as_tag.get()]
         conf.set_json_options('FOLDER_AS_TAG', conf.FOLDER_AS_TAG)
+        #
+        conf.TAG_EASY = dict_tag_mode[v_tag_easy.get()]
         conf.set_json_options('TAG_EASY', conf.TAG_EASY)
         #
         # 关闭窗口

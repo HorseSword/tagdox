@@ -57,13 +57,20 @@ class td_const():
         self.URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
         self.URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
         self.TAR = 'Tagdox / 标签文库'  # 程序名称
-        self.VER = 'v0.25.1.9'  # 版本号
+        self.VER = 'v0.26.1.0'  # 版本号
 
 conf = td_conf()  # 关键参数
 cst = td_const()  # 常量
 
 """
 ## 近期更新说明
+
+#### v0.26.1.0 2023年10月11日
+增加功能：为readme功能增加了快捷按钮。
+
+#### v0.26.0.0 2023年10月11日
+增加功能：可以解析当前文件夹内的readme.md文件，并作为文件夹备注显示在列表下面。
+
 #### v0.25.1.9 2023年10月6日
 增加功能：可以在左侧文件夹列表自动忽略点开头的文件夹。这个功能以后可以作为设置项。
 
@@ -2788,6 +2795,7 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
     global lst_files_to_go, dT
     global lst_tags, lst_sub_path
 
+    app.update_readme()
     # if conf.TREE_SUB_SHOW =='tag' and event is None:
     #     event=1
 
@@ -3045,12 +3053,14 @@ def on_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文
     # 调整按钮和控件的可用性：
     if need_disabled:
         app.bt_new.configure(state=tk.DISABLED)
+        app.bt_readme.configure(state=tk.DISABLED)
         app.bt_folder_drop.configure(state=tk.DISABLED)
         app.v_sub_folders.current(0)
         app.v_sub_folders.configure(state=tk.DISABLED)
         app.folder_layers.configure(state=tk.DISABLED)
     else:
         app.bt_new.configure(state=tk.NORMAL)
+        app.bt_readme.configure(state=tk.NORMAL)
         app.bt_folder_drop.configure(state=tk.NORMAL)
         app.v_sub_folders.configure(state='readonly')
         app.folder_layers.configure(state='readonly')
@@ -3095,6 +3105,7 @@ def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的
         conf.lst_my_path_long_selected = conf.lst_my_path_long.copy()
         # 设置按钮为无效
         app.bt_new.configure(state=tk.DISABLED)
+        app.bt_readme.configure(state=tk.DISABLED)
         app.bt_folder_drop.configure(state=tk.DISABLED)
         app.v_sub_folders.current(0)
         app.v_sub_folders.configure(state=tk.DISABLED)
@@ -3105,6 +3116,7 @@ def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的
         conf.lst_my_path_long_selected = [tmp]
         # 设置按钮有效
         app.bt_new.configure(state=tk.NORMAL)
+        app.bt_readme.configure(state=tk.NORMAL)
         app.bt_folder_drop.configure(state=tk.NORMAL)
         app.v_sub_folders.configure(state='readonly')
         app.folder_layers.configure(state='readonly')
@@ -3114,6 +3126,7 @@ def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的
         conf.lst_my_path_long_selected = [tmp]
         # 设置按钮有效
         app.bt_new.configure(state=tk.NORMAL)
+        app.bt_readme.configure(state=tk.NORMAL)
         app.bt_folder_drop.configure(state=tk.NORMAL)
         app.v_sub_folders.configure(state='readonly')
         app.folder_layers.configure(state='readonly')
@@ -3973,6 +3986,18 @@ def exec_folder_open(tar=None):  # 打开目录
 def exec_create_txt_note(event=None):
     exec_create_note(my_ext='.txt')
 
+def exec_create_note_readme(event=None):
+    pth = conf.lst_my_path_long_selected[0]
+    file_path = pth + '/readme.md'
+    try:
+        if os.path.isfile(file_path):
+            os.startfile(file_path)  # 打开这个文件
+        else:
+            with open(file_path,'w+') as f:
+                pass
+            os.startfile(file_path)  # 打开这个文件
+    except Exception as e:
+        print(e)
 
 def exec_create_note(event=None, my_ext=None):  # 添加笔记
     if my_ext is None:
@@ -5201,21 +5226,6 @@ class td_main_app:
         self.frame_window = ttk.Frame(self.window, padding=(0, 0, 0, 0), relief='flat', borderwidth=0)
         self.frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=0, pady=0)
         #
-        # 上面功能区：frame0
-        self.frame0 = ttk.Frame(self.frame_window, relief='flat',
-                                height=int(120*conf.ui_ratio))  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
-        self.frame0.pack(expand=0, fill=tk.X, padx=0, pady=0)  # padx=10, pady=5)
-        #
-        # 菜单区
-        self.frameMenu = ttk.Frame(self.frame0,
-                                   relief='flat',
-                                   style='Dark.TFrame',
-                                   width=int((320 - 16 * 1)*conf.ui_ratio),
-                                   borderwidth=0,
-                                   )  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
-        self.frameMenu.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10, pady=5)
-        self.frameMenu.pack_propagate(0)
-        #
         # 文件夹区
         self.frameLeft = ttk.Frame(self.frame_window,
                                    # style="Dark.Treeview",
@@ -5225,10 +5235,23 @@ class td_main_app:
                                    width=int(conf.ui_ratio *320),  # 没有用，因为 Frame 默认是根据控件大小改变的。
                                    relief='flat')  # ,)
         self.frameLeft.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
-        self.frameLeft.pack_propagate(0)  # 有这句话才能使框架的尺寸生效
-        # for i in range(2):
-        # frameLeft.rowconfigure(i,weight=1)
+        self.frameLeft.pack_propagate(0)  # 设置为0则框架不被内部撑大。默认是1.
         #
+        self.bar_folder_v = tk.Scrollbar(self.frameLeft, width=int(16 * conf.ui_ratio))
+        # self.bar_folder_v = ttk.Scrollbar(self.frameFolder)#, width=16)
+        self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
+        #
+        # 菜单区
+        self.frameMenu = ttk.Frame(self.frameLeft,
+                                   relief='flat',
+                                   style='Dark.TFrame',
+                                   # width=int((320 - 16 * 1) * conf.ui_ratio),
+                                   height =int(40 * conf.ui_ratio),
+                                   # borderwidth=0,
+                                   # padding=(0, 0, 0, 0),
+                                   )  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
+        self.frameMenu.pack(side=tk.TOP, expand=0, fill=tk.X, padx=0, pady=0)  # padx=10, pady=5)
+        self.frameMenu.pack_propagate(0)
         # 文件夹在frameLeft内部
         self.frameFolder = ttk.Frame(self.frameLeft, style='Dark.TFrame', relief='flat', borderwidth=0, )
         # height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
@@ -5246,41 +5269,75 @@ class td_main_app:
         # 文件夹下面的控制区
         self.frameFolderCtl = ttk.Frame(self.frameLeft, height=int(10*conf.ui_ratio), borderwidth=0, relief=tk.SOLID)
         # self.frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
-
+        # 上面功能区：frame0
+        self.frame0 = ttk.Frame(self.frame_window,
+                                relief='flat',
+                                borderwidth=0,
+                                # relief='solid',
+                                height=int(120 * conf.ui_ratio),
+                                )  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
+        self.frame0.pack(expand=0, fill=tk.X, padx=0, pady=0)  # padx=10, pady=5)
         # 主功能区
-        self.frameMain = ttk.Frame(self.frame_window)  # ,height=800)
+        self.frameMain = ttk.Frame(self.frame_window, border=0)  # ,height=800)
         self.frameMain.pack(expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10, pady=0)
-
+        # 标签区
+        # self.frameSubTags = ttk.Frame(self.frameLeft)  # ,width=600)
+        self.frameSubTags = ttk.Frame(self.frameMain, width=int(conf.ui_ratio * 300))
+        self.frameSubTags.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
+        #
+        # readme 区域
+        self.frameReadme = ttk.Frame(self.frameMain, height=150)
+        self.frameReadme.pack(side=tk.BOTTOM, expand=0, fill=tk.X, )
+        self.frameReadme.pack_propagate(0)  # 设置为0则框架不被内部撑大。默认是1.
+        #
+        # self.str_readme = tk.StringVar()  # 最下面显示状态用的
+        # self.str_readme.set("这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，\n它将会在单词边界处自动换行。")
+        # text = ttk.Label(self.frameReadme,textvariable=self.str_readme)  # wrap="word" 使文本在单词边界处进行换行
+        # text.pack()
+        self.text_readme = tk.Text(self.frameReadme, wrap='word',borderwidth=0,
+                                   padx=40,pady=5,
+                                   background='#f0f0f0',#'#e8e8e7',
+                                   font=conf.FONT_TREE_BODY,
+                                   relief='flat')
+        self.text_readme.pack(fill=tk.BOTH, expand=1)
+        #
+        self.frameTreeFiles = ttk.Frame(self.frameMain,)  # ,height=800)
+        self.frameTreeFiles.pack(expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10, pady=0)
+        #
         # 底部区
         self.frameBtm = ttk.Frame(self.frame_window, height=int(120*conf.ui_ratio), padding=(0, 0, 0, 0), relief='flat')
         self.frameBtm.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=0, pady=0)
-
+        #
+        ##############
+        # 控件
+        ##############
+        #
         self.bt_folder_add = ttk.Button(self.frame0, text='添加文件夹到关注列表')  # state=tk.DISABLED,,command=setting_fun
         self.bt_folder_drop = ttk.Button(self.frameFolderCtl, text='移除文件夹')
-
+        #
         self.v_sub_folders = ttk.Combobox(self.frame0)  # 子文件夹选择框
         self.v_tag = ttk.Combobox(self.frame0)  # 标签选择框
         self.v_search = ttk.Entry(self.frame0)  # 搜索框
         self.v_folders = ttk.Combobox(self.frameFolder)  # 文件夹选择框
         #
         # 主文件树
-        self.tree_main = td_tree_file(self.frameMain,self.frameBtm)
+        self.tree_main = td_tree_file(self.frameTreeFiles, self.frameBtm)
         self.bar_tree_v = self.tree_main.bar_tree_v
         # self.bar_tree_v = tk.Scrollbar(self.frameMain)  # 右侧滚动条
         self.bar_tree_h = self.tree_main.bar_tree_h
         # self.bar_tree_h = tk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL)  # 底部滚动条
         self.tree = self.tree_main.body
         #
-        # 标签区
-        # self.frameSubTags = ttk.Frame(self.frameLeft)  # ,width=600)
-        self.frameSubTags = ttk.Frame(self.frameMain, width=int(conf.ui_ratio*300))
-        self.frameSubTags.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
+        # # 标签区
+        # # self.frameSubTags = ttk.Frame(self.frameLeft)  # ,width=600)
+        # self.frameSubTags = ttk.Frame(self.frameMain, width=int(conf.ui_ratio*300))
+        # self.frameSubTags.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
         # 文件夹列表
 
         if True:
-            self.bar_folder_v = tk.Scrollbar(self.frameFolder, width=int(16*conf.ui_ratio))
-            # self.bar_folder_v = ttk.Scrollbar(self.frameFolder)#, width=16)
-            self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
+            # self.bar_folder_v = tk.Scrollbar(self.frameFolder, width=int(16*conf.ui_ratio))
+            # # self.bar_folder_v = ttk.Scrollbar(self.frameFolder)#, width=16)
+            # self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
             #
             self.tree_lst_folder = ttk.Treeview(self.frameFolder,
                                                 selectmode=tk.BROWSE,
@@ -5352,10 +5409,6 @@ class td_main_app:
         #
         # tree_lst_folder.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=10)
         # tree_lst_sub_folder.pack(side=tk.LEFT, expand=0, fill=tk.BOTH, padx=0, pady=10)
-        #
-
-        #
-
         #
         vPDX = 10  # 10
         vPDY = 5  # 5
@@ -5473,7 +5526,7 @@ class td_main_app:
 
         # self.lable_sum = tk.Label(self.frameBtm, text=self.str_btm, textvariable=self.str_btm)
         self.lable_sum = ttk.Label(self.frame0, text=self.str_btm, textvariable=self.str_btm)
-        self.lable_sum.pack(side=tk.LEFT, expand=0, padx=20, pady=vPDY)  #
+        self.lable_sum.pack(side=tk.LEFT, expand=0, padx=5, pady=vPDY)  #
 
         self.bt_settings = ttk.Button(self.frameMenu,
                                       style='Menu.TButton',
@@ -5487,6 +5540,14 @@ class td_main_app:
                                       )  # ,command=show_online_help)
 
         self.bt_settings.pack(side=tk.LEFT, expand=0, padx=5, pady=vPDY)  #
+        #
+        # 站位空白块，用于出现在滚动条顶部空间
+        # self.canvas_space = tk.Canvas(self.frameMenu, bg='#e8e8e7',
+        #                               relief='flat', borderwidth=0,
+        #                               width=(16*conf.ui_ratio),
+        #                               )
+        # self.canvas_space.pack(side=tk.RIGHT, fill='y', expand=0,)
+        #
         # self.bt_folder_add.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
         # self.bt_new = ttk.Button(self.frame0, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
         # self.bt_new.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
@@ -5503,6 +5564,9 @@ class td_main_app:
 
         self.bt_new = ttk.Button(self.frameBtm, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
         self.bt_new.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
+
+        self.bt_readme = ttk.Button(self.frameBtm, text='readme')  # ,state=tk.DISABLED)#,command=update_main_window)
+        self.bt_readme.pack(side=tk.RIGHT, expand=0, padx=0, pady=vPDY)  #
 
         # 新标签的输入框
         self.v_inp = ttk.Combobox(self.frameBtm, width=int(16*conf.ui_ratio))
@@ -5537,7 +5601,40 @@ class td_main_app:
             tar.tag_configure('pick_copy',foreground="#2d7d9a",font=(conf.FONT_TREE_BODY[0], conf.FONT_TREE_BODY[1], "italic"))'''
         self.window.iconbitmap(LOGO_PATH)  # 左上角图标 #
 
+    def update_readme(self, text_in = None):
+        """
+        用于更新 readme 里面的内容
+        """
+        text_to_show = text_in
+        current_path = conf.lst_my_path_long_selected[0]
+        #
+        if text_in is None:
+            text_to_show = '（当前目录没有说明文档）'
+            try:
+                # 检查当前是否是文件夹，也就是二级目录
+                tmp_files = os.listdir(current_path)
+                # 检查当前文件夹内是否有readme.md
+                # 读取前5000字
+                if 'readme.md' in tmp_files:
+                    app.frameReadme.configure(height=240)
+                    try:
+                        with open(current_path+'/readme.md', 'rb') as f:
+                            text_to_show = f.read(5000).decode('utf-8')
+                    except Exception as e:
+                        with open(current_path+ '/readme.md', 'rb') as f:
+                            text_to_show = f.read(5000).decode('gbk','ignore')
+                    if len(text_to_show)==0:
+                        text_to_show = '（当前目录的说明文档 readme.md 内容为空）'
+                else:
+                    app.frameReadme.configure(height=1)  # 隐藏高度
+                    #
+            except Exception as e:
+                text_to_show = str(e)
 
+        self.text_readme.configure(state='normal')
+        self.text_readme.delete('1.0', tk.END)
+        self.text_readme.insert(tk.END, text_to_show)
+        self.text_readme.configure(state='disabled')
 
     def bind_funcs(self):
         # 功能绑定
@@ -5613,6 +5710,7 @@ class td_main_app:
         # bt_settings.configure(command=show_popup_menu_main)  # 菜单按钮
         self.bt_settings.bind("<ButtonRelease-1>", show_popup_menu_main)  # 菜单按钮
         self.bt_new.configure(command=exec_create_note)
+        self.bt_readme.configure(command=exec_create_note_readme)
 
 class td_tree_folder():
     """
@@ -5874,6 +5972,14 @@ if __name__ == '__main__':
     app = td_main_app()  # 主程序
     app.bind_funcs()
     #
+    # readme 部分
+    long_text = """
+    用默认的 UTF-8 编码。如果你的文件使用了其他的编码，你需要在 open 函数中指定正确的编码，
+    例如 open(filename, 'r', encoding='your-encoding')。 
+    """
+    default_readme = long_text + long_text + long_text
+    app.update_readme()
+    #
     # window = tk.Tk()  # 主窗口
     # window = app.window  # 主窗口
     # SCREEN_WIDTH = conf.SCREEN_WIDTH
@@ -5931,7 +6037,7 @@ if __name__ == '__main__':
         tmp_itm_sel = app.tree_lst_folder.get_children()[0]
         tmp_itm_sel = app.tree_lst_folder.get_children(tmp_itm_sel)[0]
         tmp_path_long = app.tree_lst_folder.item(tmp_itm_sel, "values")[-1]
-        conf.lst_my_path_long_selected = [tmp_path_long]  # 默认加载第一个文件夹的内容
+        conf.lst_my_path_long_selected = [tmp_path_long,]  # 默认加载第一个文件夹的内容
         lst_files_to_go = get_data(conf.lst_my_path_long_selected)
     except:
         lst_files_to_go = get_data()  # 此处有隐患，还没条件测试

@@ -57,13 +57,16 @@ class td_const():
         self.URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
         self.URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
         self.TAR = 'Tagdox / 标签文库'  # 程序名称
-        self.VER = 'v0.26.1.0'  # 版本号
+        self.VER = 'v0.26.1.1'  # 版本号
 
 conf = td_conf()  # 关键参数
 cst = td_const()  # 常量
 
 """
 ## 近期更新说明
+
+#### v0.26.1.1 2023年10月11日
+优化readme区域的外观、修正滚动条宽度控制逻辑。
 
 #### v0.26.1.0 2023年10月11日
 增加功能：为readme功能增加了快捷按钮。
@@ -5220,6 +5223,8 @@ class td_main_app:
         self.str_btm.set("加载中")
         self.prog = tk.DoubleVar()  # 进度
         self.prog_win = None
+        self.BAR_V_WIDTH = int(16 * conf.ui_ratio)  # 滚动条宽度
+        self.BAR_H_WIDTH = int(16 * conf.ui_ratio)
         #
         # 框架设计 ############################################
         #
@@ -5237,7 +5242,7 @@ class td_main_app:
         self.frameLeft.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
         self.frameLeft.pack_propagate(0)  # 设置为0则框架不被内部撑大。默认是1.
         #
-        self.bar_folder_v = tk.Scrollbar(self.frameLeft, width=int(16 * conf.ui_ratio))
+        self.bar_folder_v = tk.Scrollbar(self.frameLeft, width=self.BAR_V_WIDTH)
         # self.bar_folder_v = ttk.Scrollbar(self.frameFolder)#, width=16)
         self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
         #
@@ -5286,7 +5291,7 @@ class td_main_app:
         self.frameSubTags.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
         #
         # readme 区域
-        self.frameReadme = ttk.Frame(self.frameMain, height=150)
+        self.frameReadme = ttk.Frame(self.frameSubTags, height=1)
         self.frameReadme.pack(side=tk.BOTTOM, expand=0, fill=tk.X, )
         self.frameReadme.pack_propagate(0)  # 设置为0则框架不被内部撑大。默认是1.
         #
@@ -5295,8 +5300,8 @@ class td_main_app:
         # text = ttk.Label(self.frameReadme,textvariable=self.str_readme)  # wrap="word" 使文本在单词边界处进行换行
         # text.pack()
         self.text_readme = tk.Text(self.frameReadme, wrap='word',borderwidth=0,
-                                   padx=40,pady=5,
-                                   background='#f0f0f0',#'#e8e8e7',
+                                   padx=10,pady=10,
+                                   background='#e8e8e7',#'#e8e8e7',
                                    font=conf.FONT_TREE_BODY,
                                    relief='flat')
         self.text_readme.pack(fill=tk.BOTH, expand=1)
@@ -5382,7 +5387,7 @@ class td_main_app:
         # 标签列表：
         if True:
             self.v_tag_search = tk.Entry(self.frameSubTags)
-            self.bar_sub_tag_v = tk.Scrollbar(self.frameSubTags, width=16)
+            self.bar_sub_tag_v = tk.Scrollbar(self.frameSubTags, width=self.BAR_V_WIDTH)
             if conf.TREE_SUB_SHOW == 'tag':
                 # v_tag_search.pack(side=tk.TOP,expand=0,fill=tk.X)
                 pass
@@ -5616,7 +5621,7 @@ class td_main_app:
                 # 检查当前文件夹内是否有readme.md
                 # 读取前5000字
                 if 'readme.md' in tmp_files:
-                    app.frameReadme.configure(height=240)
+                    app.frameReadme.configure(height=600)
                     try:
                         with open(current_path+'/readme.md', 'rb') as f:
                             text_to_show = f.read(5000).decode('utf-8')

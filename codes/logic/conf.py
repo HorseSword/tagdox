@@ -1,16 +1,18 @@
 import json
 from os.path import isfile
 from libs.common_funcs import get_split_path
+import logging
 
 
 class td_conf:
     """
     用于存储设置项.
-    用法： conf = td_conf()
+    用法：
+    conf = td_conf()
+    conf.ui_ratio = xxx
     """
 
     def __init__(self):
-
         self.name = 'tagdox'
         self.ui_ratio = 1.0
         self.SCREEN_WIDTH = 1920
@@ -21,16 +23,16 @@ class td_conf:
         self.FILE_DRAG_MOVE = 'move'  # 文件拖动到列表的时候，是复制，还是移动。// 可修改。# 取值：'move' 'copy'。 # 已改完
         try:
             if isfile('../options_for_tagdox.json'):
-                print('读取上级目录')
+                logging.debug('读取上级目录')
                 self.OPTIONS_FILE = '../options_for_tagdox.json'
             elif isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
-                print('读取开发模式的配置文件')
+                logging.debug('读取开发模式的配置文件')
                 self.OPTIONS_FILE = 'D:/MyPython/开发数据/options_for_tagdox.json'
             else:
-                print('读取当前目录配置文件')
+                logging.debug('读取当前目录配置文件')
                 self.OPTIONS_FILE = 'options_for_tagdox.json'  # 配置文件的名称
         except:
-            print('读取标准模式的配置文件')
+            logging.debug('读取标准模式的配置文件')
             self.OPTIONS_FILE = 'options_for_tagdox.json'  # 配置文件的名称 # 已改完
 
         self.OPT_DEFAULT = {
@@ -53,11 +55,7 @@ class td_conf:
         self.QUICK_TAGS = ['@PIN', '@TODO', '@toRead', '@Done']  # 快速添加标签 # 已改完
         #
         self.DEFAULT_GROUP_NAME = '默认文件夹分组'  # 已改完
-        self.dict_path = dict()  # 用于列表简写和实际值 # 已改完
-        self.dict_folder_groups = dict()  # 已改完
-        self.lst_my_path_long_selected = []  # 已改完
-        self.lst_my_path_short = []  # 已改完
-        self.lst_my_path_long = []  # 已改完
+
         self.TAG_EASY = 1  # 标签筛选是严格模式还是简单模式，1是简单模式，名称有就行；0是严格模式。 // 可修改 # 已改完
         self.FOLDER_AS_TAG = 0  # 最后多少层文件夹名称，强制作为标签（即使不包括V_SEP） // 可修改 # 已改完
         self.ORDER_BY_N = 2  # 初始按哪一列排序，1代表标签，后面按顺序对应 # 已改完
@@ -71,6 +69,12 @@ class td_conf:
         self.MON_FONTSIZE = 9  # 正文字号
         self.FONT_TREE_HEADING = ('微软雅黑', self.LARGE_FONT)
         self.FONT_TREE_BODY = ('微软雅黑', self.MON_FONTSIZE)
+        #
+        self.dict_path = dict()  # 用于列表简写：实际值 # 已改完
+        self.dict_folder_groups = dict()  # 组名： # 已改完
+        self.lst_my_path_long_selected = []  # 已改完
+        self.lst_my_path_short = []  # 已改完
+        self.lst_my_path_long = []  # 已改完
 
     def exec_json_file_write(self, data=None):
         """
@@ -83,7 +87,7 @@ class td_conf:
             with open(self.OPTIONS_FILE, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False)
         except Exception as e:
-            print('json文件写入异常', e)
+            logging.error('json文件写入异常', e)
 
     def get_json(self):
         """
@@ -121,26 +125,26 @@ class td_conf:
                 try:
                     self.opt_data = self.json_data['options']  # 设置
                 except Exception as e:
-                    print(e)
+                    logging.warning(e)
                     pass
                 try:
                     self.V_SEP = self.opt_data['sep']  # 分隔符，默认是 # 号，也可以设置为 ^ 等符号。
                 except Exception as e:
-                    print(e)
+                    logging.warning(e)
                     pass
                 try:
                     self.V_FOLDERS = int(self.opt_data['vfolders'])  # 目录最末层数名称检查，作为标签的检查层数
-                except:
-                    pass
+                except Exception as e:
+                    logging.warning(e)
                 try:
                     self.NOTE_EXT = self.opt_data['note_ext']  # 默认笔记类型
                 except Exception as e:
-                    print(e)
+                    logging.warning(e)
                     pass
                 try:
                     self.FILE_DRAG_MOVE = self.opt_data['file_drag_enter']  # 默认拖动操作
                 except Exception as e:
-                    print(e)
+                    logging.warning(e)
                     pass
                 # try:
                 #     TREE_SUB_SHOW = opt_data['TREE_SUB_SHOW']  # 默认布局
@@ -152,16 +156,16 @@ class td_conf:
                 try:
                     self.FOLDER_AS_TAG = self.opt_data['FOLDER_AS_TAG']  # 最后文件夹识别
                 except Exception as e:
-                    print(e)
+                    logging.warning(e)
                     pass
                 #
                 try:
                     self.TAG_EASY = self.opt_data['TAG_EASY']  # 标签搜索方式
                 except Exception as e:
-                    print(e)
+                    logging.warning(e)
                     pass
                 #
-                print('加载基本参数成功')
+                logging.info('加载基本参数成功')
 
             if load_folders:
                 # lst_my_path_long_selected=lst_my_path_long.copy() #按文件夹筛选用
@@ -212,9 +216,9 @@ class td_conf:
                         self.dict_folder_groups.update(tmp_folder_and_group)
 
                 self.lst_my_path_long_selected = self.lst_my_path_long.copy()  # 此处有大量的可优化空间。
-                print('加载关注文件夹列表成功')
+                logging.info('加载关注文件夹列表成功')
         except:
-            print('加载json异常，正在重置json文件')
+            logging.warning('加载json异常，正在重置json文件')
             # need_init_json=1
             self.json_data = self.OPT_DEFAULT
             self.exec_json_file_write()

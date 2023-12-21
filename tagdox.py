@@ -5,6 +5,10 @@ Created on Thu Jun 17 09:28:24 2021
 @author: MaJian
 
 ## 近期更新说明
+#### v0.26.2.2 2023年12月21日
+将文件操作从原始代码中独立出来，便于后续升级。
+修正了只读权限导致的重命名和移动失败的问题。
+
 #### v0.26.2.1 2023年11月30日
 修复了文件夹列表刷新的时候，滚动到纵向位置的错误。
 定位了一个之前报错的地方，但bug尚未消除。
@@ -38,82 +42,46 @@ Created on Thu Jun 17 09:28:24 2021
 将左侧列表的缩进设置为40，提高区分度。之后考虑做成自适应或者可调节的。
 """
 
-import os
 import tkinter as tk
+
 from tkinter import ttk
 # import tkinter.tix as Tix 
 # from tkinter import tix
 # from tkinter import Text, Variable
-import json
+import tkinter.messagebox
 from tkinter import filedialog
-from tkinter import simpledialog
-from tkinter.constants import NORMAL
 # from tkinter import font
 # from tkinter.constants import INSERT
 import windnd  # 用于拖拽
 #
-from os.path import isdir
-from os.path import isfile
-import time
 import threading  # 多线程
 # import multiprocessing
 from multiprocessing import Pool  # 进程
-from multiprocessing import Process
 # from docx import Document  # 用于创建word文档
 # import ctypes # 用于调整分辨率 #
 # from win32com.shell import shell, shellcon  # 此处报错是编辑器的问题，可以忽略
-import shutil
 import queue
 # 
 import subprocess  # 用于打开文件所在位置并选中文件
 #
 # 自建库
 from libs.common_funcs import *
+from libs.my_filetools import *
+from libs.markdown import MarkdownRel  # 对 markdown 的特殊处理
+#
+from codes.logic.conf import td_conf
 # 控件库
 from libs.widgets.windows import TdProgressWindow as TdProgressWindow
 from libs.widgets.windows import TdInputWindow as TdInputWindow
 from libs.widgets.windows import TdSpaceWindow as TdSpaceWindow
-#
-from libs.markdown import MarkdownRel  # 对 markdown 的特殊处理
-
-from codes.logic.conf import td_conf
-#
+##
 # import my_logger
 # import send2trash # 回收站（目前作废）
 import logging
 #
 logging.basicConfig(level=logging.INFO)
 
-
-class td_data:
-    """
-    数据核心存储到这里。尽量不与其他变量过分耦合。
-    """
-    def __init__(self):
-        self.dict_files = dict()  # 原名dicT，以完整路径为键，参数为值，用于加速程序显示
-        #
-        self.dt = []  # 用于存储临时值，加快运行速度。
-        self.lst_tags = []  # 存储当前列表的全部标签
-        self.lst_tags_selected = []
-        #
-        self.lst_sub_path = []  #
-        self.lst_sub_path_selected = []
-        #
-        self.lst_files_to_go = []  # 所有文件的完整路径，通过 get_data 获取
-        #
-        # 从 conf 迁移到 data 里面。但是并不成功。
-        # self.dict_path = dict()  # 用于列表简写和实际值 #
-        # self.dict_folder_groups = dict()  #
-        # self.lst_my_path_long_selected = []  #
-        # self.lst_my_path_short = []  #
-        # self.lst_my_path_long = []  #
-
-    def get_files_full_path(self, path_in):
-        """
-        根据
-        """
-        pass
-
+###################################################################
 
 class td_const():
     """
@@ -124,7 +92,7 @@ class td_const():
         self.URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
         self.URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
         self.TAR = 'Tagdox / 标签文库'  # 程序名称
-        self.VER = 'v0.26.2.1'  # 版本号
+        self.VER = 'v0.26.2.2'  # 版本号
 
 conf = td_conf()  # 关键参数
 cst = td_const()  # 常量
@@ -157,6 +125,35 @@ MARKDOWN_IMGS = True  # 是否移动markdown的时候，移动相应的相对路
 #
 # %%
 #######################################################################
+
+class td_data:
+    """
+    数据核心存储到这里。尽量不与其他变量过分耦合。
+    """
+    def __init__(self):
+        self.dict_files = dict()  # 原名dicT，以完整路径为键，参数为值，用于加速程序显示
+        #
+        self.dt = []  # 用于存储临时值，加快运行速度。
+        self.lst_tags = []  # 存储当前列表的全部标签
+        self.lst_tags_selected = []
+        #
+        self.lst_sub_path = []  #
+        self.lst_sub_path_selected = []
+        #
+        self.lst_files_to_go = []  # 所有文件的完整路径，通过 get_data 获取
+        #
+        # 从 conf 迁移到 data 里面。但是并不成功。
+        # self.dict_path = dict()  # 用于列表简写和实际值 #
+        # self.dict_folder_groups = dict()  #
+        # self.lst_my_path_long_selected = []  #
+        # self.lst_my_path_short = []  #
+        # self.lst_my_path_long = []  #
+
+    def get_files_full_path(self, path_in):
+        """
+        根据
+        """
+        pass
 
 
 def exec_tree_clear(tree_obj) -> None:  #
@@ -204,150 +201,6 @@ def exec_list_sort(lst):
     return lst2
 
 
-def safe_get_name(new_name) -> str:
-    """
-
-    输入: 目标全路径;
-    返回: 安全的新路径（可用于重命名、新建等）
-    输入和输出都是字符串。
-
-    """
-    n = 1
-    [tmp_path, tmp_new_name] = os.path.split(new_name)
-
-    p = tmp_new_name.find(conf.V_SEP)
-    if p >= 0:
-        name_1 = tmp_new_name[:p]
-        name_2 = tmp_new_name[p:]
-    else:
-        p = tmp_new_name.rfind('.')
-        if p >= 0:
-            name_1 = tmp_new_name[:p]
-            name_2 = tmp_new_name[p:]
-        else:  # 连'.'都没有的话
-            name_1 = tmp_new_name
-            name_2 = ''
-
-    tmp_new_full_name = new_name
-    while isfile(tmp_new_full_name):
-        tmp_new_name = name_1 + '(' + str(n) + ')' + name_2
-        tmp_new_full_name = tmp_path + '/' + tmp_new_name
-        n += 1
-    # print(tmp_new_full_name)
-    return (tmp_new_full_name)
-
-
-def exec_safe_rename(old_name, new_name):
-    """
-    在基础的重命名之外，增加了对文件是否重名的判断；
-    返回值str, 如果重命名成功，返回添加数字之后的最终文件名；
-    如果重命名失败，返回原始文件名。
-    """
-    old_name = old_name.replace('\\', '/')
-    new_name = new_name.replace('\\', '/')
-    '''
-    n=1
-    [tmp_path,tmp_new_name]=os.path.split(new_name)
-    # tmp_path=''
-    # tmp_new_name=new_name
-    p=tmp_new_name.find(conf.V_SEP)
-    if p>=0:
-        name_1=tmp_new_name[:p]
-        name_2=tmp_new_name[p:]
-    else:
-        p=tmp_new_name.rfind('.')
-        if p>=0:
-            name_1=tmp_new_name[:p]
-            name_2=tmp_new_name[p:]
-        else: # 连'.'都没有的话
-            name_1=tmp_new_name
-            name_2=''
-    
-    tmp_new_full_name=new_name   
-    while isfile(tmp_new_full_name):
-        tmp_new_name=name_1+'('+ str(n)+')'+name_2
-        tmp_new_full_name=tmp_path+'/'+tmp_new_name
-        n+=1
-    print(tmp_new_full_name)
-    '''
-    tmp_new_full_name = safe_get_name(new_name)
-    try:
-        os.rename(old_name, tmp_new_full_name)
-        return (tmp_new_full_name)
-    except:
-        print('安全重命名失败！')
-        return (old_name)
-        pass
-
-
-def exec_safe_copy(old_name: str, new_name: str, opt_type: str = 'copy'):
-    """
-    安全复制或移动文件。
-
-    :param opt_type:  'copy' 或 'move'。
-    :param old_name: 旧的文件完整路径
-    :param new_name: 新的文件完整路径（含文件名）
-    :return: 操作之后的文件路径，移动失败返回原始路径，移动成功返回新路径。
-    """
-    old_name = old_name.replace('\\', '/')
-    new_name = new_name.replace('\\', '/')
-    #
-    # 完全相同的路径不需要执行移动操作
-    if old_name == new_name and opt_type == 'move':
-        print('原始路径和新路径一致，跳过')
-        return (old_name)
-    #
-    tmp_new_full_name = safe_get_name(new_name)
-    print('开始安全复制')
-    print(old_name)
-    print(tmp_new_full_name)
-    if opt_type == 'copy':
-        try:
-            shutil.copy(old_name, tmp_new_full_name)
-            # os.popen('copy '+ old_name +' '+ tmp_new_full_name) 
-            print('安全复制成功')
-            # os.rename(old_name,tmp_new_full_name)
-            return (tmp_new_full_name)
-        except:
-            tk.messagebox.showerror(title='错误',
-                                    message='文件复制失败。')
-            print('对以下文件复制失败！')
-            print(old_name)
-            return (old_name)
-            pass
-    elif opt_type == 'move':
-        try:
-            shutil.move(old_name, tmp_new_full_name)
-            # os.popen('copy '+ old_name +' '+ tmp_new_full_name) 
-            print('安全移动成功')
-            # os.rename(old_name,tmp_new_full_name)
-            return (tmp_new_full_name)
-        except:
-            tk.messagebox.showerror(title='错误',
-                                    message='文件移动失败。')
-            print('对以下文件移动失败！')
-            print(old_name)
-            return (old_name)
-            pass
-
-
-# style = ttk.Style()
-
-# def fixed_map(option):
-#     # Fix for setting text colour for Tkinter 8.6.9
-#     # From: https://core.tcl.tk/tk/info/509cafafae
-#     #
-#     # Returns the style map for 'option' with any styles starting with
-#     # ('!disabled', '!selected', ...) filtered out.
-
-#     # style.map() returns an empty list for missing options, so this
-#     # should be future-safe.
-#     return [elm for elm in ttk.Style.map('Treeview', query_opt=option) if
-#             elm[:2] != ('!disabled', '!selected')]
-
-# style.map('Treeview', foreground2=fixed_map('foreground'), background2=fixed_map('background'))
-
-#######################################################################
 # %%
 
 def set_prog_bar(inp, maxv=100):
@@ -645,6 +498,10 @@ def dt_sort_by(elem):
 
 
 def sub_get_dt(lst_file_in):
+    """
+    dt 的作用是
+
+    """
     # 子循环
     tmp_dt = []
     for tar in lst_file_in:
@@ -2180,7 +2037,7 @@ def exec_tree_file_rename(tar=None):  # 对文件重命名
                 tmp_new_name = '/'.join(get_split_path(tmp_full_path)[0:-1] + [res + fename])
                 print('tmp_new_name=', tmp_new_name)
                 # os.rename(tmp_full_path,tmp_new_name)
-                final_name = exec_safe_rename(tmp_full_path, tmp_new_name)
+                final_name = safe_rename(tmp_full_path, tmp_new_name, sep = conf.V_SEP)
                 update_main_window(0, fast_mode=True)
                 exec_tree_find(final_name)
             except:
@@ -2754,7 +2611,7 @@ def exec_file_add_tag(filename, tag0, need_update=True):
                 print(new_n)
                 try:
                     # os.rename(old_n,new_n)
-                    tmp_final_name = exec_safe_rename(old_n, new_n)
+                    tmp_final_name = safe_rename(old_n, new_n, sep = conf.V_SEP)
                     old_n = new_n  # 多标签时避免重命名错误
                 except:
                     tk.messagebox.showerror(title='ERROR', message='为文件添加标签失败！')
@@ -3647,7 +3504,7 @@ def exec_tree_drag_enter(files, drag_type=None):
             if MARKDOWN_IMGS is True and len(old_name) > 3 and old_name[-3:] in conf.EXP_EXTS:
                 MarkdownRel.copy_md_linked_files(old_name, long_name)
             #
-            res = exec_safe_copy(old_name, new_name, opt_type=drag_type)
+            res = safe_copy(old_name, new_name, opt_type=drag_type, sep = conf.V_SEP)
             app.str_btm.set('拖动添加文件成功')
         #     res=safe_move(old_name, new_name, opt_type='copy')
         #     app.str_btm.set('文件拖拽成功')
@@ -4401,7 +4258,7 @@ def exec_tree_file_drop_tag(event=None):
         print(tag_value)
         # os.rename(tmp_full_name,new_full_name)
         if tmp_full_name != new_full_name:
-            tmp_final_name = exec_safe_rename(tmp_full_name, new_full_name)
+            tmp_final_name = safe_rename(tmp_full_name, new_full_name, sep = conf.V_SEP)
         res_lst.append(new_full_name)
 
     update_main_window(0, fast_mode=True)  # 此处可以优化，避免完全重载

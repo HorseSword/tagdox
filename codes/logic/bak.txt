@@ -1,0 +1,147 @@
+用于临时存储可能要被删除的代码段。
+
+#
+# def safe_get_name(new_name) -> str:
+#     """
+#
+#     输入: 目标全路径;
+#     返回: 安全的新路径（可用于重命名、新建等）
+#     输入和输出都是字符串。
+#
+#     """
+#     n = 1
+#     [tmp_path, tmp_new_name] = os.path.split(new_name)
+#
+#     p = tmp_new_name.find(conf.V_SEP)
+#     if p >= 0:
+#         name_1 = tmp_new_name[:p]
+#         name_2 = tmp_new_name[p:]
+#     else:
+#         p = tmp_new_name.rfind('.')
+#         if p >= 0:
+#             name_1 = tmp_new_name[:p]
+#             name_2 = tmp_new_name[p:]
+#         else:  # 连'.'都没有的话
+#             name_1 = tmp_new_name
+#             name_2 = ''
+#
+#     tmp_new_full_name = new_name
+#     while isfile(tmp_new_full_name):
+#         tmp_new_name = name_1 + '(' + str(n) + ')' + name_2
+#         tmp_new_full_name = tmp_path + '/' + tmp_new_name
+#         n += 1
+#     # print(tmp_new_full_name)
+#     return (tmp_new_full_name)
+
+
+# def exec_safe_rename(old_name, new_name):
+#     """
+#     在基础的重命名之外，增加了对文件是否重名的判断；
+#     返回值str, 如果重命名成功，返回添加数字之后的最终文件名；
+#     如果重命名失败，返回原始文件名。
+#     """
+#     old_name = old_name.replace('\\', '/')
+#     new_name = new_name.replace('\\', '/')
+#     '''
+#     n=1
+#     [tmp_path,tmp_new_name]=os.path.split(new_name)
+#     # tmp_path=''
+#     # tmp_new_name=new_name
+#     p=tmp_new_name.find(conf.V_SEP)
+#     if p>=0:
+#         name_1=tmp_new_name[:p]
+#         name_2=tmp_new_name[p:]
+#     else:
+#         p=tmp_new_name.rfind('.')
+#         if p>=0:
+#             name_1=tmp_new_name[:p]
+#             name_2=tmp_new_name[p:]
+#         else: # 连'.'都没有的话
+#             name_1=tmp_new_name
+#             name_2=''
+#
+#     tmp_new_full_name=new_name
+#     while isfile(tmp_new_full_name):
+#         tmp_new_name=name_1+'('+ str(n)+')'+name_2
+#         tmp_new_full_name=tmp_path+'/'+tmp_new_name
+#         n+=1
+#     print(tmp_new_full_name)
+#     '''
+#     tmp_new_full_name = safe_get_name(new_name)
+#     try:
+#         os.rename(old_name, tmp_new_full_name)
+#         return (tmp_new_full_name)
+#     except:
+#         print('安全重命名失败！')
+#         return (old_name)
+#         pass
+
+
+# def exec_safe_copy(old_name: str, new_name: str, opt_type: str = 'copy'):
+#     """
+#     安全复制或移动文件。
+#
+#     :param opt_type:  'copy' 或 'move'。
+#     :param old_name: 旧的文件完整路径
+#     :param new_name: 新的文件完整路径（含文件名）
+#     :return: 操作之后的文件路径，移动失败返回原始路径，移动成功返回新路径。
+#     """
+#     old_name = old_name.replace('\\', '/')
+#     new_name = new_name.replace('\\', '/')
+#     #
+#     # 完全相同的路径不需要执行移动操作
+#     if old_name == new_name and opt_type == 'move':
+#         print('原始路径和新路径一致，跳过')
+#         return (old_name)
+#     #
+#     tmp_new_full_name = safe_get_name(new_name)
+#     print('开始安全复制')
+#     print(old_name)
+#     print(tmp_new_full_name)
+#     if opt_type == 'copy':
+#         try:
+#             shutil.copy(old_name, tmp_new_full_name)
+#             # os.popen('copy '+ old_name +' '+ tmp_new_full_name)
+#             print('安全复制成功')
+#             # os.rename(old_name,tmp_new_full_name)
+#             return (tmp_new_full_name)
+#         except:
+#             tk.messagebox.showerror(title='错误',
+#                                     message='文件复制失败。')
+#             print('对以下文件复制失败！')
+#             print(old_name)
+#             return (old_name)
+#             pass
+#     elif opt_type == 'move':
+#         try:
+#             shutil.move(old_name, tmp_new_full_name)
+#             # os.popen('copy '+ old_name +' '+ tmp_new_full_name)
+#             print('安全移动成功')
+#             # os.rename(old_name,tmp_new_full_name)
+#             return (tmp_new_full_name)
+#         except:
+#             tk.messagebox.showerror(title='错误',
+#                                     message='文件移动失败。')
+#             print('对以下文件移动失败！')
+#             print(old_name)
+#             return (old_name)
+#             pass
+
+
+# style = ttk.Style()
+
+# def fixed_map(option):
+#     # Fix for setting text colour for Tkinter 8.6.9
+#     # From: https://core.tcl.tk/tk/info/509cafafae
+#     #
+#     # Returns the style map for 'option' with any styles starting with
+#     # ('!disabled', '!selected', ...) filtered out.
+
+#     # style.map() returns an empty list for missing options, so this
+#     # should be future-safe.
+#     return [elm for elm in ttk.Style.map('Treeview', query_opt=option) if
+#             elm[:2] != ('!disabled', '!selected')]
+
+# style.map('Treeview', foreground2=fixed_map('foreground'), background2=fixed_map('background'))
+
+#######################################################################

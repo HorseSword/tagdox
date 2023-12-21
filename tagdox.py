@@ -5,6 +5,13 @@ Created on Thu Jun 17 09:28:24 2021
 @author: MaJian
 
 ## 近期更新说明
+#### v0.27.0.1 2023年12月21日
+初步实现了文件夹搜索功能，稍微调整了布局。
+修正了搜索文件夹大小写的bug。
+
+#### v0.27.0.0 2023年12月21日
+初步实现了文件夹搜索功能。
+
 #### v0.26.2.2 2023年12月21日
 将文件操作从原始代码中独立出来，便于后续升级。
 修正了只读权限导致的重命名和移动失败的问题。
@@ -92,7 +99,7 @@ class td_const():
         self.URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
         self.URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
         self.TAR = 'Tagdox / 标签文库'  # 程序名称
-        self.VER = 'v0.26.2.2'  # 版本号
+        self.VER = 'v0.27.0.1'  # 版本号
 
 conf = td_conf()  # 关键参数
 cst = td_const()  # 常量
@@ -371,7 +378,7 @@ def get_data(ipath=None, update_sub_path=1, need_set_prog=True, is_global=True):
             #
             update_sub_folder_list(lst_sub_path)
         except Exception as e:
-            logging.error(e)
+            logging.error('error 374'+ str(e))
             pass
     else:
         lst_sub_path = lst_sub_path_copy
@@ -446,7 +453,7 @@ def get_file_part(tar):  #
                 tags_from_folder[j] = str(tags_from_folder[j]).replace(" ", "_")
             ftags += tags_from_folder
         except Exception as e:
-            logging.error(e)
+            logging.error('error 449: '+ str(e))
             pass
 
     # 对当前文件，进行标签整理、去重并排序
@@ -705,7 +712,7 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
 
                     core_data.dict_files[one_file] = tmp_v
                 except Exception as e:
-                    logging.error(e)
+                    logging.error('ERROR 708 ' + str(e))
                     pass
             # if not tmp_v in dT:
             #     dT.append(tmp_v) # 查重有点费时间
@@ -740,7 +747,7 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
     try:
         dT.sort(key=dt_sort_by, reverse=conf.ORDER_DESC)
     except:
-        logging.error('dT排序出现错误！')
+        logging.error('ERROR 743: dT排序出现错误！')
 
     return (dT, lst_tags)
 
@@ -825,8 +832,87 @@ def show_window_input(title_value, body_value='', init_value='', is_file_name=Tr
     return res
     pass
 
+def folder_search(event=None):
+    """
+    快速搜索文件夹。
+    """
+    keyword_folder = app.v_search_folder.get()
+    # keyword_folder = show_window_input('搜索文件夹', body_value='请输入文件夹关键词',
+    #                         init_value='')
+    if keyword_folder is None:
+        keyword_folder = ''
+    if len(keyword_folder.strip())<=0:
+        keyword_folder = ''
+    app.keyword_folder = keyword_folder
+    update_folder_list()
 
 # %% 文件夹方面的
+def add_sub_folder_here(root_node, root_dir, depth, if_cont = True):
+    """
+    用于为 tree_folder 增加子文件夹。
+    :param root_node: 根节点
+    :param root_dir: 根路径
+    :param depth: 深度编号，是根节点+1
+    :param if_cont: 是否继续增加子结点
+    """
+    # logging.debug('root_dir = ' + str(root_dir) + ', depth = ' + str(depth))
+    tmp = 1
+    max_depth_update = 3
+    keyword_folder = str(app.keyword_folder).lower()
+    #
+    for root_, dirs_, files_ in os.walk(root_dir):
+        # dirs_.sort()
+        if '_nomedia' in files_:
+            # logging.info('即将删除节点: ' + str(root_) + 'root_node = ' + str(root_node))
+            app.tree_lst_folder.delete(root_node)
+            return
+            # TODO： 这里的逻辑有错，nomedia 需要修正，比如 root_node 都不显示也是一种方法
+        #
+        dirs_sorted = exec_list_sort(dirs_)  # 当前目录下的子文件夹排序
+        for sub_dir_ in dirs_sorted:
+            tmp += 1
+            if sub_dir_ in conf.EXP_FOLDERS:  # 排除文件夹
+                continue
+            if conf.EXP_DOT_FOLDERS and str(sub_dir_).startswith('.'):  # 忽略.开头的文件夹
+                continue
+            else:  # 子文件夹不在排除范围的话，
+                full_dir_ = root_dir + '/' + sub_dir_
+                value_tmp_ = (root_dir, depth, full_dir_)  # values 格式 根路径，深度，全路径(-1)
+                #
+                if (len(keyword_folder)>0 and sub_dir_.lower().find(keyword_folder)>=0 ) or depth < max_depth_update:
+                    new_node = app.tree_lst_folder.insert(root_node, tmp, text=sub_dir_,
+                                                image=PIC_DICT['folder_25_20'],
+                                                values=value_tmp_, tags=['folder2'])
+                else:
+                    new_node = False
+                # 继续迭代下钻
+                if depth <= max_depth_update: # flag.flag_inited: # 刚启动的时候，不需要加载全部文件夹，从而提高加载速度
+                    # TODO: 如果写 flag.flag_inited， 这里根本就调用不到？ 因为点击的时候，调用的是 update_current_folder_list
+                    if new_node:
+                        add_sub_folder_here(new_node, full_dir_, depth + 1)
+                else:
+                    if new_node and if_cont:
+                        add_sub_folder_here(new_node, full_dir_, depth + 1, if_cont=False)
+                        # 运行之后，本层还可以运行一些东西
+                        #
+                        # logging.info('即将删除节点')
+                        # 下面是测试文件夹筛选的
+                        # try:
+                        #     if len(keyword_folder) > 0:
+                        #         print(app.tree_lst_folder.get_children(new_node))
+                        #         if app.tree_lst_folder.item(new_node, "text").find(keyword_folder)>=0:
+                        #             pass
+                        #         elif len(app.tree_lst_folder.get_children(new_node)) <= 0:
+                        #             app.tree_lst_folder.delete(new_node)
+                        #         pass
+                        # except Exception as e:
+                        #     logging.error('错误963： '+str(e))
+                        # pass
+        break  # 不再下钻，只处理当前层
+    # 删掉父结点
+    if len(keyword_folder) > 0:
+        if app.tree_lst_folder.item(root_node, "text").lower().find(keyword_folder) <0 and len(app.tree_lst_folder.get_children(root_node)) <= 0:
+            app.tree_lst_folder.delete(root_node)
 
 def update_folder_list(event=None, need_select=True):
     """
@@ -875,7 +961,6 @@ def update_folder_list(event=None, need_select=True):
             return pos
         else:
             return -1
-
     #
     # 保存当前的根文件夹（分组）的名称、顺位
     try:
@@ -916,42 +1001,11 @@ def update_folder_list(event=None, need_select=True):
                 tmp_s = tmp_p
 
     except Exception as e:
-        logging.error('1049 - '+ str(e))
+        logging.error('ERROR 1049 : '+ str(e))
         tmp_folder1 = 0
 
     # 先清空一次；
     exec_tree_clear(app.tree_lst_folder)
-
-    #
-    def add_sub_folder_here(root_node, root_dir, depth):
-        """
-        局部函数，用于增加子文件夹。
-        参数 root_node 根节点
-        root_dir 根路径
-        depth 深度编号
-        """
-        tmp = 1
-        for root_, dirs_, files_ in os.walk(root_dir):
-            # dirs_.sort()
-            dirs_sorted = exec_list_sort(dirs_)
-            for sub_dir_ in dirs_sorted:
-                tmp += 1
-                if sub_dir_ in conf.EXP_FOLDERS:  # 排除文件夹
-                    continue
-                if '_nomedia' in files_:
-                    continue
-                #
-                full_dir_ = root_dir + '/' + sub_dir_
-                value_tmp_ = (root_dir, depth, full_dir_)  # values 格式 根路径，深度，全路径(-1)
-                t3 = app.tree_lst_folder.insert(root_node, tmp, text=sub_dir_,
-                                            image=PIC_DICT['folder_25_20'],
-                                            values=value_tmp_, tags=['folder2'])
-                # 继续迭代下钻
-                if flag.flag_inited: # 刚启动的时候，不需要加载全部文件夹，从而提高加载速度
-                    add_sub_folder_here(t3, full_dir_, depth + 1)
-            break  #
-
-
     #
     tmp = 1
     #
@@ -978,7 +1032,7 @@ def update_folder_list(event=None, need_select=True):
         root_node = lst_root_item[tmp_root_pos]
         #
         tmp += 1
-        print(i)
+        logging.debug('i = ' + i) # 添加初级文件夹
         # 值编码：显示名称、类型、完整路径(总是放在最后一个)
         full_dir1 = conf.dict_path[str(i)]
         value0 = (str(i),
@@ -993,7 +1047,6 @@ def update_folder_list(event=None, need_select=True):
         #
     # 
     # 刷新后，选中第几个项目：
-    #
     if v_method == 2 and flag.flag_inited:
         # print("\n\n\ntmp_lst_open=",tmp_lst_open,'\n\n\n')
         tmp_lst_open.reverse()
@@ -1035,7 +1088,7 @@ def update_folder_list(event=None, need_select=True):
             on_folder_choose()
             #
         except Exception as e:
-            logging.error('这里2023年11月30日1318 '+str(e))
+            logging.error('error 1059: '+str(e))
             pass
 
         # try:
@@ -1045,7 +1098,7 @@ def update_folder_list(event=None, need_select=True):
 
     else:  # 如果没有 flag.flag_inited 的话，默认选中第一个文件夹
         #
-        print('刷新文件夹：选中的文件夹是：', tmp_folder1)
+        logging.debug('刷新文件夹：选中的文件夹是：' + str(tmp_folder1))
         if need_select:
             try:
                 item_group = app.tree_lst_folder.get_children()[group_pos]
@@ -1055,16 +1108,27 @@ def update_folder_list(event=None, need_select=True):
                 on_folder_choose()  # 右边也重载一次
                 #
             except Exception as e:
-                print(e)
+                logging.error('error 1079: '+ str(e))
                 pass
 
     try:
         always_open_folder()
         app.window.update()
         app.tree_lst_folder.yview_moveto(b1)  # 尽量保持原来的位置
-        # app.tree_lst_folder.see(app.tree_lst_folder.selection())  # 2023年11月30日 测试 另一种显示高亮项目的逻辑
+        #
+        selected_items = app.tree_lst_folder.selection()
+        if selected_items:
+            selected_item = selected_items[0]
+            bbox = app.tree_lst_folder.bbox(selected_item)
+            if bbox:
+                pass
+            else:
+                logging.warning('看不见，怎么都看不见！')
+                app.tree_lst_folder.see(selected_item)  # 2023年11月30日 测试 另一种显示高亮项目的逻辑
+                # app.tree_lst_folder.see(app.tree_lst_folder.selection())  # 2023年11月30日 测试 另一种显示高亮项目的逻辑
+        # TODO： 如果看不到文件夹，就使用 see 强制找到，否则就保留之前的位置。
     except Exception as e:
-        print(e)
+        logging.error('ERROR 1127 ' + str(e))
 
 def always_open_folder(event=None,):
     # 增加常开文件夹功能
@@ -1081,36 +1145,7 @@ def update_current_folder_list(event=None, ):
     这样可以提高效率。
     """
     # 基本思路：删掉子文件，然后重新加载子文件夹
-    def add_sub_folder_here(root_node, root_dir, depth, if_cont=True):
-        """
-        局部函数，用于增加子文件夹。
-        参数 root_node 根节点
-        root_dir 根路径
-        depth 深度编号
-        """
-        tmp = 1
-        for root_, dirs_, files_ in os.walk(root_dir):
-            # dirs_.sort()
-            dirs_sorted = exec_list_sort(dirs_)
-            for sub_dir_ in dirs_sorted:
-                tmp += 1
-                if sub_dir_ in conf.EXP_FOLDERS:  # 排除文件夹
-                    continue
-                if conf.EXP_DOT_FOLDERS and str(sub_dir_).startswith('.'):
-                    continue
-                if '_nomedia' in files_:
-                    continue
-                #
-                full_dir_ = root_dir + '/' + sub_dir_
-                value_tmp_ = (root_dir, depth +1, full_dir_)  # values 格式 根路径，深度，全路径(-1)
-                t3 = app.tree_lst_folder.insert(root_node, tmp, text=sub_dir_,
-                                            image=PIC_DICT['folder_25_20'],
-                                            values=value_tmp_, tags=['folder2'])
-                # 继续迭代下钻
-                if if_cont:
-                    add_sub_folder_here(t3, full_dir_, depth + 1, False)
-            break  #
-
+    #
     # 获取当前点击的节点
     for root_node in app.tree_lst_folder.selection():
         root_dir = app.tree_lst_folder.item(root_node, "values")[-1]
@@ -1132,7 +1167,7 @@ def update_current_folder_list(event=None, ):
             add_sub_folder_here(root_node, root_dir, root_depth)
             app.tree_lst_folder.update()
         except Exception as e:
-            logging.error('文件夹读取失败:'+e)
+            logging.error('error 1159: 文件夹读取失败:'+ str(e))
             pass
     always_open_folder()
 
@@ -1676,7 +1711,7 @@ def exec_tree_add_items(tree_obj, dT, search_items=None) -> None:
             if str(tmp[0]).startswith('~'):  # 排除word临时文件
                 continue
         except Exception as e:
-            logging.error(e)
+            logging.error('error 1703' + str(e))
             pass
         #
         # 搜索的时候转小写，避免找不到类似于MySQL这样的标签
@@ -2801,7 +2836,7 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
         else:
             set_search_tag_values(lst_tags)  # 这个导致总是刷新全部标签
     except Exception as e:
-        logging.error(e)
+        logging.error('error 2828:' + str(e))
 
     # if not (event  in [0,1] and conf.TREE_SUB_SHOW =='tag'):
     #     set_search_tag_values(lst_tags) # 这个导致总是刷新全部标签
@@ -5041,6 +5076,7 @@ class td_main_app:
         """
         self.last_focus = None
         self.the_tree = None
+        self.keyword_folder = ''  # 用于搜索文件夹的
         self.file_open_time = time.time()  # 最近一次tree_file_open 的时间；
         self.window = tk.Tk()
         conf.ui_ratio = 1.5  # 界面的放大倍率，之后会提供前端修改的功能
@@ -5438,17 +5474,24 @@ class td_main_app:
         self.lable_sum.pack(side=tk.LEFT, expand=0, padx=5, pady=vPDY)  #
 
         self.bt_settings = ttk.Button(self.frameMenu,
-                                      style='Menu.TButton',
+                                      # style='Menu.TButton',
                                       # width=304,
-                                      image=self.PIC_DICT['menu_3'],
+                                      # image=self.PIC_DICT['menu_3'],
                                       # compound=tk.LEFT,
                                       # background='green',
                                       # relief='flat',
-                                      padding=(10, 4, 10, 4),
+                                      # padding=(10, 4, 10, 4),
+                                      padding=(0,0,0,0),
                                       text='菜单',
+                                      # anchor="center",
                                       )  # ,command=show_online_help)
 
-        self.bt_settings.pack(side=tk.LEFT, expand=0, padx=5, pady=vPDY)  #
+        self.bt_settings.pack(side=tk.LEFT, expand=1, fill = tk.Y, padx=5, pady=10)  #
+        #
+        # self.lable_search_folder = ttk.Label(self.frameMenu, text='文件夹')
+        self.v_search_folder = ttk.Entry(self.frameMenu,)
+        self.v_search_folder.pack(side=tk.RIGHT, expand=1, fill=tk.BOTH, padx=10, pady=10)
+        self.v_search_folder.bind('<Return>', folder_search)  # 绑定回车键
         #
         # 站位空白块，用于出现在滚动条顶部空间
         # self.canvas_space = tk.Canvas(self.frameMenu, bg='#e8e8e7',
@@ -5587,6 +5630,7 @@ class td_main_app:
         self.window.bind_all('<Control-n>', exec_create_note)  # 绑定添加笔记的功能。
         self.window.bind_all('<Control-f>', jump_to_search)  # 跳转到搜索框。
         self.window.bind_all('<Control-t>', exec_tree_add_tag_via_dialog)  # 快速输入标签。
+        self.window.bind_all('<Control-p>', folder_search)
         #
         # self.tree.bind('<Control-X>', exec_tree_file_cut_ctn)  # 拿起。
         # self.tree.bind('<Control-x>', exec_tree_file_cut)  # 拿起。

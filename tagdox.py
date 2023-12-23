@@ -5,6 +5,12 @@ Created on Thu Jun 17 09:28:24 2021
 @author: MaJian
 
 ## 近期更新说明
+#### v0.27.1.1 2023年12月23日
+调整UI，使文件夹搜索功能上线之后的界面布局更协调。
+
+#### v0.27.1.0 2023年12月22日
+增加了文件夹搜索目标高亮的功能，而且搜索到的文件夹保持其全部子文件夹，从而提高使用体验。
+
 #### v0.27.0.1 2023年12月21日
 初步实现了文件夹搜索功能，稍微调整了布局。
 修正了搜索文件夹大小写的bug。
@@ -99,7 +105,7 @@ class td_const():
         self.URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
         self.URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
         self.TAR = 'Tagdox / 标签文库'  # 程序名称
-        self.VER = 'v0.27.0.1'  # 版本号
+        self.VER = 'v0.27.1.1'  # 版本号
 
 conf = td_conf()  # 关键参数
 cst = td_const()  # 常量
@@ -832,11 +838,11 @@ def show_window_input(title_value, body_value='', init_value='', is_file_name=Tr
     return res
     pass
 
-def folder_search(event=None):
+def exec_folder_search(event=None):
     """
     快速搜索文件夹。
     """
-    keyword_folder = app.v_search_folder.get()
+    keyword_folder = app.entry_search_folder.get()
     # keyword_folder = show_window_input('搜索文件夹', body_value='请输入文件夹关键词',
     #                         init_value='')
     if keyword_folder is None:
@@ -846,19 +852,28 @@ def folder_search(event=None):
     app.keyword_folder = keyword_folder
     update_folder_list()
 
+def exec_folder_search_clear(event=None):
+    """
+    清除文件夹的搜索
+    """
+    exec_clear_entry(app.entry_search_folder)
+    exec_folder_search()
+
 # %% 文件夹方面的
-def add_sub_folder_here(root_node, root_dir, depth, if_cont = True):
+def add_sub_folder_here(root_node, root_dir, depth, if_cont = True, is_root_searched = False):
     """
     用于为 tree_folder 增加子文件夹。
+    其中，可以根据筛选条件判定是否需要保留文件夹。
     :param root_node: 根节点
     :param root_dir: 根路径
     :param depth: 深度编号，是根节点+1
     :param if_cont: 是否继续增加子结点
     """
     # logging.debug('root_dir = ' + str(root_dir) + ', depth = ' + str(depth))
-    tmp = 1
-    max_depth_update = 3
-    keyword_folder = str(app.keyword_folder).lower()
+    tmp = 1  # 添加节点的序列号
+    max_depth_update = depth + 3  # 最大的搜索深度
+    keyword_folder = str(app.keyword_folder).lower()  # 搜索关键词
+    is_new_node_searched = False
     #
     for root_, dirs_, files_ in os.walk(root_dir):
         # dirs_.sort()
@@ -866,7 +881,6 @@ def add_sub_folder_here(root_node, root_dir, depth, if_cont = True):
             # logging.info('即将删除节点: ' + str(root_) + 'root_node = ' + str(root_node))
             app.tree_lst_folder.delete(root_node)
             return
-            # TODO： 这里的逻辑有错，nomedia 需要修正，比如 root_node 都不显示也是一种方法
         #
         dirs_sorted = exec_list_sort(dirs_)  # 当前目录下的子文件夹排序
         for sub_dir_ in dirs_sorted:
@@ -879,40 +893,58 @@ def add_sub_folder_here(root_node, root_dir, depth, if_cont = True):
                 full_dir_ = root_dir + '/' + sub_dir_
                 value_tmp_ = (root_dir, depth, full_dir_)  # values 格式 根路径，深度，全路径(-1)
                 #
-                if (len(keyword_folder)>0 and sub_dir_.lower().find(keyword_folder)>=0 ) or depth < max_depth_update:
+                if (len(keyword_folder)>0 and sub_dir_.lower().find(keyword_folder)>=0 ):
+                    # 符合筛选条件的
+                    new_node = app.tree_lst_folder.insert(root_node, tmp, text=sub_dir_,
+                                                          image=PIC_DICT['folder_25_20'],
+                                                          values=value_tmp_,
+                                                          tags=['folder_searched', 'folder_kept'],
+                                                          )
+                    is_new_node_searched = True
+                elif 'folder_kept' in app.tree_lst_folder.item(root_node, "tags"):
+                    new_node = app.tree_lst_folder.insert(root_node, tmp, text=sub_dir_,
+                                                          image=PIC_DICT['folder_25_20'],
+                                                          values=value_tmp_,
+                                                          tags=['folder2', 'folder_kept'],
+                                                          )
+                elif is_root_searched or depth < max_depth_update:
+                    # app.tree_lst_folder.item(root_node, "text").lower().find(keyword_folder) >=0 \
+                    # 不符合筛选条件，但父结点或者深度符合的
                     new_node = app.tree_lst_folder.insert(root_node, tmp, text=sub_dir_,
                                                 image=PIC_DICT['folder_25_20'],
-                                                values=value_tmp_, tags=['folder2'])
-                else:
+                                                values=value_tmp_,
+                                                tags=['folder2'],
+                                                )
+                else:  # 不满足任何添加节点的条件时，不添加
                     new_node = False
+                #
                 # 继续迭代下钻
                 if depth <= max_depth_update: # flag.flag_inited: # 刚启动的时候，不需要加载全部文件夹，从而提高加载速度
                     # TODO: 如果写 flag.flag_inited， 这里根本就调用不到？ 因为点击的时候，调用的是 update_current_folder_list
                     if new_node:
-                        add_sub_folder_here(new_node, full_dir_, depth + 1)
+                        add_sub_folder_here(new_node, full_dir_, depth + 1,
+                                            is_root_searched=(is_root_searched or is_new_node_searched))
                 else:
                     if new_node and if_cont:
-                        add_sub_folder_here(new_node, full_dir_, depth + 1, if_cont=False)
-                        # 运行之后，本层还可以运行一些东西
-                        #
-                        # logging.info('即将删除节点')
-                        # 下面是测试文件夹筛选的
-                        # try:
-                        #     if len(keyword_folder) > 0:
-                        #         print(app.tree_lst_folder.get_children(new_node))
-                        #         if app.tree_lst_folder.item(new_node, "text").find(keyword_folder)>=0:
-                        #             pass
-                        #         elif len(app.tree_lst_folder.get_children(new_node)) <= 0:
-                        #             app.tree_lst_folder.delete(new_node)
-                        #         pass
-                        # except Exception as e:
-                        #     logging.error('错误963： '+str(e))
-                        # pass
-        break  # 不再下钻，只处理当前层
-    # 删掉父结点
-    if len(keyword_folder) > 0:
-        if app.tree_lst_folder.item(root_node, "text").lower().find(keyword_folder) <0 and len(app.tree_lst_folder.get_children(root_node)) <= 0:
+                        add_sub_folder_here(new_node, full_dir_, depth + 1, if_cont=False,
+                                            is_root_searched=(is_root_searched or is_new_node_searched))
+        #
+        break  # 对应的是 os.walk 停止，不再下钻，只处理当前层就结束
+    #
+    # 删掉父结点 # 判定条件：父结点不符合筛选条件，且没有子结点的
+    if len(keyword_folder) > 0: # 如果开了筛选
+        # and not is_root_searched
+        if app.tree_lst_folder.item(root_node, "text").lower().find(keyword_folder) >=0:
+            # 父结点能找到关键词的
+            tmp_old_tags = list(app.tree_lst_folder.item(root_node,"tags"))
+            app.tree_lst_folder.item(root_node, tags = list(set(tmp_old_tags + ['folder_kept','folder_searched'])))
+        elif 'folder_kept' in app.tree_lst_folder.item(root_node, "tags"):
+            # 父结点不带关键词，但带保留标签的
+            pass
+        elif len(app.tree_lst_folder.get_children(root_node)) <= 0:
+            # 没有子结点的
             app.tree_lst_folder.delete(root_node)
+            #
 
 def update_folder_list(event=None, need_select=True):
     """
@@ -1120,13 +1152,14 @@ def update_folder_list(event=None, need_select=True):
         if selected_items:
             selected_item = selected_items[0]
             bbox = app.tree_lst_folder.bbox(selected_item)
+            # TODO： 如果看不到文件夹，就使用 see 强制找到，否则就保留之前的位置。尚未测试成功。
             if bbox:
                 pass
             else:
                 logging.warning('看不见，怎么都看不见！')
                 app.tree_lst_folder.see(selected_item)  # 2023年11月30日 测试 另一种显示高亮项目的逻辑
                 # app.tree_lst_folder.see(app.tree_lst_folder.selection())  # 2023年11月30日 测试 另一种显示高亮项目的逻辑
-        # TODO： 如果看不到文件夹，就使用 see 强制找到，否则就保留之前的位置。
+
     except Exception as e:
         logging.error('ERROR 1127 ' + str(e))
 
@@ -1464,8 +1497,8 @@ def get_search_items(event=None, res_lst=False):
         res += res_tag
     #
     # 关键词
-    if len(app.v_search.get()) > 0:
-        res_keyword = str(app.v_search.get()).split(' ')
+    if len(app.entry_search_files.get()) > 0:
+        res_keyword = str(app.entry_search_files.get()).split(' ')
         res += res_keyword
     #
     # 子文件夹
@@ -2704,12 +2737,13 @@ def exec_clear_entry(tar):
     """
     前端函数，将输入框清空。
     必须要指定要清空的输入框对象。
+    tar 对应的是 Entry 对象。
     """
     try:
         tar.delete(0, len(tar.get()))
     except:
         pass
-    pass
+    return
 
 
 def exec_clear_search_items(event=None):
@@ -2757,13 +2791,13 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
         清空搜索框
         '''
         # tmp_sub_folder=get_sub_folder_selected()
-        exec_clear_entry(app.v_search)
+        exec_clear_entry(app.entry_search_files)
     else:
         '''
         清空搜索框；
         标签留空；
         '''
-        exec_clear_entry(app.v_search)
+        exec_clear_entry(app.entry_search_files)
         set_search_tag_selected(0)
         if conf.TREE_SUB_SHOW == 'tag':  # 在 tag 模式，需要连子文件夹也刷新
             set_sub_folder_selected(0)
@@ -4066,15 +4100,15 @@ def jump_to_search(event=None):
     """
     输入快捷键快速搜索的功能。
     """
-    tmp_search_value = app.v_search.get()
+    tmp_search_value = app.entry_search_files.get()
     res = show_window_input('快速搜索', body_value='请输入搜索关键词，多个关键词之间用空格隔开。',
                             init_value=tmp_search_value)
     if res is not None:
-        exec_clear_entry(app.v_search)
+        exec_clear_entry(app.entry_search_files)
         res = res.strip()
-        app.v_search.insert(0, res)
+        app.entry_search_files.insert(0, res)
         exec_search()
-        app.v_search.focus()
+        app.entry_search_files.focus()
 
 
 def jump_to_tag(event=None):
@@ -4729,6 +4763,7 @@ def set_style(style):
                 # tar.tag_configure('folder2',background="#FFFFFF")
                 tar.tag_configure('folder0', foreground=app.COLOR_DICT['blue_light'])
                 tar.tag_configure('folder2', background="#1e1e1e")
+                tar.tag_configure('folder_searched', foreground="#b1fc28", background="#1e1e1e")
                 tar.tag_configure('pick_up', foreground="#f37625",
                                   font=(conf.FONT_TREE_BODY[0], conf.FONT_TREE_BODY[1], "italic"))
                 tar.tag_configure('pick_copy', foreground="#2d7d9a",
@@ -5187,16 +5222,16 @@ class td_main_app:
         self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
         #
         # 菜单区
-        self.frameMenu = ttk.Frame(self.frameLeft,
+        self.frame_folder_top = ttk.Frame(self.frameLeft,
                                    relief='flat',
                                    style='Dark.TFrame',
                                    # width=int((320 - 16 * 1) * conf.ui_ratio),
                                    height =int(40 * conf.ui_ratio),
                                    # borderwidth=0,
-                                   # padding=(0, 0, 0, 0),
+                                   padding=(5, 2, 5, 2),
                                    )  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
-        self.frameMenu.pack(side=tk.TOP, expand=0, fill=tk.X, padx=0, pady=0)  # padx=10, pady=5)
-        self.frameMenu.pack_propagate(0)
+        self.frame_folder_top.pack(side=tk.TOP, expand=0, fill=tk.X, padx=0, pady=0)  # padx=10, pady=5)
+        self.frame_folder_top.pack_propagate(0)
         # 文件夹在frameLeft内部
         self.frameFolder = ttk.Frame(self.frameLeft, style='Dark.TFrame', relief='flat', borderwidth=0, )
         # height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
@@ -5214,14 +5249,14 @@ class td_main_app:
         # 文件夹下面的控制区
         self.frameFolderCtl = ttk.Frame(self.frameLeft, height=int(10*conf.ui_ratio), borderwidth=0, relief=tk.SOLID)
         # self.frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
-        # 上面功能区：frame0
-        self.frame0 = ttk.Frame(self.frame_window,
+        # 上面功能区：frame_top
+        self.frame_top = ttk.Frame(self.frame_window,
                                 relief='flat',
                                 borderwidth=0,
                                 # relief='solid',
                                 height=int(120 * conf.ui_ratio),
                                 )  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
-        self.frame0.pack(expand=0, fill=tk.X, padx=0, pady=0)  # padx=10, pady=5)
+        self.frame_top.pack(expand=0, fill=tk.X, padx=0, pady=0)  # padx=10, pady=5)
         # 主功能区
         self.frameMain = ttk.Frame(self.frame_window, border=0)  # ,height=800)
         self.frameMain.pack(expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10, pady=0)
@@ -5257,12 +5292,12 @@ class td_main_app:
         # 控件
         ##############
         #
-        self.bt_folder_add = ttk.Button(self.frame0, text='添加文件夹到关注列表')  # state=tk.DISABLED,,command=setting_fun
+        self.bt_folder_add = ttk.Button(self.frame_top, text='添加文件夹到关注列表')  # state=tk.DISABLED,,command=setting_fun
         self.bt_folder_drop = ttk.Button(self.frameFolderCtl, text='移除文件夹')
         #
-        self.v_sub_folders = ttk.Combobox(self.frame0)  # 子文件夹选择框
-        self.v_tag = ttk.Combobox(self.frame0)  # 标签选择框
-        self.v_search = ttk.Entry(self.frame0)  # 搜索框
+        self.v_sub_folders = ttk.Combobox(self.frame_top)  # 子文件夹选择框
+        self.v_tag = ttk.Combobox(self.frame_top)  # 标签选择框
+        self.entry_search_files = ttk.Entry(self.frame_top)  # 搜索框
         self.v_folders = ttk.Combobox(self.frameFolder)  # 文件夹选择框
         #
         # 主文件树
@@ -5358,21 +5393,22 @@ class td_main_app:
         vPDX = 10  # 10
         vPDY = 5  # 5
 
-        self.bt_clear = ttk.Button(self.frame0,
-                                   # style='Light.TButton',
+        self.bt_clear = ttk.Button(self.frame_top,
+                                   style='Menu.TButton',
                                    text='清空',
-                                   # image=self.PIC_DICT['cancel_20'],
+                                   image=self.PIC_DICT['cancel_20'],
                                    command=exec_clear_search_items)
 
-        # bt_search=tk.Button(frame0,text='搜索', command=exec_search,bd=0,activebackground='red')
-        self.bt_search = ttk.Button(self.frame0,
+        # bt_search=tk.Button(frame_top,text='搜索', command=exec_search,bd=0,activebackground='red')
+        self.bt_search = ttk.Button(self.frame_top,
                                     # style='Light.TButton',
                                     text='搜索',
+                                    # padding=(0, 0, 0, 0),
                                     # image=self.PIC_DICT['search_20'],
                                     command=exec_search)  # ,bd=0,activebackground='red')
 
         if True:  # 子文件夹搜索
-            self.lable_sub_folders = tk.Label(self.frame0, text='子文件夹')
+            self.lable_sub_folders = tk.Label(self.frame_top, text='子文件夹')
             if conf.TREE_SUB_SHOW == 'tag':
                 pass
 
@@ -5387,22 +5423,45 @@ class td_main_app:
         self.v_tag.bind('<<ComboboxSelected>>', exec_search)
         self.v_tag.bind('<Return>', exec_search)  # 绑定回车键
 
-        self.lable_search = ttk.Label(self.frame0, text='关键词')
-        self.v_search.bind('<Return>', exec_search)  # 绑定回车键
+        self.lable_search = ttk.Label(self.frame_top, text='关键词')
+        self.entry_search_files.bind('<Return>', exec_search)  # 绑定回车键
+        #
+        self.bt_settings = ttk.Button(self.frame_top, #frame_folder_top,
+                                      # style='Menu.TButton',
+                                      # width=304,
+                                      # image=self.PIC_DICT['menu_3'],
+                                      # compound=tk.LEFT,
+                                      # background='green',
+                                      # relief='flat',
+                                      # padding=(10, 4, 10, 4),
+                                      # padding=(0, 0, 0, 0),
+                                      text='菜单',
+                                      # anchor="center",
+                                      )  # ,command=show_online_help)
+
 
         #
         # 布局： #####
         #    
-
-        nx = 1
-        self.bt_clear.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
+        # 从右向左排
+        nx=0
+        nx+=1
+        self.bt_settings.pack(side=tk.RIGHT, expand=0,
+                              padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  # 搜索按钮
+        # expand=1, fill=tk.Y, padx=5, pady=10)  #
         nx += 1
-        self.bt_search.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
+        self.bt_search.pack(side=tk.RIGHT, expand=0,
+                            padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  # 搜索按钮
+        nx += 1
+        self.bt_clear.pack(side=tk.RIGHT, expand=0,
+                           padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
         #
         nx += 1
-        self.v_search.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
+        self.entry_search_files.pack(side=tk.RIGHT, expand=0,
+                           padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
         nx += 1
-        self.lable_search.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
+        self.lable_search.pack(side=tk.RIGHT, expand=0,
+                               padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
         #
         if conf.TREE_SUB_SHOW == 'tag':
             nx += 1
@@ -5411,7 +5470,7 @@ class td_main_app:
             self.lable_sub_folders.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
         elif conf.TREE_SUB_SHOW == 'sub_folder':
             nx += 1
-            self.lable_tag = ttk.Label(self.frame0, text='标签')
+            self.lable_tag = ttk.Label(self.frame_top, text='标签')
             #
             # 2021年12月2日 隐藏了标签下拉框
             # self.v_tag.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
@@ -5423,7 +5482,7 @@ class td_main_app:
             # 只看当前文件夹
             self.v_this_folder = tk.IntVar()
             self.v_this_folder.set(0)
-            self.this_folder = ttk.Checkbutton(self.frame0,
+            self.this_folder = ttk.Checkbutton(self.frame_top,
                                                text='只显示当前文件夹内容',
                                                variable=self.v_this_folder,
                                                command=exec_search,
@@ -5432,7 +5491,7 @@ class td_main_app:
             # 文件夹分层
             self.v_folder_layers = tk.IntVar()
             self.v_folder_layers.set(1)
-            self.folder_layers = ttk.Checkbutton(self.frame0,
+            self.folder_layers = ttk.Checkbutton(self.frame_top,
                                                  text='按子文件夹分组',
                                                  variable=self.v_folder_layers,
                                                  command=exec_search,
@@ -5442,14 +5501,14 @@ class td_main_app:
             # 只看笔记
             self.v_note_only = tk.IntVar()
             self.v_note_only.set(0)
-            self.cb_note = ttk.Checkbutton(self.frame0,
+            self.cb_note = ttk.Checkbutton(self.frame_top,
                                            text='只显示笔记',
                                            variable=self.v_note_only,
                                            command=exec_search,
                                            onvalue=1, offvalue=0)
             # self.cb_note.pack(side=tk.RIGHT, expand=0, padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)
             #
-        self.bt_test = ttk.Button(self.frame0, text='测试功能', command=function_for_testing)
+        self.bt_test = ttk.Button(self.frame_top, text='测试功能', command=function_for_testing)
         if DEVELOP_MODE:
             self.bt_test.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
@@ -5470,38 +5529,30 @@ class td_main_app:
         self.progressbar_file.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)
 
         # self.lable_sum = tk.Label(self.frameBtm, text=self.str_btm, textvariable=self.str_btm)
-        self.lable_sum = ttk.Label(self.frame0, text=self.str_btm, textvariable=self.str_btm)
+        self.lable_sum = ttk.Label(self.frame_top, text=self.str_btm, textvariable=self.str_btm)
         self.lable_sum.pack(side=tk.LEFT, expand=0, padx=5, pady=vPDY)  #
 
-        self.bt_settings = ttk.Button(self.frameMenu,
-                                      # style='Menu.TButton',
-                                      # width=304,
-                                      # image=self.PIC_DICT['menu_3'],
-                                      # compound=tk.LEFT,
-                                      # background='green',
-                                      # relief='flat',
-                                      # padding=(10, 4, 10, 4),
-                                      padding=(0,0,0,0),
-                                      text='菜单',
-                                      # anchor="center",
-                                      )  # ,command=show_online_help)
-
-        self.bt_settings.pack(side=tk.LEFT, expand=1, fill = tk.Y, padx=5, pady=10)  #
+        self.bt_clear_folder_search = ttk.Button(self.frame_folder_top,
+                                   # style='Menu.TButton',
+                                   text='清空',
+                                   image=self.PIC_DICT['cancel_20'],
+                                   command=exec_folder_search_clear)
+        self.bt_clear_folder_search.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=5, pady=10)
         #
-        # self.lable_search_folder = ttk.Label(self.frameMenu, text='文件夹')
-        self.v_search_folder = ttk.Entry(self.frameMenu,)
-        self.v_search_folder.pack(side=tk.RIGHT, expand=1, fill=tk.BOTH, padx=10, pady=10)
-        self.v_search_folder.bind('<Return>', folder_search)  # 绑定回车键
+        # self.lable_search_folder = ttk.Label(self.frame_folder_top, text='文件夹')
+        self.entry_search_folder = ttk.Entry(self.frame_folder_top,)
+        self.entry_search_folder.pack(side=tk.RIGHT, expand=1, fill=tk.BOTH, padx=5, pady=10)
+        self.entry_search_folder.bind('<Return>', exec_folder_search)  # 绑定回车键
         #
         # 站位空白块，用于出现在滚动条顶部空间
-        # self.canvas_space = tk.Canvas(self.frameMenu, bg='#e8e8e7',
+        # self.canvas_space = tk.Canvas(self.frame_folder_top, bg='#e8e8e7',
         #                               relief='flat', borderwidth=0,
         #                               width=(16*conf.ui_ratio),
         #                               )
         # self.canvas_space.pack(side=tk.RIGHT, fill='y', expand=0,)
         #
         # self.bt_folder_add.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
-        # self.bt_new = ttk.Button(self.frame0, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
+        # self.bt_new = ttk.Button(self.frame_top, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
         # self.bt_new.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
         #
         self.bt_reload = ttk.Button(self.frameBtm,
@@ -5630,7 +5681,7 @@ class td_main_app:
         self.window.bind_all('<Control-n>', exec_create_note)  # 绑定添加笔记的功能。
         self.window.bind_all('<Control-f>', jump_to_search)  # 跳转到搜索框。
         self.window.bind_all('<Control-t>', exec_tree_add_tag_via_dialog)  # 快速输入标签。
-        self.window.bind_all('<Control-p>', folder_search)
+        self.window.bind_all('<Control-p>', exec_folder_search)
         #
         # self.tree.bind('<Control-X>', exec_tree_file_cut_ctn)  # 拿起。
         # self.tree.bind('<Control-x>', exec_tree_file_cut)  # 拿起。
@@ -5642,7 +5693,7 @@ class td_main_app:
         # self.tree.bind('<Delete>', exec_tree_file_delete)  # 重命名
         # self.tree.bind("<Motion>", exec_tree_mouse_highlight)
 
-        self.frameMenu.bind("<Motion>", exec_tree_folder_remove_mouse_highlight)
+        self.frame_folder_top.bind("<Motion>", exec_tree_folder_remove_mouse_highlight)
 
         # self.tree.bind('<Double-Button-1>', exec_tree_file_open)
         # self.tree.bind('<Return>', exec_tree_file_open)

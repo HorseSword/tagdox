@@ -5,6 +5,12 @@ Created on Thu Jun 17 09:28:24 2021
 @author: MaJian
 
 ## 近期更新说明
+#### v0.27.2.0 2023年12月26日
+增加了文件只读的读取和显示功能。顺便修复了一个只读文件不能添加标签的bug。
+
+#### v0.27.1.2 2023年12月26日
+修复：修正了左侧文件夹层级错误的bug。
+
 #### v0.27.1.1 2023年12月23日
 调整UI，使文件夹搜索功能上线之后的界面布局更协调。
 
@@ -105,7 +111,7 @@ class td_const():
         self.URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
         self.URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
         self.TAR = 'Tagdox / 标签文库'  # 程序名称
-        self.VER = 'v0.27.1.1'  # 版本号
+        self.VER = 'v0.27.2.0'  # 版本号
 
 conf = td_conf()  # 关键参数
 cst = td_const()  # 常量
@@ -408,6 +414,10 @@ def get_file_part(tar):  #
     lst_sp = fname.split(conf.V_SEP)  # 拆分为多个片段
     fname_0 = lst_sp[0] + fename  # fname_0 去掉标签之后的文件名
     ftags = lst_sp[1:]  # ftags 标签部分
+    #
+    if is_read_only(tar):
+        ftags.append('只读')
+        # read_only_set(tar, False)
     #
     # 增加NTFS流的标签解析
     if TAG_METHOD == 'FILE_STREAM':
@@ -856,22 +866,22 @@ def exec_folder_search_clear(event=None):
     """
     清除文件夹的搜索
     """
-    exec_clear_entry(app.entry_search_folder)
+    exec_entry_clear(app.entry_search_folder)
     exec_folder_search()
 
 # %% 文件夹方面的
-def add_sub_folder_here(root_node, root_dir, depth, if_cont = True, is_root_searched = False):
+def add_sub_folder_here(root_node, root_dir, new_depth, if_cont = True, is_root_searched = False):
     """
     用于为 tree_folder 增加子文件夹。
     其中，可以根据筛选条件判定是否需要保留文件夹。
     :param root_node: 根节点
     :param root_dir: 根路径
-    :param depth: 深度编号，是根节点+1
+    :param new_depth: 深度编号，也就是新增节点的深度，一般定义为根节点+1
     :param if_cont: 是否继续增加子结点
     """
-    # logging.debug('root_dir = ' + str(root_dir) + ', depth = ' + str(depth))
+    # logging.debug('root_dir = ' + str(root_dir) + ', new_depth = ' + str(new_depth))
     tmp = 1  # 添加节点的序列号
-    max_depth_update = depth + 3  # 最大的搜索深度
+    max_depth_update = new_depth + 3  # 最大的搜索深度
     keyword_folder = str(app.keyword_folder).lower()  # 搜索关键词
     is_new_node_searched = False
     #
@@ -891,7 +901,7 @@ def add_sub_folder_here(root_node, root_dir, depth, if_cont = True, is_root_sear
                 continue
             else:  # 子文件夹不在排除范围的话，
                 full_dir_ = root_dir + '/' + sub_dir_
-                value_tmp_ = (root_dir, depth, full_dir_)  # values 格式 根路径，深度，全路径(-1)
+                value_tmp_ = (root_dir, new_depth, full_dir_)  # values 格式 根路径，深度，全路径(-1)
                 #
                 if (len(keyword_folder)>0 and sub_dir_.lower().find(keyword_folder)>=0 ):
                     # 符合筛选条件的
@@ -907,7 +917,7 @@ def add_sub_folder_here(root_node, root_dir, depth, if_cont = True, is_root_sear
                                                           values=value_tmp_,
                                                           tags=['folder2', 'folder_kept'],
                                                           )
-                elif is_root_searched or depth < max_depth_update:
+                elif is_root_searched or new_depth < max_depth_update:
                     # app.tree_lst_folder.item(root_node, "text").lower().find(keyword_folder) >=0 \
                     # 不符合筛选条件，但父结点或者深度符合的
                     new_node = app.tree_lst_folder.insert(root_node, tmp, text=sub_dir_,
@@ -919,14 +929,14 @@ def add_sub_folder_here(root_node, root_dir, depth, if_cont = True, is_root_sear
                     new_node = False
                 #
                 # 继续迭代下钻
-                if depth <= max_depth_update: # flag.flag_inited: # 刚启动的时候，不需要加载全部文件夹，从而提高加载速度
+                if new_depth <= max_depth_update: # flag.flag_inited: # 刚启动的时候，不需要加载全部文件夹，从而提高加载速度
                     # TODO: 如果写 flag.flag_inited， 这里根本就调用不到？ 因为点击的时候，调用的是 update_current_folder_list
                     if new_node:
-                        add_sub_folder_here(new_node, full_dir_, depth + 1,
+                        add_sub_folder_here(new_node, full_dir_, new_depth + 1,
                                             is_root_searched=(is_root_searched or is_new_node_searched))
                 else:
                     if new_node and if_cont:
-                        add_sub_folder_here(new_node, full_dir_, depth + 1, if_cont=False,
+                        add_sub_folder_here(new_node, full_dir_, new_depth + 1, if_cont=False,
                                             is_root_searched=(is_root_searched or is_new_node_searched))
         #
         break  # 对应的是 os.walk 停止，不再下钻，只处理当前层就结束
@@ -1197,7 +1207,7 @@ def update_current_folder_list(event=None, ):
 
         # 添加子目录节点，并展开当前节点
         try:
-            add_sub_folder_here(root_node, root_dir, root_depth)
+            add_sub_folder_here(root_node, root_dir, root_depth + 1)
             app.tree_lst_folder.update()
         except Exception as e:
             logging.error('error 1159: 文件夹读取失败:'+ str(e))
@@ -2012,6 +2022,10 @@ def get_folder_depth(itm=None):
 def get_folder_values_v2(point=False):
     """
     优化架构下的文件夹列表获取方法。
+
+    参数 point：True是上次focus的元素，False是选中项。
+
+    返回值：values值。根路径，深度，全路径
     """
     if point:
         res = app.tree_lst_folder.item(app.last_focus, "values")
@@ -2573,7 +2587,7 @@ def input_new_tag(event=None, tag_name=None):
         if new_tag == None or new_tag == '':
             print("取消新标签")
         else:
-            taged_files.append(exec_file_add_tag(tmp_full_name, new_tag))
+            taged_files.append(exec_file_tag_add(tmp_full_name, new_tag))
             # print(new_name)
     if len(app.tree.selection()) > 1:  # 多文件的只在最后刷新。
         # (b1, b2) = bar_tree_v.get()
@@ -2607,7 +2621,7 @@ def exec_tree_add_tag_via_dialog(event=None):
     input_new_tag(tag_name=new_tag)
 
 
-def update_one_of_dicT(filename):
+def update_one_of_dicT(file_path_full):
     """
     更新dicT中的一项，
     包括对文件名斜杠的处理。
@@ -2615,76 +2629,92 @@ def update_one_of_dicT(filename):
 
     :return:
     """
-    filename = filename.replace('\\', '/')
-    tmp = get_file_part(filename)
+    file_path_full = file_path_full.replace('\\', '/')
+    tmp = get_file_part(file_path_full)
     tmp_v = (str(tmp['fname_0']),
              tmp['ftags'],
              str(tmp['file_mdf_time']),
              tmp['fsize'],
              tmp['fename'],
              str(tmp['full_path']))
-    core_data.dict_files[filename] = tmp_v
+    core_data.dict_files[file_path_full] = tmp_v
 
 
-def exec_file_add_tag(filename, tag0, need_update=True):
+def exec_file_tag_add_readonly(file_path_full):
+    pass
+
+
+def exec_file_tag_add(file_path_full, new_tag, need_update=True):
     """
     增加标签
     """
-    filename = filename.replace('\\', '/')
-    tmp_final_name = filename
+    file_path_full = file_path_full.replace('\\', '/')
+    tmp_final_name = file_path_full
     ntfs_error = False
     #
-    # 增加NTFS流的标签解析
-    if TAG_METHOD == 'FILE_STREAM' and not os.path.splitext(filename)[1] in conf.EXP_EXTS:
-        # 先看有没有这个标签
-        tmp = get_file_part(filename)
-        tags_old = tmp['ftags']
-        if tag0 in tags_old:  # 如果已经有的话，直接忽略
-            pass
-        else:
-            #
-            # 增加标签
-            tags_old.append(tag0)
-            tags_old.sort()
-            try:
-                with open(filename + ":tags", "w", encoding="utf8") as f:
-                    f.writelines(list(map(lambda x: x + "\n", tags_old)))
-            except:
-                ntfs_error = True
-            #
-            # 更新缓存
-            update_one_of_dicT(filename)
-            # tmp_v = (str(tmp['fname_0']),
-            #          tags_old,
-            #          str(tmp['file_mdf_time']),
-            #          tmp['fsize'],
-            #          tmp['fename'],
-            #          str(tmp['full_path']))
-            # core_data.dict_files[filename] = tmp_v
-        # return tmp_final_name
-
-    if TAG_METHOD != 'FILE_STREAM' or ntfs_error or os.path.splitext(filename)[1] in conf.EXP_EXTS:
-        tag_list = tag0.split(conf.V_SEP)
-        tag_old = get_file_part(filename)['ftags']  # 已有标签
-        file_old = get_file_part(filename)['ffname']  # 原始的文件名
-        path_old = get_file_part(filename)['fpath']  # 路径
-        [fname, fename] = os.path.splitext(file_old)  # 文件名前半部分，扩展名
-
-        old_n = path_old + '/' + fname + fename
-        new_n = old_n
-        for i in tag_list:
-            if i not in tag_old:
-                new_n = path_old + os.sep + fname + conf.V_SEP + i + fename
-                print(old_n)
-                print(new_n)
+    if new_tag == '只读':
+        read_only_set(file_path_full, True)
+        update_one_of_dicT(file_path_full)
+    #
+    else:
+        # 增加NTFS流的标签解析
+        if TAG_METHOD == 'FILE_STREAM' and not os.path.splitext(file_path_full)[1] in conf.EXP_EXTS:
+            # 先看有没有这个标签
+            tmp = get_file_part(file_path_full)
+            tags_old = tmp['ftags']
+            if new_tag in tags_old:  # 如果已经有的话，直接忽略
+                pass
+            else:
+                # 增加标签
+                tags_old.append(new_tag)
+                tags_old.sort()
                 try:
-                    # os.rename(old_n,new_n)
-                    tmp_final_name = safe_rename(old_n, new_n, sep = conf.V_SEP)
-                    old_n = new_n  # 多标签时避免重命名错误
-                except:
-                    tk.messagebox.showerror(title='ERROR', message='为文件添加标签失败！')
-                    print('为文件添加标签失败')
-                    pass
+                    # 只读文件不能直接修改标签，需要先去掉只读状态
+                    if read_only_get(file_path_full):
+                        tmp_read_only = True
+                        read_only_set(file_path_full,False)
+                    with open(file_path_full + ":tags", "w", encoding="utf8") as f:
+                        f.writelines(list(map(lambda x: x + "\n", tags_old)))
+                    if tmp_read_only:
+                        read_only_set(file_path_full,True)
+                except Exception as e:
+                    logging.error('error2671: '+str(e))
+                    ntfs_error = True
+                #
+                # 更新缓存
+                update_one_of_dicT(file_path_full)
+                # tmp_v = (str(tmp['fname_0']),
+                #          tags_old,
+                #          str(tmp['file_mdf_time']),
+                #          tmp['fsize'],
+                #          tmp['fename'],
+                #          str(tmp['full_path']))
+                # core_data.dict_files[file_path_full] = tmp_v
+            # return tmp_final_name
+        #
+        # 如果不采用 file_stream 模式：
+        if TAG_METHOD != 'FILE_STREAM' or ntfs_error or os.path.splitext(file_path_full)[1] in conf.EXP_EXTS:
+            tag_list = new_tag.split(conf.V_SEP)
+            tag_old = get_file_part(file_path_full)['ftags']  # 已有标签
+            file_old = get_file_part(file_path_full)['ffname']  # 原始的文件名
+            path_old = get_file_part(file_path_full)['fpath']  # 路径
+            [fname, fename] = os.path.splitext(file_old)  # 文件名前半部分，扩展名
+
+            old_n = path_old + '/' + fname + fename
+            new_n = old_n
+            for i in tag_list:
+                if i not in tag_old:
+                    new_n = path_old + os.sep + fname + conf.V_SEP + i + fename
+                    print(old_n)
+                    print(new_n)
+                    try:
+                        # os.rename(old_n,new_n)
+                        tmp_final_name = safe_rename(old_n, new_n, sep = conf.V_SEP)
+                        old_n = new_n  # 多标签时避免重命名错误
+                    except:
+                        tk.messagebox.showerror(title='ERROR', message='为文件添加标签失败！')
+                        print('为文件添加标签失败')
+                        pass
     # 刷新并选中
     if len(app.tree.selection()) == 1 and need_update:
         update_main_window(0, fast_mode=True)  # 此处可以优化，避免完全重载
@@ -2708,10 +2738,10 @@ def exec_file_add_tag(filename, tag0, need_update=True):
 #     for item in app.tree.selection():
 #         item_text = app.tree.item(item, "values")
 #         tmp_full_name = item_text[-1]
-#     exec_file_add_tag(tmp_full_name,TAG_STAR)
+#     exec_file_tag_add(tmp_full_name,TAG_STAR)
 
 
-def exec_fast_add_tag(tag):
+def exec_file_tag_add_fast(tag):
     """
     以右键的方式快速为文件加收藏。
     目前是为文件增加 TAG_STAR 对应的值。
@@ -2723,7 +2753,7 @@ def exec_fast_add_tag(tag):
             continue
         item_text = app.tree.item(item, "values")
         tmp_full_name = item_text[-1]
-        taged_files.append(exec_file_add_tag(tmp_full_name, TAG_STAR))
+        taged_files.append(exec_file_tag_add(tmp_full_name, TAG_STAR))
     if len(app.tree.selection()) > 1:
         # (b1, b2) = bar_tree_v.get()
         update_main_window(0)
@@ -2733,17 +2763,19 @@ def exec_fast_add_tag(tag):
         # exec_tree_find(taged_files[-1])
 
 
-def exec_clear_entry(tar):
+def exec_entry_clear(entry_obj):
     """
     前端函数，将输入框清空。
     必须要指定要清空的输入框对象。
     tar 对应的是 Entry 对象。
     """
-    try:
-        tar.delete(0, len(tar.get()))
-    except:
-        pass
-    return
+    # try:
+    #     entry_obj.delete(0, len(entry_obj.get()))
+    # except:
+    #     pass
+    # return
+    # 新方法：
+    entry_obj.delete(0,'end')
 
 
 def exec_clear_search_items(event=None):
@@ -2791,13 +2823,13 @@ def update_main_window(event=None, reload_setting=False, fast_mode=False):
         清空搜索框
         '''
         # tmp_sub_folder=get_sub_folder_selected()
-        exec_clear_entry(app.entry_search_files)
+        exec_entry_clear(app.entry_search_files)
     else:
         '''
         清空搜索框；
         标签留空；
         '''
-        exec_clear_entry(app.entry_search_files)
+        exec_entry_clear(app.entry_search_files)
         set_search_tag_selected(0)
         if conf.TREE_SUB_SHOW == 'tag':  # 在 tag 模式，需要连子文件夹也刷新
             set_sub_folder_selected(0)
@@ -3285,7 +3317,7 @@ def show_window_setting():  #
     lable_set_sep.grid(row=0, column=0, padx=10, pady=5, sticky=tk.W)
 
     v_inp_sep = ttk.Entry(frame_setting1, width=16, text=conf.V_SEP)
-    exec_clear_entry(v_inp_sep)
+    exec_entry_clear(v_inp_sep)
     v_inp_sep.insert(0, conf.V_SEP)
     v_inp_sep.grid(row=0, column=1, padx=10, pady=5, sticky=tk.EW)
 
@@ -4046,7 +4078,7 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
 
                     if TAG_METHOD == 'FILE_STREAM':  # 流模式下新增标签的方法
                         for tg in tags:
-                            exec_file_add_tag(fpth, tg, need_update=False)
+                            exec_file_tag_add(fpth, tg, need_update=False)
 
                     # 刷新
                     if event == 'exec_create_note_here':  # 【这里有bug，刷新之后不能显示内容】
@@ -4104,7 +4136,7 @@ def jump_to_search(event=None):
     res = show_window_input('快速搜索', body_value='请输入搜索关键词，多个关键词之间用空格隔开。',
                             init_value=tmp_search_value)
     if res is not None:
-        exec_clear_entry(app.entry_search_files)
+        exec_entry_clear(app.entry_search_files)
         res = res.strip()
         app.entry_search_files.insert(0, res)
         exec_search()
@@ -4143,21 +4175,21 @@ def show_popup_menu_folder(event):
     """
     文件夹区域的右键菜单
     """
-    v_lst = get_folder_values_v2(True)
+    folder_values = get_folder_values_v2(True)
     try:
         # print(app.last_focus == '')
-        vtype = int(v_lst[1])
+        folder_depth = int(folder_values[1])
     except:
         if(app.last_focus == ''):
-            vtype=-1
+            folder_depth=-1
         else:
-            vtype = 0
-    print('vtype=', vtype)
+            folder_depth = 0
+    print('folder_depth=', folder_depth)
     # 检查文件夹是否存在
     ise = os.path.isdir(app.tree_lst_folder.item(app.last_focus,"values")[-1])
 
     #
-    # 备用语句：state=tk.DISABLED if int(vtype)>1 else tk.NORMAL, 
+    # 备用语句：state=tk.DISABLED if int(folder_depth)>1 else tk.NORMAL,
     #
     menu_folder_group = tk.Menu(app.window, tearoff=0)
     tmp_lst_groups = get_folder_group_list()
@@ -4174,34 +4206,34 @@ def show_popup_menu_folder(event):
     menu_folder = tk.Menu(app.window, tearoff=0)
 
     if ise:
-        if vtype >= 1: menu_folder.add_command(label="打开所选文件夹", command=exec_folder_open)
-        if vtype >= 1: menu_folder.add_separator()
-        if vtype >= 1: menu_folder.add_command(label="新建子文件夹", command=exec_sub_folder_new)
-        if vtype > 1: menu_folder.add_command(label="重命名文件夹", command=exec_folder_rename)
-        if vtype > 1: menu_folder.add_command(label="删除文件夹", command=exec_folder_del)
-        if vtype >= 1: menu_folder.add_separator()
+        if folder_depth >= 1: menu_folder.add_command(label="打开所选文件夹（使用资源管理器）", command=exec_folder_open)
+        if folder_depth >= 1: menu_folder.add_separator()
+        if folder_depth >= 1: menu_folder.add_command(label="新建子文件夹", command=exec_sub_folder_new)
+        if folder_depth > 1: menu_folder.add_command(label="重命名文件夹", command=exec_folder_rename)
+        if folder_depth > 1: menu_folder.add_command(label="删除文件夹", command=exec_folder_del)
+        if folder_depth >= 1: menu_folder.add_separator()
 
-        if vtype > 1: menu_folder.add_command(label="剪切文件夹", command=exec_folder_cut)
-        if vtype >= 1: menu_folder.add_command(label="粘贴为子文件夹",
+        if folder_depth > 1: menu_folder.add_command(label="剪切文件夹", command=exec_folder_cut)
+        if folder_depth >= 1: menu_folder.add_command(label="粘贴为子文件夹",
                                                state=tk.DISABLED if len(folder_to_move) < 1  else tk.NORMAL,
                                                command=exec_folder_paste)
     else: # 当前点击的文件夹不存在
-        if vtype >= 1: menu_folder.add_command(label="打开所选文件夹（文件夹不存在）", state=tk.DISABLED,command=exec_folder_open)
-        if vtype >= 1: menu_folder.add_separator()
-        if vtype >= 1: menu_folder.add_command(label="新建子文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_sub_folder_new)
-        if vtype > 1: menu_folder.add_command(label="重命名文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_folder_rename)
-        if vtype > 1: menu_folder.add_command(label="删除文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_folder_del)
-        if vtype >= 1: menu_folder.add_separator()
-        if vtype > 1: menu_folder.add_command(label="剪切文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_folder_cut)
-        if vtype >= 1: menu_folder.add_command(label="粘贴为子文件夹（文件夹不存在）", state=tk.DISABLED,)
+        if folder_depth >= 1: menu_folder.add_command(label="打开所选文件夹（文件夹不存在）", state=tk.DISABLED,command=exec_folder_open)
+        if folder_depth >= 1: menu_folder.add_separator()
+        if folder_depth >= 1: menu_folder.add_command(label="新建子文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_sub_folder_new)
+        if folder_depth > 1: menu_folder.add_command(label="重命名文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_folder_rename)
+        if folder_depth > 1: menu_folder.add_command(label="删除文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_folder_del)
+        if folder_depth >= 1: menu_folder.add_separator()
+        if folder_depth > 1: menu_folder.add_command(label="剪切文件夹（文件夹不存在）", state=tk.DISABLED, command=exec_folder_cut)
+        if folder_depth >= 1: menu_folder.add_command(label="粘贴为子文件夹（文件夹不存在）", state=tk.DISABLED,)
 
-    if vtype == 0: menu_folder.add_command(label="重命名分组", command=exec_folder_rename_group)
-    if vtype >= 0:menu_folder.add_separator()
+    if folder_depth == 0: menu_folder.add_command(label="重命名分组", command=exec_folder_rename_group)
+    if folder_depth >= 0:menu_folder.add_separator()
 
-    if vtype > 1: menu_folder.add_command(label="添加当前选中文件夹到关注列表", command=exec_folder_from_menu)
-    if vtype == 1: menu_folder.add_command(label="取消关注", command=exec_folder_drop)
-    if vtype == 1: menu_folder.add_cascade(label="设置文件夹分组", menu=menu_folder_group)
-    if vtype >= 1: menu_folder.add_separator()
+    if folder_depth > 1: menu_folder.add_command(label="添加当前选中文件夹到关注列表", command=exec_folder_from_menu)
+    if folder_depth == 1: menu_folder.add_command(label="取消关注", command=exec_folder_drop)
+    if folder_depth == 1: menu_folder.add_cascade(label="设置文件夹分组", menu=menu_folder_group)
+    if folder_depth >= 1: menu_folder.add_separator()
 
     # menu_folder.add_command(label="添加文件夹到关注列表…", command=exec_folder_add_click)
     menu_folder.add_command(label="刷新文件夹列表", command=update_folder_list)
@@ -4240,7 +4272,7 @@ def show_popup_menu_sub_folder(event):
         menu_sub_folder.post(event.x_root, event.y_root)
 
 
-def exec_tree_file_drop_tag(event=None):
+def exec_file_tag_remove(event=None):
     """
     删除标签
 
@@ -4257,78 +4289,89 @@ def exec_tree_file_drop_tag(event=None):
             continue
         item_text = app.tree.item(item, "values")
         tmp_full_name = item_text[-1]  # 完整文件名
-        # NTFS流模式
-        if TAG_METHOD == 'FILE_STREAM':
-            # 读取流中的标签
-            tags_in_st = []
-            try:
-                with open(tmp_full_name + ":tags", "r", encoding="utf8") as f:
-                    tags_in_st = list(set(list(map(lambda x: x.strip(), f.readlines()))))
-            except Exception as e:
-                pass
-            #
-            if tag_value in tags_in_st:
-                # 移除标签
-                tags_in_st.remove(tag_value)
-                # 重写流
-                tags_in_st.sort()
+        # 判断只读
+        if tag_value == '只读':
+            read_only_set(tmp_full_name, False)
+            update_one_of_dicT(tmp_full_name)
+        if True:
+            if read_only_get(tmp_full_name):
+                tmp_is_read_only = True
+                read_only_set(tmp_full_name, False)
+            # NTFS流模式
+            if TAG_METHOD == 'FILE_STREAM':
+                # 读取流中的标签
+                tags_in_st = []
                 try:
-                    with open(tmp_full_name + ":tags", "w", encoding="utf8") as f:
-                        f.writelines(list(map(lambda x: x + "\n", tags_in_st)))
-                    # 更新缓存
-                    update_one_of_dicT(tmp_full_name)
-                except:
+                    with open(tmp_full_name + ":tags", "r", encoding="utf8") as f:
+                        tags_in_st = list(set(list(map(lambda x: x.strip(), f.readlines()))))
+                except Exception as e:
                     pass
                 #
-        # 删除文件名里面的标签
-        res = get_file_part(tmp_full_name)
-        file_path = res['f_path_only']
-        file_name_ori = res['filename_origional']
-        file_ext = res['fename']
-        # 新增：检查一下是否在文件名中
-        file_tags_old = res['ftags']
-        if tag_value in file_tags_old:
-            pass
-        else:
-            # 如果不在，表示已经从流中删除，
-            res_lst.append(tmp_full_name)
-            continue
+                if tag_value in tags_in_st:
+                    # 移除标签
+                    tags_in_st.remove(tag_value)
+                    # 重写流
+                    tags_in_st.sort()
+                    try:
+                        with open(tmp_full_name + ":tags", "w", encoding="utf8") as f:
+                            f.writelines(list(map(lambda x: x + "\n", tags_in_st)))
+                        # 更新缓存
+                        update_one_of_dicT(tmp_full_name)
+                        # 恢复只读属性
+                        if tmp_is_read_only:
+                            read_only_set(tmp_full_name, True)
+                    except:
+                        pass
+                    #
+            # 删除文件名里面的标签
+            res = get_file_part(tmp_full_name)
+            file_path = res['f_path_only']
+            file_name_ori = res['filename_origional']
+            file_ext = res['fename']
+            # 新增：检查一下是否在文件名中
+            file_tags_old = res['ftags']
+            if tag_value in file_tags_old:
+                pass
+            else:
+                # 如果不在，表示已经从流中删除，
+                res_lst.append(tmp_full_name)
+                continue
 
-        if file_ext == '':
-            print(file_name_ori)
-            tmp_rv = list(file_name_ori)
-            tmp_rv.reverse()
-            tmp_rv = ''.join(tmp_rv)
-            print(tmp_rv)
-            #
-            tmp_r_tag = list(conf.V_SEP + tag_value)
-            tmp_r_tag.reverse()
-            tmp_r_tag = ''.join(tmp_r_tag)
-            print(tmp_r_tag)
-            #
-            tmp_rv = tmp_rv.replace(tmp_r_tag, '', 1)
-            #
-            tmp_rv = list(tmp_rv)
-            tmp_rv.reverse()
-            tmp_rv = ''.join(tmp_rv)
-            #
-            file_name_ori = tmp_rv
-            print('从右向左替换')
-            print(file_name_ori)
-        new_name = file_name_ori.replace(conf.V_SEP + tag_value + conf.V_SEP, conf.V_SEP)
-        new_name = new_name.replace(conf.V_SEP + tag_value + '.', ".")
+            if file_ext == '':
+                print(file_name_ori)
+                tmp_rv = list(file_name_ori)
+                tmp_rv.reverse()
+                tmp_rv = ''.join(tmp_rv)
+                print(tmp_rv)
+                #
+                tmp_r_tag = list(conf.V_SEP + tag_value)
+                tmp_r_tag.reverse()
+                tmp_r_tag = ''.join(tmp_r_tag)
+                print(tmp_r_tag)
+                #
+                tmp_rv = tmp_rv.replace(tmp_r_tag, '', 1)
+                #
+                tmp_rv = list(tmp_rv)
+                tmp_rv.reverse()
+                tmp_rv = ''.join(tmp_rv)
+                #
+                file_name_ori = tmp_rv
+                print('从右向左替换')
+                print(file_name_ori)
+            new_name = file_name_ori.replace(conf.V_SEP + tag_value + conf.V_SEP, conf.V_SEP)
+            new_name = new_name.replace(conf.V_SEP + tag_value + '.', ".")
 
-        new_full_name = file_path + '/' + new_name
-        print('原始文件名：')
-        print(tmp_full_name)
-        print('去掉标签后：')
-        print(new_full_name)
-        print('被去掉的标签：')
-        print(tag_value)
-        # os.rename(tmp_full_name,new_full_name)
-        if tmp_full_name != new_full_name:
-            tmp_final_name = safe_rename(tmp_full_name, new_full_name, sep = conf.V_SEP)
-        res_lst.append(new_full_name)
+            new_full_name = file_path + '/' + new_name
+            print('原始文件名：')
+            print(tmp_full_name)
+            print('去掉标签后：')
+            print(new_full_name)
+            print('被去掉的标签：')
+            print(tag_value)
+            # os.rename(tmp_full_name,new_full_name)
+            if tmp_full_name != new_full_name:
+                tmp_final_name = safe_rename(tmp_full_name, new_full_name, sep = conf.V_SEP)
+            res_lst.append(new_full_name)
 
     update_main_window(0, fast_mode=True)  # 此处可以优化，避免完全重载
     exec_tree_find_lst(res_lst)
@@ -4412,7 +4455,7 @@ def show_popup_menu_file(event):
     #
     if len(conf.QUICK_TAGS) > 0:
         for i in conf.QUICK_TAGS:
-            menu_tags_to_add.add_command(label=i, command=lambda x=i: exec_fast_add_tag(x))
+            menu_tags_to_add.add_command(label=i, command=lambda x=i: exec_file_tag_add_fast(x))
         menu_tags_to_add.add_separator()
     menu_tags_to_add.add_command(label='自定义标签…', command=exec_tree_add_tag_via_dialog)
     #
@@ -4427,10 +4470,10 @@ def show_popup_menu_file(event):
         menu_file.add_command(label="新建笔记", state=tk.DISABLED, command=exec_create_note, accelerator='Ctrl+N')
     menu_file.add_separator()
     if n_selection == 1:
-        # menu_file.add_command(label="打开选中项所在文件夹", command=tree_open_folder)
+        # menu_file.add_command(label="打开选中项所在文件夹（使用资源管理器）", command=tree_open_folder)
         menu_file.add_command(label="打开所在文件夹", command=tree_open_folder_select)
     elif n_selection > 1:
-        menu_file.add_command(label="打开选中项所在文件夹", state=tk.DISABLED, command=tree_open_folder)
+        menu_file.add_command(label="打开选中项所在文件夹（使用资源管理器）", state=tk.DISABLED, command=tree_open_folder)
     # menu_file.add_command(label="打开当前文件夹", command=tree_open_current_folder)
     menu_file.add_separator()
     menu_file.add_command(label='添加标签 ', command=exec_tree_add_tag_via_dialog, accelerator='Ctrl+T')
@@ -4450,9 +4493,9 @@ def show_popup_menu_file(event):
         menu_file.add_command(label="重命名", state=tk.DISABLED, command=exec_tree_file_rename, accelerator='F2')
     menu_file.add_command(label="删除", command=exec_tree_file_delete, accelerator='Del')
     menu_file.add_separator()
-    menu_file.add_command(label="剪切", command=exec_tree_file_cut, accelerator='Ctrl+X')
-    menu_file.add_command(label="复制", command=exec_tree_file_copy, accelerator='Ctrl+C')
-    menu_file.add_command(label="粘贴", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
+    menu_file.add_command(label="剪切（程序内）", command=exec_tree_file_cut, accelerator='Ctrl+X')
+    menu_file.add_command(label="复制（程序内）", command=exec_tree_file_copy, accelerator='Ctrl+C')
+    menu_file.add_command(label="粘贴（程序内）", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
                           command=exec_tree_file_put_down, accelerator='Ctrl+V')
     # menu_file.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
     #                       command=exec_tree_file_pick_nothing)
@@ -4476,9 +4519,9 @@ def show_popup_menu_file(event):
     # menu_file_no_selection.add_command(label="重命名",state=tk.DISABLED)#,command=exec_folder_add_click)
     # menu_file_no_selection.add_command(label="添加收藏",state=tk.DISABLED)#,command=exec_folder_add_click)
     menu_file_no_selection.add_separator()
-    menu_file_no_selection.add_command(label="剪切", state=tk.DISABLED, command=exec_tree_file_cut, accelerator='Ctrl+X')
-    menu_file_no_selection.add_command(label="复制", state=tk.DISABLED, command=exec_tree_file_copy, accelerator='Ctrl+C')
-    menu_file_no_selection.add_command(label="粘贴", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
+    menu_file_no_selection.add_command(label="剪切（程序内）", state=tk.DISABLED, command=exec_tree_file_cut, accelerator='Ctrl+X')
+    menu_file_no_selection.add_command(label="复制（程序内）", state=tk.DISABLED, command=exec_tree_file_copy, accelerator='Ctrl+C')
+    menu_file_no_selection.add_command(label="粘贴（程序内）", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
                                        command=exec_tree_file_put_down, accelerator='Ctrl+V')
     # menu_file_no_selection.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
     #                                    command=exec_tree_file_pick_nothing)
@@ -4511,20 +4554,26 @@ def show_popup_menu_file(event):
                 pass
             except:
                 pass
-
+        #
+        # 新增：只读
+        if read_only_get(tmp_full_name):
+            tmp_tags.append('只读')
         try:
             for i in range(10000):  # 删除已有标签
                 menu_tags_to_drop.delete(0)
         except:
             pass
-
+        # 去重
+        tmp_tags = list(set(tmp_tags))
+        tmp_tags_all = list(set(tmp_tags_all))
+        #
         if len(tmp_tags_all) > 0:
             if len(tmp_tags) == 0:
                 pass
             else:
                 # menu_tags_to_drop.add_separator()
                 for i in tmp_tags:
-                    menu_tags_to_drop.add_command(label=i, command=lambda x=i: exec_tree_file_drop_tag(x))
+                    menu_tags_to_drop.add_command(label=i, command=lambda x=i: exec_file_tag_remove(x))
 
             if len(tmp_tags_all) > len(tmp_tags):
                 if len(tmp_tags) > 0:
@@ -4592,7 +4641,7 @@ def show_popup_menu_file(event):
         if len(tmp_tags_from_files) > 0:
             tmp_tags_from_files = list(set(tmp_tags_from_files))
             for i in tmp_tags_from_files:
-                menu_tags_to_drop.add_command(label=i, command=lambda x=i: exec_tree_file_drop_tag(x))
+                menu_tags_to_drop.add_command(label=i, command=lambda x=i: exec_file_tag_remove(x))
         else:
             menu_tags_to_drop.add_command(label='无可移除的共有标签', state=tk.DISABLED)
             pass
@@ -5001,7 +5050,7 @@ def exec_tree_file_cut_ctn(event=None):
 
 def exec_tree_file_cut(event=None):
     """
-    剪切
+    剪切（程序内）
     """
     global state_pick_up
     state_pick_up = 'move'

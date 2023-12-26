@@ -52,7 +52,7 @@ class td_conf:
         #
         self.NOTE_EXT_LIST = ['.md', '.txt', '.docx', '.rtf', '.mm']  # 已改完
         self.NOTE_EXT = '.docx'  # 新建笔记的类型 // 可修改 # 已改完
-        self.QUICK_TAGS = ['@PIN', '@TODO', '@toRead', '@Done']  # 快速添加标签 # 已改完
+        self.QUICK_TAGS = ['@PIN', '@TODO', '@toRead', '@Done', '只读']  # 快速添加标签 # 已改完
         #
         self.DEFAULT_GROUP_NAME = '默认文件夹分组'  # 已改完
 

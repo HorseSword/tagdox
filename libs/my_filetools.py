@@ -181,6 +181,19 @@ def clear_read_only(file_path):
     os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IWRITE)
 
 
+def read_only_get(file_path):
+    return is_read_only(file_path)
+
+
+def read_only_set(file_path, state_read_only):
+    if state_read_only:
+        set_read_only(file_path)
+    else:
+        clear_read_only(file_path)
+
+
 if __name__ == '__main__':
     # 本地测试
-    print(safe_copy('./my_filetools.py', './my_filetools.bak'))
+    read_only_set('./file_readonly.txt', False)
+    print(read_only_get('./file_readonly.txt',))
+    # print(safe_copy('./my_filetools.py', './my_filetools.bak'))

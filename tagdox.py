@@ -5,6 +5,9 @@ Created on Thu Jun 17 09:28:24 2021
 @author: MaJian
 
 ## 近期更新说明
+#### v0.27.2.1 2023年12月27日
+为打开当前文件夹之类的操作添加了补充说明；增加新增文件夹时选择分组的功能。
+
 #### v0.27.2.0 2023年12月26日
 增加了文件只读的读取和显示功能。顺便修复了一个只读文件不能添加标签的bug。
 
@@ -50,15 +53,6 @@ Created on Thu Jun 17 09:28:24 2021
 #### v0.26.0.0 2023年10月11日
 增加功能：可以解析当前文件夹内的readme.md文件，并作为文件夹备注显示在列表下面。
 
-#### v0.25.1.9 2023年10月6日
-增加功能：可以在左侧文件夹列表自动忽略点开头的文件夹。这个功能以后可以作为设置项。
-
-#### v0.25.1.8 2023年9月27日
-修正了空格唤起的文件预览框缩放不正确的问题。
-将图标等素材统一移动到 resources 文件夹下。
-
-#### v0.25.1.7 2023年7月25日
-将左侧列表的缩进设置为40，提高区分度。之后考虑做成自适应或者可调节的。
 """
 
 import tkinter as tk
@@ -111,7 +105,7 @@ class td_const():
         self.URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
         self.URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
         self.TAR = 'Tagdox / 标签文库'  # 程序名称
-        self.VER = 'v0.27.2.0'  # 版本号
+        self.VER = 'v0.27.2.1'  # 版本号
 
 conf = td_conf()  # 关键参数
 cst = td_const()  # 常量
@@ -930,7 +924,6 @@ def add_sub_folder_here(root_node, root_dir, new_depth, if_cont = True, is_root_
                 #
                 # 继续迭代下钻
                 if new_depth <= max_depth_update: # flag.flag_inited: # 刚启动的时候，不需要加载全部文件夹，从而提高加载速度
-                    # TODO: 如果写 flag.flag_inited， 这里根本就调用不到？ 因为点击的时候，调用的是 update_current_folder_list
                     if new_node:
                         add_sub_folder_here(new_node, full_dir_, new_depth + 1,
                                             is_root_searched=(is_root_searched or is_new_node_searched))
@@ -2039,7 +2032,7 @@ def exec_run(filepath):
     """
     运行文件或路径
     """
-    os.startfile(filepath)  # 这个方法好像不太合适，会导致占用。
+    os.startfile(filepath)  # TODO 这个方法好像不太合适，会导致占用。
 
 
 # 获取当前点击行的值
@@ -2381,16 +2374,20 @@ def tree_open_current_folder(event=None):
         t = tk.messagebox.showerror(title='ERROR', message='打开文件夹失败！')
 
 
-def exec_folder_from_menu(event=None):
-    """通过菜单添加关注的文件夹"""
+def exec_folder_from_menu(event=None, group_name = None):
+    """
+    通过菜单添加关注的文件夹.
+    产生渠道：将所选文件夹添加到关注
+    """
     # folder_path = get_folder_long_v2()
     folder_path = app.tree_lst_folder.item(app.last_focus,"values")[-1]
-    exec_folder_add([folder_path])
+    exec_folder_add([folder_path], group_name = group_name)
 
 
 def exec_folder_add_from_sub(event=None):
     """
-    通过子文件夹的方式添加关注文件夹
+    通过子文件夹的方式添加关注文件夹.
+    产生渠道：将所选文件夹添加到关注
     """
     try:
         if len(get_sub_folder_selected()) > 0:
@@ -2975,9 +2972,9 @@ def on_folder_choose(event=None, refresh=1, sub_folder=None):  # 点击新的文
     #     pass
     update_current_folder_list() # 2022年10月13日新增，点击的时候刷新
     try:
-        exec_tree_folder_mouse_highlight(event)  # 添加这句话，保证当前左键点击项目获得高亮
+        exec_folder_mouse_highlight(event)  # 添加这句话，保证当前左键点击项目获得高亮
     except Exception as e:
-        logging.warning('函数 exec_tree_folder_mouse_highlight 出错：'+ str(e))
+        logging.warning('函数 exec_folder_mouse_highlight 出错：'+ str(e))
 
     #
     flag.flag_root_folder = 1
@@ -3765,7 +3762,10 @@ def exec_folder_paste(event=None, tar_folder_from=None,
 
 
 def exec_folder_set_group(event=None, group_name=None, short_name=None, need_update=True):
-    """设置文件夹的group参数"""
+    """
+    设置文件夹的group参数
+    TODO 增加
+    """
     if group_name is None:
         group_name = show_window_input('请输入分组名称', '文件夹分组名称')
         if group_name is None:
@@ -3830,25 +3830,28 @@ def exec_folder_rename_group(event=None):
     update_folder_and_json_file()
 
 
-def exec_folder_add(tar_list):
+def exec_folder_add(path_list, group_name = None):
     """
     添加关注的目录,输入必须是列表。
     列表内是文件夹完整路径。
     """
     need_update = 0
-    for tmp_path_long in tar_list:
+    for tmp_path_long in path_list:
         if len(tmp_path_long) > 0:  # 用于避免空白项目，虽然不知道哪里来的
             tmp_path_long = str(tmp_path_long).replace("\\", '/')
-            tmp_tar = {"pth": tmp_path_long}
+            if group_name:
+                tmp_tar = {"pth": tmp_path_long, "group": group_name}
+            else:
+                tmp_tar = {"pth": tmp_path_long}
             #
             # 判断是否已经存在
-            if not tmp_path_long in conf.lst_my_path_long:
-                conf.json_data['folders'].append(tmp_tar)
-                need_update = 1
-            else:
+            if tmp_path_long in conf.lst_my_path_long:
                 tk.messagebox.showerror(title='错误',
                                         message='以下路径已存在，不需要添加：' + tmp_path_long)
-                print('以下路径已存在，不需要添加：', tmp_path_long)
+                logging.warning('以下路径已存在，不需要添加：' + str(tmp_path_long))
+            else:
+                conf.json_data['folders'].append(tmp_tar)
+                need_update = 1
     # 刷新目录
     if need_update:
         update_folder_and_json_file()
@@ -4184,17 +4187,13 @@ def show_popup_menu_folder(event):
             folder_depth=-1
         else:
             folder_depth = 0
-    print('folder_depth=', folder_depth)
-    # 检查文件夹是否存在
-    ise = os.path.isdir(app.tree_lst_folder.item(app.last_focus,"values")[-1])
-
+    logging.info('folder_depth = '+str(folder_depth))
     #
-    # 备用语句：state=tk.DISABLED if int(folder_depth)>1 else tk.NORMAL,
-    #
-    menu_folder_group = tk.Menu(app.window, tearoff=0)
+    # 子菜单：用于移动文件夹分组
     tmp_lst_groups = get_folder_group_list()
     if conf.DEFAULT_GROUP_NAME in tmp_lst_groups:
         tmp_lst_groups.remove(conf.DEFAULT_GROUP_NAME)
+    menu_folder_group = tk.Menu(app.window, tearoff=0)
     menu_folder_group.add_command(label=conf.DEFAULT_GROUP_NAME,
                                   command=lambda x=conf.DEFAULT_GROUP_NAME: exec_folder_set_group(group_name=x))
     if len(tmp_lst_groups) > 0: menu_folder_group.add_separator()
@@ -4203,9 +4202,24 @@ def show_popup_menu_folder(event):
     if len(tmp_lst_groups) > 0: menu_folder_group.add_separator()
     menu_folder_group.add_command(label="自定义分组…", command=exec_folder_set_group)
     #
+    # 子菜单：用于添加关注文件夹时，设置分组
+    # tmp_lst_groups = get_folder_group_list()
+    # if conf.DEFAULT_GROUP_NAME in tmp_lst_groups:
+    #     tmp_lst_groups.remove(conf.DEFAULT_GROUP_NAME)  # 这部分前面已经有了，所以可以省略
+    menu_folder_pin_group = tk.Menu(app.window, tearoff=0)
+    menu_folder_pin_group.add_command(label=conf.DEFAULT_GROUP_NAME,
+                                  command=lambda x=conf.DEFAULT_GROUP_NAME: exec_folder_from_menu(group_name=x))
+    if len(tmp_lst_groups) > 0: menu_folder_pin_group.add_separator()
+    for i in tmp_lst_groups:
+        menu_folder_pin_group.add_command(label=i, command=lambda x=i: exec_folder_from_menu(group_name=x))
+    # if len(tmp_lst_groups) > 0: menu_folder_pin_group.add_separator()
+    # menu_folder_pin_group.add_command(label="自定义分组…", command=exec_folder_from_menu)
+    # TODO 之后完善自定义新增分组的功能
+    # 文件夹区域右键菜单
     menu_folder = tk.Menu(app.window, tearoff=0)
-
-    if ise:
+    # 检查文件夹是否存在
+    is_folder_exists = os.path.isdir(app.tree_lst_folder.item(app.last_focus, "values")[-1])
+    if is_folder_exists:
         if folder_depth >= 1: menu_folder.add_command(label="打开所选文件夹（使用资源管理器）", command=exec_folder_open)
         if folder_depth >= 1: menu_folder.add_separator()
         if folder_depth >= 1: menu_folder.add_command(label="新建子文件夹", command=exec_sub_folder_new)
@@ -4213,7 +4227,7 @@ def show_popup_menu_folder(event):
         if folder_depth > 1: menu_folder.add_command(label="删除文件夹", command=exec_folder_del)
         if folder_depth >= 1: menu_folder.add_separator()
 
-        if folder_depth > 1: menu_folder.add_command(label="剪切文件夹", command=exec_folder_cut)
+        if folder_depth > 1: menu_folder.add_command(label="剪切文件夹（程序内）", command=exec_folder_cut)
         if folder_depth >= 1: menu_folder.add_command(label="粘贴为子文件夹",
                                                state=tk.DISABLED if len(folder_to_move) < 1  else tk.NORMAL,
                                                command=exec_folder_paste)
@@ -4230,9 +4244,10 @@ def show_popup_menu_folder(event):
     if folder_depth == 0: menu_folder.add_command(label="重命名分组", command=exec_folder_rename_group)
     if folder_depth >= 0:menu_folder.add_separator()
 
-    if folder_depth > 1: menu_folder.add_command(label="添加当前选中文件夹到关注列表", command=exec_folder_from_menu)
+    # if folder_depth > 1: menu_folder.add_command(label="添加当前选中文件夹到关注列表", command=exec_folder_from_menu)
+    if folder_depth > 1: menu_folder.add_cascade(label="添加当前选中文件夹到关注列表", menu=menu_folder_pin_group)
     if folder_depth == 1: menu_folder.add_command(label="取消关注", command=exec_folder_drop)
-    if folder_depth == 1: menu_folder.add_cascade(label="设置文件夹分组", menu=menu_folder_group)
+    if folder_depth == 1: menu_folder.add_cascade(label="调整文件夹分组", menu=menu_folder_group)
     if folder_depth >= 1: menu_folder.add_separator()
 
     # menu_folder.add_command(label="添加文件夹到关注列表…", command=exec_folder_add_click)
@@ -4254,7 +4269,7 @@ def show_popup_menu_sub_folder(event):
     """
     if True:
         menu_sub_folder = tk.Menu(app.window, tearoff=0)
-        menu_sub_folder.add_command(label='打开当前文件夹', command=tree_open_current_folder)
+        menu_sub_folder.add_command(label='打开当前文件夹（使用资源管理器）', command=tree_open_current_folder)
         if len(get_sub_folder_selected()) > 0:
             menu_sub_folder.add_command(label='将所选文件夹添加到关注', command=exec_folder_add_from_sub)
         else:
@@ -4414,14 +4429,14 @@ def exec_tree_left_click(event):
     # exec_tree_mouse_highlight(event, clear_only=True)
 
 
-def exec_tree_folder_right_click(event):
+def exec_folder_right_click(event):
     """
     右键点击 folder 区域
 
     :param event:
     :return:
     """
-    exec_tree_folder_mouse_highlight(event) # 刷新 app.focus 保证右击在正确对象上
+    exec_folder_mouse_highlight(event) # 刷新 app.focus 保证右击在正确对象上
     tmp = app.tree_lst_folder.identify_row(event.y)
     # 选中被点击的对象，之前是直接选中，但体验比较差
     # if tmp not in app.tree_lst_folder.selection():
@@ -4471,7 +4486,7 @@ def show_popup_menu_file(event):
     menu_file.add_separator()
     if n_selection == 1:
         # menu_file.add_command(label="打开选中项所在文件夹（使用资源管理器）", command=tree_open_folder)
-        menu_file.add_command(label="打开所在文件夹", command=tree_open_folder_select)
+        menu_file.add_command(label="打开所在文件夹（使用资源管理器）", command=tree_open_folder_select)
     elif n_selection > 1:
         menu_file.add_command(label="打开选中项所在文件夹（使用资源管理器）", state=tk.DISABLED, command=tree_open_folder)
     # menu_file.add_command(label="打开当前文件夹", command=tree_open_current_folder)
@@ -4507,7 +4522,7 @@ def show_popup_menu_file(event):
     #
     menu_file_no_selection = tk.Menu(app.window, tearoff=0)
     # menu_file_no_selection.add_command(label="打开文件",state=tk.DISABLED,command=exec_tree_file_open)
-    menu_file_no_selection.add_command(label="打开当前文件夹", command=tree_open_current_folder)
+    menu_file_no_selection.add_command(label="打开当前文件夹（使用资源管理器）", command=tree_open_current_folder)
     menu_file_no_selection.add_separator()
     if len(conf.lst_my_path_long_selected) == 1:
         menu_file_no_selection.add_command(label="新建笔记（" + conf.NOTE_EXT + "）", command=exec_create_note,
@@ -4668,11 +4683,11 @@ def fixed_map_v2(tar, option):
             elm[:2] != ('!disabled', '!selected')]
 
 
-def exec_tree_folder_remove_mouse_highlight(event):
-    exec_tree_folder_mouse_highlight(event, clear_only=True)
+def exec_folder_remove_mouse_highlight(event):
+    exec_folder_mouse_highlight(event, clear_only=True)
 
 
-def exec_tree_folder_mouse_highlight(event, clear_only=False):
+def exec_folder_mouse_highlight(event, clear_only=False):
     """
     文件夹树的鼠标悬浮效果。
     :param event:
@@ -4685,7 +4700,7 @@ def exec_tree_folder_mouse_highlight(event, clear_only=False):
 
 
 def exec_tree_tag_remove_mouse_highlight(event):
-    exec_tree_folder_mouse_highlight(event, clear_only=True)
+    exec_folder_mouse_highlight(event, clear_only=True)
 
 
 def exec_tree_tag_mouse_highlight(event, clear_only=False):
@@ -5706,7 +5721,7 @@ class td_main_app:
         self.tree_lst_folder.bind('<ButtonRelease-1>', on_folder_choose)
         self.tree_lst_folder.bind('<KeyRelease-Up>', on_folder_choose)
         self.tree_lst_folder.bind('<KeyRelease-Down>', on_folder_choose)
-        self.tree_lst_folder.bind("<Motion>", exec_tree_folder_mouse_highlight)
+        self.tree_lst_folder.bind("<Motion>", exec_folder_mouse_highlight)
         #
         # tree_lst_sub_folder.bind('<<TreeviewSelect>>', on_sub_folders_choose) # 会导致重复加载
         self.tree_lst_sub_folder.bind('<ButtonRelease-1>', on_sub_folders_choose)
@@ -5720,7 +5735,7 @@ class td_main_app:
 
         # tree.tag_configure('line1', background='#EEEEEE')  # 灰色底纹
         #
-        self.tree_lst_folder.bind("<Button-3>", exec_tree_folder_right_click)  # 绑定文件夹区域的右键功能
+        self.tree_lst_folder.bind("<Button-3>", exec_folder_right_click)  # 绑定文件夹区域的右键功能
         # self.tree_lst_folder.bind("<ButtonRelease-3>", show_popup_menu_folder)  # 绑定文件夹区域的右键功能
         #
         self.tree_lst_sub_folder.bind("<Button-3>", show_popup_menu_sub_folder)  # 绑定文件夹区域的右键功能
@@ -5742,7 +5757,7 @@ class td_main_app:
         # self.tree.bind('<Delete>', exec_tree_file_delete)  # 重命名
         # self.tree.bind("<Motion>", exec_tree_mouse_highlight)
 
-        self.frame_folder_top.bind("<Motion>", exec_tree_folder_remove_mouse_highlight)
+        self.frame_folder_top.bind("<Motion>", exec_folder_remove_mouse_highlight)
 
         # self.tree.bind('<Double-Button-1>', exec_tree_file_open)
         # self.tree.bind('<Return>', exec_tree_file_open)

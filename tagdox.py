@@ -5,6 +5,16 @@ Created on Thu Jun 17 09:28:24 2021
 @author: MaJian
 
 ## 近期更新说明
+#### v0.27.3.1 2024年1月3日
+在文件树区域，对分组增加了右键菜单。
+修正了一个陈年老bug。
+
+#### v0.27.3.0 2024年1月2日
+增加README区域的纵向滚动条。
+
+#### v0.27.2.2 2023年12月29日
+微调UI。
+
 #### v0.27.2.1 2023年12月27日
 为打开当前文件夹之类的操作添加了补充说明；增加新增文件夹时选择分组的功能。
 
@@ -105,7 +115,7 @@ class td_const():
         self.URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
         self.URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
         self.TAR = 'Tagdox / 标签文库'  # 程序名称
-        self.VER = 'v0.27.2.1'  # 版本号
+        self.VER = 'v0.27.3.1'  # 版本号
 
 conf = td_conf()  # 关键参数
 cst = td_const()  # 常量
@@ -512,6 +522,7 @@ def dt_sort_by(elem):
         tmp = str.lower(tmp)
         tmp = tmp.replace('\xa0', ' ')  # GBK 不支持 'xa0' 的解码。这个是特殊空格。
         return tmp.encode('gbk')  # 需要gbk才能中文正确排序
+        # TODO 应该增加 errors = 'replace' 之类的处理方式
 
 
 def sub_get_dt(lst_file_in):
@@ -525,7 +536,7 @@ def sub_get_dt(lst_file_in):
         tmp = get_file_part(tar)
         tmp_v = (str(tmp['fname_0']), tmp['ftags'], str(tmp['file_mdf_time']), tmp['fsize'], str(tmp['full_path']))
         tmp_dt.append(tmp_v)
-    q.put(tmp_dt)
+    q.put(tmp_dt)  # 存储到队列中
     logging.debug([conf.V_FOLDERS, conf.V_SEP, conf.NOTE_EXT])
     return tmp_dt
 
@@ -550,8 +561,6 @@ def process_update_data(lst1):
         for root, dirs, files in os.walk(vPath):
             tmp = []
             vpass = 0
-            #
-            #
             # 文件
             if '_nomedia' in files:
                 vpass = 1
@@ -3488,16 +3497,17 @@ def exec_tree_drag_enter_move(files):
     exec_tree_drag_enter(files, "move")
 
 
-def exec_tree_drag_enter(files, drag_type=None):
+def exec_tree_drag_enter(files, drag_type=None, target_path=None):
     """
     以拖拽的方式将文件拖动到tree范围内，将执行复制命令。
     注意，不是移动，只是复制。
     exec_safe_copy 的参数可以强制指定，也可以读取系统值。
     drag_type = copy 是复制， = move 是移动。
+    target_path 是目标路径。为空则从左侧获取。
     """
     # 变量定义
     flag.flag_folder_changed = 0
-    v_method = 2  # 树形架构下，采用方案2
+    # v_method = 2  # 树形架构下，采用方案2 # 这句没用了
     #
     print('files=', files)
     #
@@ -3514,13 +3524,15 @@ def exec_tree_drag_enter(files, drag_type=None):
         drag_type = 'copy'
     #
     # 确定目录（目标）
-    if len(app.tree_lst_folder.selection()) == 0:
-        tk.messagebox.showerror(title='错误',
-                                message='必须在左侧选定文件夹后，才能执行拖拽操作。')
-        # 如果没有任何文件夹被选中
-        return
-
-    if v_method == 2:
+    if target_path is not None:
+        pass
+    else:
+        if len(app.tree_lst_folder.selection()) == 0:
+            tk.messagebox.showerror(title='错误',
+                                    message='必须在左侧选定文件夹后，才能执行拖拽操作。')
+            # 如果没有任何文件夹被选中
+            return
+        #
         if get_folder_depth() == 0:  # 选中的是文件夹分组。而不是文件夹
             if tk.messagebox.askokcancel("注意", "当前选中的是文件夹分组（而不是文件夹），因此拖拽目标默认为当前分组第一个文件夹。是否继续？"):
                 try:
@@ -3537,6 +3549,8 @@ def exec_tree_drag_enter(files, drag_type=None):
         elif get_folder_depth() >= 1:
             long_name = get_folder_long_v2()
         pass
+        target_path = long_name
+
     #
     # 获取对象（k已经没什么用）
     k = len(app.tree.get_children())
@@ -3574,7 +3588,7 @@ def exec_tree_drag_enter(files, drag_type=None):
         if not isfile(item):
             print(item, '不是文件')
             if isdir(item):
-                exec_folder_paste(tar_folder_from=item, tar_folder_to=long_name, need_update=False)
+                exec_folder_paste(tar_folder_from=item, tar_folder_to=target_path, need_update=False)
                 flag.flag_folder_changed = 1
                 flag.flag_file_changed = 1
                 continue
@@ -3595,12 +3609,12 @@ def exec_tree_drag_enter(files, drag_type=None):
                     fname = fname + conf.V_SEP + tag
             ffname = fname + fename
         #
-        new_name = long_name + '/' + ffname
+        new_name = target_path + '/' + ffname
         if drag_type in ['copy', 'move']:
             #
             # 2021年10月30日新增：markdown特殊处理
             if MARKDOWN_IMGS is True and len(old_name) > 3 and old_name[-3:] in conf.EXP_EXTS:
-                MarkdownRel.copy_md_linked_files(old_name, long_name)
+                MarkdownRel.copy_md_linked_files(old_name, target_path)
             #
             res = safe_copy(old_name, new_name, opt_type=drag_type, sep = conf.V_SEP)
             app.str_btm.set('拖动添加文件成功')
@@ -4510,9 +4524,9 @@ def show_popup_menu_file(event):
     menu_file.add_separator()
     menu_file.add_command(label="剪切（程序内）", command=exec_tree_file_cut, accelerator='Ctrl+X')
     menu_file.add_command(label="复制（程序内）", command=exec_tree_file_copy, accelerator='Ctrl+C')
-    menu_file.add_command(label="粘贴（程序内）", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
+    menu_file.add_command(label="粘贴（程序内）", state=tk.DISABLED if len(app.clipboard_files) == 0 else tk.NORMAL,
                           command=exec_tree_file_put_down, accelerator='Ctrl+V')
-    # menu_file.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
+    # menu_file.add_command(label="取消", state=tk.DISABLED if len(app.clipboard_files) == 0 else tk.NORMAL,
     #                       command=exec_tree_file_pick_nothing)
 
     menu_file.add_separator()
@@ -4536,86 +4550,94 @@ def show_popup_menu_file(event):
     menu_file_no_selection.add_separator()
     menu_file_no_selection.add_command(label="剪切（程序内）", state=tk.DISABLED, command=exec_tree_file_cut, accelerator='Ctrl+X')
     menu_file_no_selection.add_command(label="复制（程序内）", state=tk.DISABLED, command=exec_tree_file_copy, accelerator='Ctrl+C')
-    menu_file_no_selection.add_command(label="粘贴（程序内）", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
+    menu_file_no_selection.add_command(label="粘贴（程序内）", state=tk.DISABLED if len(app.clipboard_files) == 0 else tk.NORMAL,
                                        command=exec_tree_file_put_down, accelerator='Ctrl+V')
-    # menu_file_no_selection.add_command(label="取消", state=tk.DISABLED if len(lst_pick_up_files) == 0 else tk.NORMAL,
+    # menu_file_no_selection.add_command(label="取消", state=tk.DISABLED if len(app.clipboard_files) == 0 else tk.NORMAL,
     #                                    command=exec_tree_file_pick_nothing)
     menu_file_no_selection.add_separator()
-    menu_file_no_selection.add_command(label="刷新", command=update_main_window)
-
-    if n_selection == 1:  # 如果有选中项目的话，
-
-        # tmp_file_name=get_split_path(tmp_full_name)[-1]
-        for item in app.tree.selection():
-            if not is_tree_item_enable(item):
-                continue
+    menu_file_no_selection.add_command(label="刷新", command=update_main_window, accelerator='F5')
+    #
+    menu_file_one_folder = tk.Menu(app.window, tearoff=0)
+    menu_file_one_folder.add_command(label="粘贴到此（程序内）", state=tk.DISABLED if len(app.clipboard_files) == 0 else tk.NORMAL,
+                          command=exec_tree_file_paste_here, accelerator='Ctrl+V')
+    menu_file_one_folder.add_command(label="刷新", command=update_main_window, accelerator='F5')
+    #
+    # 开始判断显示什么菜单
+    #
+    if n_selection == 1: # 如果有1个选中项目，而且是文件。
+        item = app.tree.selection()[0]
+        if is_tree_item_enable(item):
+            # tmp_file_name=get_split_path(tmp_full_name)[-1]
+            # for item in app.tree.selection():
             item_text = app.tree.item(item, "values")
             tmp_full_name = item_text[-1]
-        tmp_file_name = get_file_part(tmp_full_name)['fname']
-        tmp_tags_all = get_file_part(tmp_full_name)['ftags']
-        tmp_tags = tmp_file_name.split(conf.V_SEP)
-        # print(tmp_res)
-        tmp_tags.pop(0)
-        #
-        # 新增：检查流中的标签
-        if TAG_METHOD == 'FILE_STREAM':
+            tmp_file_name = get_file_part(tmp_full_name)['fname']
+            tmp_tags_all = get_file_part(tmp_full_name)['ftags']
+            tmp_tags = tmp_file_name.split(conf.V_SEP)
+            # print(tmp_res)
+            tmp_tags.pop(0)  # 分隔符前面的是文件名，不是标签
+            #
+            # 新增：检查流中的标签
+            if TAG_METHOD == 'FILE_STREAM':
+                try:
+                    with open(tmp_full_name + ":tags", "r", encoding="utf8") as f:
+                        tags_in_st = list(set(list(map(lambda x: x.strip(), f.readlines()))))
+                    for i in tags_in_st:
+                        if i not in tmp_tags:
+                            tmp_tags.append(i)
+                except FileNotFoundError as e:
+                    pass
+                except:
+                    pass
+            #
+            # 新增：只读
+            if read_only_get(tmp_full_name):
+                tmp_tags.append('只读')
             try:
-                with open(tmp_full_name + ":tags", "r", encoding="utf8") as f:
-                    tags_in_st = list(set(list(map(lambda x: x.strip(), f.readlines()))))
-                for i in tags_in_st:
-                    if i not in tmp_tags:
-                        tmp_tags.append(i)
-            except FileNotFoundError as e:
-                pass
+                for i in range(10000):  # 删除已有标签
+                    menu_tags_to_drop.delete(0)
             except:
                 pass
-        #
-        # 新增：只读
-        if read_only_get(tmp_full_name):
-            tmp_tags.append('只读')
-        try:
-            for i in range(10000):  # 删除已有标签
-                menu_tags_to_drop.delete(0)
-        except:
-            pass
-        # 去重
-        tmp_tags = list(set(tmp_tags))
-        tmp_tags_all = list(set(tmp_tags_all))
-        #
-        if len(tmp_tags_all) > 0:
-            if len(tmp_tags) == 0:
-                pass
+            # 去重
+            tmp_tags = list(set(tmp_tags))
+            tmp_tags_all = list(set(tmp_tags_all))
+            #
+            if len(tmp_tags_all) > 0:
+                if len(tmp_tags) == 0:
+                    pass
+                else:
+                    # menu_tags_to_drop.add_separator()
+                    for i in tmp_tags:
+                        menu_tags_to_drop.add_command(label=i, command=lambda x=i: exec_file_tag_remove(x))
+
+                if len(tmp_tags_all) > len(tmp_tags):
+                    if len(tmp_tags) > 0:
+                        menu_tags_to_drop.add_separator()
+                    menu_tags_to_drop.add_command(label='以下标签来自文件路径，不可直接删除', state=tk.DISABLED)
+
+                for i in tmp_tags_all:
+                    if not i in tmp_tags:
+                        menu_tags_to_drop.add_command(label=i, state=tk.DISABLED)
+
             else:
-                # menu_tags_to_drop.add_separator()
-                for i in tmp_tags:
-                    menu_tags_to_drop.add_command(label=i, command=lambda x=i: exec_file_tag_remove(x))
+                menu_tags_to_drop.add_command(label='无可操作项目', state=tk.DISABLED)
+                pass
 
-            if len(tmp_tags_all) > len(tmp_tags):
-                if len(tmp_tags) > 0:
-                    menu_tags_to_drop.add_separator()
-                menu_tags_to_drop.add_command(label='以下标签来自文件路径，不可直接删除', state=tk.DISABLED)
-
-            for i in tmp_tags_all:
-                if not i in tmp_tags:
-                    menu_tags_to_drop.add_command(label=i, state=tk.DISABLED)
-
-        else:
-            menu_tags_to_drop.add_command(label='无可操作项目', state=tk.DISABLED)
-            pass
-
-        menu_file.post(event.x_root, event.y_root)
-
+            menu_file.post(event.x_root, event.y_root)
+            #
+        else: # 如果有1个选中项目，而且是子分组。
+            menu_file_one_folder.post(event.x_root, event.y_root)
+    #
     elif n_selection > 1:  # 选中很多项目的时候
         try:
             for i in range(10000):  # 删除已有标签
                 menu_tags_to_drop.delete(0)
         except:
             pass
-
         tmp_tags_from_files = []
         file_checked = 0
         for item in app.tree.selection():
-            if not is_tree_item_enable(item):
+            if not is_tree_item_enable(item):  # 直接跳过分组
                 continue
             item_text = app.tree.item(item, "values")
             tmp_full_name = item_text[-1]
@@ -4661,7 +4683,8 @@ def show_popup_menu_file(event):
             menu_tags_to_drop.add_command(label='无可移除的共有标签', state=tk.DISABLED)
             pass
         menu_file.post(event.x_root, event.y_root)
-    else:
+    #
+    else: # 没有选中项的时候
         menu_file_no_selection.post(event.x_root, event.y_root)
 
 
@@ -5008,9 +5031,9 @@ def exec_tree_file_pick_up(event=None, need_clear=False):
     """
     将选中的文件拿起来
     """
-    global lst_pick_up_files
-    global lst_pick_up_items
-    global state_pick_up
+    # global lst_pick_up_files
+    # global lst_pick_up_items
+    # global state_pick_up
 
     # if state_pick_up =='copy':
     #     state_pick_up = 'move'
@@ -5034,9 +5057,9 @@ def exec_tree_file_pick_up(event=None, need_clear=False):
         #
         item_tags = app.tree.item(item, 'tags')
         #
-        if state_pick_up == 'move':
+        if app.clipboard_state == 'move':
             new_tag = 'pick_up'
-        elif state_pick_up == 'copy':
+        elif app.clipboard_state == 'copy':
             new_tag = 'pick_copy'
         if not new_tag in list(item_tags):
             new_item_tags = list(item_tags) + [new_tag]
@@ -5045,19 +5068,19 @@ def exec_tree_file_pick_up(event=None, need_clear=False):
         #
         app.tree.item(item, tags=new_item_tags)
         #
-        if not tmp_full_name in lst_pick_up_files:
-            lst_pick_up_files.append(tmp_full_name)
-        if not item in lst_pick_up_items:
-            lst_pick_up_items.append(item)
+        if not tmp_full_name in app.clipboard_files:
+            app.clipboard_files.append(tmp_full_name)
+        if not item in app.clipboard_items:
+            app.clipboard_items.append(item)
 
 
 def exec_tree_file_cut_ctn(event=None):
     """
     连续剪切
     """
-    global state_pick_up
-    if state_pick_up == 'copy':
-        state_pick_up = 'move'
+    # global state_pick_up
+    if app.clipboard_state == 'copy':
+        app.clipboard_state = 'move'
         exec_tree_file_pick_up(need_clear=True)
     else:
         exec_tree_file_pick_up(need_clear=False)
@@ -5067,8 +5090,8 @@ def exec_tree_file_cut(event=None):
     """
     剪切（程序内）
     """
-    global state_pick_up
-    state_pick_up = 'move'
+    # global state_pick_up
+    app.clipboard_state = 'move'
     exec_tree_file_pick_up(need_clear=True)
 
 
@@ -5076,9 +5099,9 @@ def exec_tree_file_copy_cnt(event=None):
     """
     连续复制
     """
-    global state_pick_up
-    if state_pick_up == 'move':
-        state_pick_up = 'copy'
+    # global state_pick_up
+    if app.clipboard_state == 'move':
+        app.clipboard_state = 'copy'
         exec_tree_file_pick_up(need_clear=True)
     else:
         exec_tree_file_pick_up(need_clear=False)
@@ -5088,8 +5111,8 @@ def exec_tree_file_copy(event=None):
     """
     选中的文件复制
     """
-    global state_pick_up
-    state_pick_up = 'copy'
+    # global state_pick_up
+    app.clipboard_state = 'copy'
     exec_tree_file_pick_up(need_clear=True)
 
 
@@ -5098,10 +5121,10 @@ def exec_tree_file_pick_nothing(event=None, fastmode=False):
     清空pick列表
     """
 
-    global lst_pick_up_files
-    global lst_pick_up_items
+    # global lst_pick_up_files
+    # global lst_pick_up_items
     if not fastmode:
-        for item in lst_pick_up_items:
+        for item in app.clipboard_items: # lst_pick_up_items:
             try:
                 new_item_tags = list(app.tree.item(item, 'tags'))
                 if 'pick_up' in new_item_tags:
@@ -5111,20 +5134,35 @@ def exec_tree_file_pick_nothing(event=None, fastmode=False):
                 app.tree.item(item, tags=new_item_tags)
             except:
                 pass
-    lst_pick_up_files = []
-    lst_pick_up_items = []
+    # lst_pick_up_files = []
+    # lst_pick_up_items = []
+    app.clipboard_files = []
+    app.clipboard_items = []
 
 
 def exec_tree_file_put_down(event=None):
     """
     将选中的文件放下
     """
-    global lst_pick_up_files
-    global lst_pick_up_items
-    # state_pick_up = 'move' 默认
-    exec_tree_drag_enter(lst_pick_up_files, drag_type=state_pick_up)  # 调用的是拖动函数
-    # lst_pick_up_files=[]
-    # lst_pick_up_items = []
+    # global lst_pick_up_files
+    exec_tree_drag_enter(app.clipboard_files, drag_type=app.clipboard_state)  # 调用的是拖动函数
+    exec_tree_file_pick_nothing(fastmode=True)
+
+
+def exec_tree_file_paste_here(event=None, target_path=None):
+    """
+    粘贴到指定位置
+    """
+    # global lst_pick_up_files
+    # 获取当前选中项目的路径
+    item_folder = app.tree.selection()[0]
+    target_path_tail = app.tree.item(item_folder, "text") # 这个是/开头的文件夹名称，是不完整的
+    target_path_head = get_folder_long_v2()
+    target_path = target_path_head + '/' + target_path_tail
+    print("target_path =", target_path)
+    exec_tree_drag_enter(app.clipboard_files, #lst_pick_up_files,
+                         drag_type = app.clipboard_state, # =state_pick_up
+                         target_path=target_path)  # 调用的是拖动函数
     exec_tree_file_pick_nothing(fastmode=True)
 
 
@@ -5265,53 +5303,63 @@ class td_main_app:
         self.BAR_V_WIDTH = int(16 * conf.ui_ratio)  # 滚动条宽度
         self.BAR_H_WIDTH = int(16 * conf.ui_ratio)
         #
+        self.clipboard_files = []  # 程序内剪切板
+        self.clipboard_items = []  # 程序内剪切板
+        self.clipboard_state = 'move'
+        self.clipboard_folder = ''  # 待移动的文件夹
+        #
         # 框架设计 ############################################
         #
         self.frame_window = ttk.Frame(self.window, padding=(0, 0, 0, 0), relief='flat', borderwidth=0)
         self.frame_window.pack(side=tk.LEFT, expand=1, fill=tk.BOTH, padx=0, pady=0)
         #
         # 文件夹区
-        self.frameLeft = ttk.Frame(self.frame_window,
+        self.frame_left = ttk.Frame(self.frame_window,
                                    # style="Dark.Treeview",
                                    # width=int(w_width * 0.4),
                                    padding=(0, 0, 0, 0),
                                    borderwidth=0,
                                    width=int(conf.ui_ratio *320),  # 没有用，因为 Frame 默认是根据控件大小改变的。
                                    relief='flat')  # ,)
-        self.frameLeft.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
-        self.frameLeft.pack_propagate(0)  # 设置为0则框架不被内部撑大。默认是1.
-        #
-        self.bar_folder_v = tk.Scrollbar(self.frameLeft, width=self.BAR_V_WIDTH)
-        # self.bar_folder_v = ttk.Scrollbar(self.frameFolder)#, width=16)
+        self.frame_left.pack(side=tk.LEFT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
+        self.frame_left.pack_propagate(0)  # 设置为0则框架不被内部撑大。默认是1.
+        # 文件夹区域纵向滚动条
+        self.bar_folder_v = tk.Scrollbar(self.frame_left, width=self.BAR_V_WIDTH)
+        # self.bar_folder_v = ttk.Scrollbar(self.frame_folder)#, width=16)
         self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
+        # 文件夹区域横向滚动条
+        self.bar_folder_h = tk.Scrollbar(self.frame_left, orient='horizontal',
+                                         width=self.BAR_V_WIDTH, )
+        # self.bar_folder_h.pack(side = tk.BOTTOM, expand = 0, fill = tk.X)  # TODO 暂时没有功能所以不放
         #
         # 菜单区
-        self.frame_folder_top = ttk.Frame(self.frameLeft,
+        self.frame_folder_top = ttk.Frame(self.frame_left,
                                    relief='flat',
                                    style='Dark.TFrame',
                                    # width=int((320 - 16 * 1) * conf.ui_ratio),
                                    height =int(40 * conf.ui_ratio),
                                    # borderwidth=0,
-                                   padding=(5, 2, 5, 2),
+                                   padding=(10, 10, 10, 2), # 内边距，左上右下
                                    )  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
         self.frame_folder_top.pack(side=tk.TOP, expand=0, fill=tk.X, padx=0, pady=0)  # padx=10, pady=5)
-        self.frame_folder_top.pack_propagate(0)
+        self.frame_folder_top.pack_propagate(0)  # 使框架固定尺寸
+        #
         # 文件夹在frameLeft内部
-        self.frameFolder = ttk.Frame(self.frameLeft, style='Dark.TFrame', relief='flat', borderwidth=0, )
+        self.frame_folder = ttk.Frame(self.frame_left, style='Dark.TFrame', relief='flat', borderwidth=0, )
         # height=SCREEN_HEIGHT * 0.8)  # ,width=600),width=int(w_width*0.4)
-        self.frameFolder.pack(side=tk.TOP, expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10,pady=5)
-        # frameFolder.grid(column=0,row=0)
+        self.frame_folder.pack(side=tk.TOP, expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10,pady=5)
+        # frame_folder.grid(column=0,row=0)
         #
         # 子文件夹区（也在frameLeft内部）
-        self.frameSubFolder = ttk.Frame(self.frameLeft, relief='flat')  # ,width=600)
+        self.frameSubFolder = ttk.Frame(self.frame_left, relief='flat')  # ,width=600)
         if FOLDER_TYPE == 1:
             self.frameSubFolder.pack(side=tk.BOTTOM, expand=1, fill=tk.BOTH, padx=0, pady=2)  # padx=10,pady=5)
         #
 
-        # self.frameSubTags.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=10, pady=5)  # padx=10,pady=5)
+        # self.frame_tags.pack(side=tk.BOTTOM, expand=1, fill=tk.Y, padx=10, pady=5)  # padx=10,pady=5)
         #
         # 文件夹下面的控制区
-        self.frameFolderCtl = ttk.Frame(self.frameLeft, height=int(10*conf.ui_ratio), borderwidth=0, relief=tk.SOLID)
+        self.frameFolderCtl = ttk.Frame(self.frame_left, height=int(10*conf.ui_ratio), borderwidth=0, relief=tk.SOLID)
         # self.frameFolderCtl.pack(side=tk.BOTTOM,expand=0,fill=tk.X,padx=10,pady=5)
         # 上面功能区：frame_top
         self.frame_top = ttk.Frame(self.frame_window,
@@ -5319,38 +5367,46 @@ class td_main_app:
                                 borderwidth=0,
                                 # relief='solid',
                                 height=int(120 * conf.ui_ratio),
+                                   padding=(8,10,8,5),
                                 )  # , borderwidth=1 ,relief='solid')  # ,width=600) LabelFrame
         self.frame_top.pack(expand=0, fill=tk.X, padx=0, pady=0)  # padx=10, pady=5)
+        self.frame_top.propagate()
         # 主功能区
-        self.frameMain = ttk.Frame(self.frame_window, border=0)  # ,height=800)
-        self.frameMain.pack(expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10, pady=0)
+        self.frame_main = ttk.Frame(self.frame_window, border=0)  # ,height=800)
+        self.frame_main.pack(expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10, pady=0)
         # 标签区
-        # self.frameSubTags = ttk.Frame(self.frameLeft)  # ,width=600)
-        self.frameSubTags = ttk.Frame(self.frameMain, width=int(conf.ui_ratio * 300))
-        self.frameSubTags.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
+        # self.frame_tags = ttk.Frame(self.frame_left)  # ,width=600)
+        self.frame_tags = ttk.Frame(self.frame_main, width=int(conf.ui_ratio * 300))
+        self.frame_tags.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
         #
         # readme 区域
-        self.frameReadme = ttk.Frame(self.frameSubTags, height=1)
-        self.frameReadme.pack(side=tk.BOTTOM, expand=0, fill=tk.X, )
-        self.frameReadme.pack_propagate(0)  # 设置为0则框架不被内部撑大。默认是1.
+        self.frame_readme = ttk.Frame(self.frame_tags, height=1)
+        self.frame_readme.pack(side=tk.BOTTOM, expand=0, fill=tk.X, )
+        self.frame_readme.pack_propagate(0)  # 设置为0则框架不被内部撑大。默认是1.
         #
         # self.str_readme = tk.StringVar()  # 最下面显示状态用的
         # self.str_readme.set("这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，这是一段很长很长的文本，\n它将会在单词边界处自动换行。")
-        # text = ttk.Label(self.frameReadme,textvariable=self.str_readme)  # wrap="word" 使文本在单词边界处进行换行
+        # text = ttk.Label(self.frame_readme,textvariable=self.str_readme)  # wrap="word" 使文本在单词边界处进行换行
         # text.pack()
-        self.text_readme = tk.Text(self.frameReadme, wrap='word',borderwidth=0,
+        #
+        self.har_readme_v = tk.Scrollbar(self.frame_readme,  # orient='horizontal',
+                                         width=self.BAR_V_WIDTH, )
+        self.text_readme = tk.Text(self.frame_readme, wrap='word',borderwidth=0,
                                    padx=10,pady=10,
                                    background='#e8e8e7',#'#e8e8e7',
                                    font=conf.FONT_TREE_BODY,
+                                   yscrollcommand=self.har_readme_v.set,
                                    relief='flat')
+        self.har_readme_v.pack(side = tk.RIGHT, expand = 0, fill = tk.Y)
         self.text_readme.pack(fill=tk.BOTH, expand=1)
+        self.har_readme_v.config(command=self.text_readme.yview)
         #
-        self.frameTreeFiles = ttk.Frame(self.frameMain,)  # ,height=800)
-        self.frameTreeFiles.pack(expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10, pady=0)
+        self.frame_tree_files = ttk.Frame(self.frame_main,)  # ,height=800)
+        self.frame_tree_files.pack(expand=1, fill=tk.BOTH, padx=0, pady=0)  # padx=10, pady=0)
         #
         # 底部区
-        self.frameBtm = ttk.Frame(self.frame_window, height=int(120*conf.ui_ratio), padding=(0, 0, 0, 0), relief='flat')
-        self.frameBtm.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=0, pady=0)
+        self.frame_bottom = ttk.Frame(self.frame_window, height=int(120*conf.ui_ratio), padding=(0, 0, 0, 0), relief='flat')
+        self.frame_bottom.pack(side=tk.BOTTOM, expand=0, fill=tk.X, padx=0, pady=0)
         #
         ##############
         # 控件
@@ -5362,34 +5418,36 @@ class td_main_app:
         self.v_sub_folders = ttk.Combobox(self.frame_top)  # 子文件夹选择框
         self.v_tag = ttk.Combobox(self.frame_top)  # 标签选择框
         self.entry_search_files = ttk.Entry(self.frame_top)  # 搜索框
-        self.v_folders = ttk.Combobox(self.frameFolder)  # 文件夹选择框
+        self.v_folders = ttk.Combobox(self.frame_folder)  # 文件夹选择框
         #
         # 主文件树
-        self.tree_main = td_tree_file(self.frameTreeFiles, self.frameBtm)
+        self.tree_main = td_tree_file(self.frame_tree_files, self.frame_bottom)
         self.bar_tree_v = self.tree_main.bar_tree_v
-        # self.bar_tree_v = tk.Scrollbar(self.frameMain)  # 右侧滚动条
+        # self.bar_tree_v = tk.Scrollbar(self.frame_main)  # 右侧滚动条
         self.bar_tree_h = self.tree_main.bar_tree_h
-        # self.bar_tree_h = tk.Scrollbar(self.frameMain, orient=tk.HORIZONTAL)  # 底部滚动条
+        # self.bar_tree_h = tk.Scrollbar(self.frame_main, orient=tk.HORIZONTAL)  # 底部滚动条
         self.tree = self.tree_main.body
         #
         # # 标签区
-        # # self.frameSubTags = ttk.Frame(self.frameLeft)  # ,width=600)
-        # self.frameSubTags = ttk.Frame(self.frameMain, width=int(conf.ui_ratio*300))
-        # self.frameSubTags.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
+        # # self.frame_tags = ttk.Frame(self.frame_left)  # ,width=600)
+        # self.frame_tags = ttk.Frame(self.frame_main, width=int(conf.ui_ratio*300))
+        # self.frame_tags.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=0, pady=0)  # padx=10,pady=5)
         # 文件夹列表
 
         if True:
-            # self.bar_folder_v = tk.Scrollbar(self.frameFolder, width=int(16*conf.ui_ratio))
-            # # self.bar_folder_v = ttk.Scrollbar(self.frameFolder)#, width=16)
+            # self.bar_folder_v = tk.Scrollbar(self.frame_folder, width=int(16*conf.ui_ratio))
+            # # self.bar_folder_v = ttk.Scrollbar(self.frame_folder)#, width=16)
             # self.bar_folder_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
             #
-            self.tree_lst_folder = ttk.Treeview(self.frameFolder,
+            self.tree_lst_folder = ttk.Treeview(self.frame_folder,
                                                 selectmode=tk.BROWSE,
                                                 style='Dark.Treeview',
                                                 show="tree",
-                                                yscrollcommand=self.bar_folder_v.set)  # , height=18)
+                                                yscrollcommand=self.bar_folder_v.set,
+                                                xscrollcommand=self.bar_folder_h.set,
+                                                )  # , height=18)
             self.bar_folder_v.config(command=self.tree_lst_folder.yview)
-
+            self.bar_folder_h.config(command=self.tree_lst_folder.xview)
             # self.tree_lst_folder.heading("folders", text="已关注的文件夹", anchor='w')
             # self.tree_lst_folder.column('folders', width=300, anchor='w')
             #
@@ -5425,13 +5483,13 @@ class td_main_app:
         #
         # 标签列表：
         if True:
-            self.v_tag_search = tk.Entry(self.frameSubTags)
-            self.bar_sub_tag_v = tk.Scrollbar(self.frameSubTags, width=self.BAR_V_WIDTH)
+            self.v_tag_search = tk.Entry(self.frame_tags)
+            self.bar_sub_tag_v = tk.Scrollbar(self.frame_tags, width=self.BAR_V_WIDTH)
             if conf.TREE_SUB_SHOW == 'tag':
                 # v_tag_search.pack(side=tk.TOP,expand=0,fill=tk.X)
                 pass
 
-            self.tree_lst_sub_tag = ttk.Treeview(self.frameSubTags,
+            self.tree_lst_sub_tag = ttk.Treeview(self.frame_tags,
                                                  columns=['tags'],
                                                  # columns = ['index','type','folders','folder_path'],
                                                  displaycolumns=['tags'],
@@ -5459,8 +5517,10 @@ class td_main_app:
 
         self.bt_clear = ttk.Button(self.frame_top,
                                    style='Menu.TButton',
-                                   text='清空',
-                                   image=self.PIC_DICT['cancel_20'],
+                                   text='X',
+                                   # image=self.PIC_DICT['cancel_20'],
+                                   width=3,
+                                   padding=0,
                                    command=exec_clear_search_items)
 
         # bt_search=tk.Button(frame_top,text='搜索', command=exec_search,bd=0,activebackground='red')
@@ -5490,7 +5550,7 @@ class td_main_app:
         self.lable_search = ttk.Label(self.frame_top, text='关键词')
         self.entry_search_files.bind('<Return>', exec_search)  # 绑定回车键
         #
-        self.bt_settings = ttk.Button(self.frame_top, #frame_folder_top,
+        self.bt_settings = ttk.Button(self.frame_folder_top, #frame_folder_top, frame_top
                                       # style='Menu.TButton',
                                       # width=304,
                                       # image=self.PIC_DICT['menu_3'],
@@ -5498,7 +5558,9 @@ class td_main_app:
                                       # background='green',
                                       # relief='flat',
                                       # padding=(10, 4, 10, 4),
-                                      # padding=(0, 0, 0, 0),
+                                      padding=(0, 0, 0, 0),
+                                      # pady = 0,
+                                      # width= 300,
                                       text='菜单',
                                       # anchor="center",
                                       )  # ,command=show_online_help)
@@ -5509,19 +5571,21 @@ class td_main_app:
         #    
         # 从右向左排
         nx=0
-        nx+=1
-        self.bt_settings.pack(side=tk.RIGHT, expand=0,
-                              padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  # 搜索按钮
+        # nx+=1
+        self.bt_settings.pack(side=tk.LEFT, expand=0, fill= tk.Y,
+                              padx = 5,
+                              # padx=0 if nx % 2 == 0 else vPDX,
+                              pady=2)  # 搜索按钮
         # expand=1, fill=tk.Y, padx=5, pady=10)  #
         nx += 1
         self.bt_search.pack(side=tk.RIGHT, expand=0,
                             padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  # 搜索按钮
         nx += 1
-        self.bt_clear.pack(side=tk.RIGHT, expand=0,
+        self.bt_clear.pack(side=tk.RIGHT, expand=0, fill=tk.Y,
                            padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
         #
         nx += 1
-        self.entry_search_files.pack(side=tk.RIGHT, expand=0,
+        self.entry_search_files.pack(side=tk.RIGHT, expand=0, fill = tk.Y,
                            padx=0 if nx % 2 == 0 else vPDX, pady=vPDY)  #
         nx += 1
         self.lable_search.pack(side=tk.RIGHT, expand=0,
@@ -5587,26 +5651,32 @@ class td_main_app:
         vPDY = 5
 
         # 进度条
-        self.frame_prog = ttk.Frame(self.frameBtm)
+        self.frame_prog = ttk.Frame(self.frame_bottom)
         # frame_prog.pack(side=tk.LEFT,expand=0,padx=vPDX,pady=vPDY)
         self.progressbar_file = ttk.Progressbar(self.frame_prog, variable=self.prog, mode='determinate')
         self.progressbar_file.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)
 
-        # self.lable_sum = tk.Label(self.frameBtm, text=self.str_btm, textvariable=self.str_btm)
+        # self.lable_sum = tk.Label(self.frame_bottom, text=self.str_btm, textvariable=self.str_btm)
         self.lable_sum = ttk.Label(self.frame_top, text=self.str_btm, textvariable=self.str_btm)
         self.lable_sum.pack(side=tk.LEFT, expand=0, padx=5, pady=vPDY)  #
 
         self.bt_clear_folder_search = ttk.Button(self.frame_folder_top,
                                    # style='Menu.TButton',
-                                   text='清空',
-                                   image=self.PIC_DICT['cancel_20'],
-                                   command=exec_folder_search_clear)
-        self.bt_clear_folder_search.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=5, pady=10)
+                                   text='X',
+                                   width = 3,
+                                   # image=self.PIC_DICT['cancel_20'],
+                                                 padding=0,
+                                   command=exec_folder_search_clear,
+                                                 )
+        self.bt_clear_folder_search.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=5, pady=2)
         #
         # self.lable_search_folder = ttk.Label(self.frame_folder_top, text='文件夹')
-        self.entry_search_folder = ttk.Entry(self.frame_folder_top,)
-        self.entry_search_folder.pack(side=tk.RIGHT, expand=1, fill=tk.BOTH, padx=5, pady=10)
+        self.entry_search_folder = ttk.Entry(self.frame_folder_top,
+                                             )
+        self.entry_search_folder.pack(side=tk.RIGHT, expand=1, fill=tk.BOTH, padx=5, pady=2)
         self.entry_search_folder.bind('<Return>', exec_folder_search)  # 绑定回车键
+        #
+        # self.bt_settings.pack(side=tk.RIGHT, expand=0, fill=tk.Y, padx=5, pady=2)
         #
         # 站位空白块，用于出现在滚动条顶部空间
         # self.canvas_space = tk.Canvas(self.frame_folder_top, bg='#e8e8e7',
@@ -5619,29 +5689,29 @@ class td_main_app:
         # self.bt_new = ttk.Button(self.frame_top, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
         # self.bt_new.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
         #
-        self.bt_reload = ttk.Button(self.frameBtm,
+        self.bt_reload = ttk.Button(self.frame_bottom,
                                     text='刷新',
                                     command=update_main_window,
                                     )
         self.bt_reload.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
-        self.bt_add_tag = ttk.Button(self.frameBtm, text='添加标签',
+        self.bt_add_tag = ttk.Button(self.frame_bottom, text='添加标签',
                                      command=exec_tree_add_tag_via_dialog)  # , command=input_new_tag
         self.bt_add_tag.pack(side=tk.RIGHT, expand=0, padx=0, pady=vPDY)  #
 
-        self.bt_new = ttk.Button(self.frameBtm, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
+        self.bt_new = ttk.Button(self.frame_bottom, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
         self.bt_new.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
-        self.bt_readme = ttk.Button(self.frameBtm, text='readme')  # ,state=tk.DISABLED)#,command=update_main_window)
+        self.bt_readme = ttk.Button(self.frame_bottom, text='readme')  # ,state=tk.DISABLED)#,command=update_main_window)
         self.bt_readme.pack(side=tk.RIGHT, expand=0, padx=0, pady=vPDY)  #
 
         # 新标签的输入框
-        self.v_inp = ttk.Combobox(self.frameBtm, width=int(16*conf.ui_ratio))
+        self.v_inp = ttk.Combobox(self.frame_bottom, width=int(16*conf.ui_ratio))
         # v_inp.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
         self.v_inp.bind('<Return>', input_new_tag)
         self.v_inp['value'] = lst_tags
         #
-        self.lable_tag = tk.Label(self.frameBtm, text='添加新标签')
+        self.lable_tag = tk.Label(self.frame_bottom, text='添加新标签')
         # lable_tag.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
         #            
         # 其他初始化设定
@@ -5683,7 +5753,7 @@ class td_main_app:
                 # 检查当前文件夹内是否有readme.md
                 # 读取前5000字
                 if 'readme.md' in tmp_files or 'README.md' in tmp_files:
-                    app.frameReadme.configure(height= int(conf.SCREEN_HEIGHT*0.33)) # 原来是600
+                    app.frame_readme.configure(height= int(conf.SCREEN_HEIGHT*0.33)) # 原来是600
                     try:
                         with open(current_path+'/readme.md', 'rb') as f:
                             text_to_show = f.read(5000).decode('utf-8')
@@ -5693,7 +5763,7 @@ class td_main_app:
                     if len(text_to_show)==0:
                         text_to_show = '（当前目录的说明文档 readme.md 内容为空）'
                 else:
-                    app.frameReadme.configure(height=1)  # 隐藏高度
+                    app.frame_readme.configure(height=1)  # 隐藏高度
                     #
             except Exception as e:
                 text_to_show = str(e)
@@ -6024,9 +6094,9 @@ if __name__ == '__main__':
     lst_sub_path = []  # 子文件夹得到全局变量
     lst_sub_path_selected = []
     #
-    lst_pick_up_files = []  # 程序内剪切板
-    lst_pick_up_items = []  # 程序内剪切板
-    state_pick_up = 'move'
+    # lst_pick_up_files = []  # 程序内剪切板
+    # lst_pick_up_items = []  # 程序内剪切板
+    # state_pick_up = 'move'
     folder_to_move = ''  # 待移动的文件夹
     #
     # dict_path = dict()  # 用于列表简写和实际值

@@ -5,6 +5,9 @@ Created on Thu Jun 17 09:28:24 2021
 @author: MaJian
 
 ## 近期更新说明
+#### v0.27.4.0 2024年3月23日
+空格预览功能优化，增加了对md和txt的内容预览，并增加了纵向滚动功能。
+
 #### v0.27.3.1 2024年1月3日
 在文件树区域，对分组增加了右键菜单。
 修正了一个陈年老bug。
@@ -97,6 +100,7 @@ from codes.logic.conf import td_conf
 from libs.widgets.windows import TdProgressWindow as TdProgressWindow
 from libs.widgets.windows import TdInputWindow as TdInputWindow
 from libs.widgets.windows import TdSpaceWindow as TdSpaceWindow
+from libs.widgets.windows import TdTextWindow
 ##
 # import my_logger
 # import send2trash # 回收站（目前作废）
@@ -115,7 +119,7 @@ class td_const():
         self.URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
         self.URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
         self.TAR = 'Tagdox / 标签文库'  # 程序名称
-        self.VER = 'v0.27.3.1'  # 版本号
+        self.VER = 'v0.27.4.0'  # 版本号
 
 conf = td_conf()  # 关键参数
 cst = td_const()  # 常量
@@ -6011,11 +6015,23 @@ class td_tree_file():
                                '完整路径：\n    ',
                                str(res['full_path']),
                                ]
+                    try:
+                        if str(res['fename']) in ['.md','.txt']:
+                            try:
+                                with open(res['full_path'],'r',encoding='utf8') as f:
+                                    file_content = f.read(100000)
+                            except:
+                                with open(res['full_path'],'r',encoding='gbk') as f:
+                                    file_content = f.read(100000)
+                            msg_lst.append('\n\n————————————————————\n\n')
+                            msg_lst.append(file_content)
+                    except Exception as e:
+                        logging.error(e)
                     msg = map(str, msg_lst)
-                    TdSpaceWindow(app.window, '详情', ''.join(msg),ui_ratio=conf.ui_ratio,)
+                    TdTextWindow(app.window, '详情', ''.join(msg),ui_ratio=conf.ui_ratio,)
             except Exception as e:
                 print(e)
-                TdSpaceWindow(app.window, '错误', '文件加载异常',ui_ratio=conf.ui_ratio,)
+                TdTextWindow(app.window, '错误', '文件加载异常',ui_ratio=conf.ui_ratio,)
 
 
 

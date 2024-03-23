@@ -32,8 +32,8 @@ class TdProgressWindow:
         #
         # 窗口设置
         self.input_window.overrideredirect(True)  # 这句话可以去掉标题栏，同时也会没有阴影
-        self.w_width = round(800*self.ui_ratio)
-        self.w_height = round(100*self.ui_ratio)
+        self.w_width = round(800 * self.ui_ratio)
+        self.w_height = round(100 * self.ui_ratio)
         #
         # 屏幕中央：
         # self.screenwidth = SCREEN_WIDTH
@@ -110,7 +110,8 @@ class TdInputWindow:
     """
     input_value = ''
 
-    def __init__(self, parent, title='未命名', msg='未定义', default_value='', selection_range=None, ui_ratio=1.0) -> None:
+    def __init__(self, parent, title='未命名', msg='未定义', default_value='', selection_range=None,
+                 ui_ratio=1.0) -> None:
         """
         自制输入窗体的初始化；
         参数：
@@ -134,8 +135,8 @@ class TdInputWindow:
         # 窗口设置
         # self.input_window.overrideredirect(True) # 这句话可以去掉标题栏，同时也会没有阴影
         # 上面功能启用之后，好像快捷键会出现问题。
-        self.w_width = round(800*self.ui_ratio)
-        self.w_height = round(160*self.ui_ratio)
+        self.w_width = round(800 * self.ui_ratio)
+        self.w_height = round(160 * self.ui_ratio)
         #
         # 屏幕中央：
         # self.screenwidth = SCREEN_WIDTH
@@ -302,6 +303,116 @@ class TdSpaceWindow:
                            font="微软雅黑 10")
         self.lb.pack(anchor='sw', pady=5)
         self.lb.focus()  # 获得焦点
+        self.sub_window.update()
+
+        self.sub_window.bind_all('<space>', self.on_exit)
+        #
+        # 失去焦点自动退出
+        self.sub_window.bind('<FocusOut>', self.on_focus_out)
+
+    def on_focus_out(self, event=None):
+        """
+        失去焦点的事件，自动关闭窗口，避免最小化等操作时程序锁死
+        """
+        # print(event.widget)
+        if event.widget == self.sub_window:
+            print("失去焦点")
+            self.on_exit(self)
+
+    def on_exit(self, event=None):
+        self.sub_window.destroy()
+
+
+class TdTextWindow:
+    """
+    用于显示长文本的窗口
+    """
+
+    def __init__(self, parent,
+                 title='未命名',
+                 msg='未定义',
+                 default_value='',
+                 selection_range=None,
+                 width=960,
+                 height=560,
+                 ui_ratio=1,
+                 ) -> None:
+        """
+        自制输入窗体的初始化；
+        参数：
+        selection_range 是默认选中的范围。
+        """
+
+        # 变量设置
+        self.form0 = parent  # 父窗格
+        #
+        self.ui_ratio = ui_ratio
+        self.input_value = ''
+        self.title = title
+        self.msg = msg
+        self.default_value = default_value
+        self.sub_window = tk.Toplevel(self.form0)
+        #
+        self.sub_window.transient(self.form0)  # 避免在任务栏出现第二个窗口，而且可以实现置顶
+        # self.sub_window.grab_set()  # 模态，此功能生效后，窗口外不可以点击。注释掉就可以操作了。
+
+        #
+        # 窗口设置
+        # self.sub_window.overrideredirect(True) # 这句话可以去掉标题栏，同时也会没有阴影
+        self.w_width = round(width * self.ui_ratio)
+        self.w_height = round(height * self.ui_ratio)
+        #
+        # 屏幕中央：
+        # self.screenwidth = SCREEN_WIDTH
+        # self.screenheight = SCREEN_HEIGHT
+        # self.x_pos = (self.screenwidth - self.w_width) / 2
+        # self.y_pos = (self.screenheight - self.w_height) / 2
+        #
+        # 主窗口中央：
+        self.x_pos = self.form0.winfo_x() + (self.form0.winfo_width() - self.w_width) / 2
+        self.y_pos = self.form0.winfo_y() + (self.form0.winfo_height() - self.w_height) / 2
+
+        self.sub_window.geometry('%dx%d+%d+%d' % (self.w_width, self.w_height, self.x_pos, self.y_pos))
+        self.sub_window.title(self.title)
+        #
+
+        try:
+            self.sub_window.iconbitmap(LOGO_PATH)  # 左上角图标
+        except:
+            pass
+
+        self.iframe = tk.Frame(self.sub_window, padx=20, pady=10)
+        self.iframe.pack(expand=1, fill=tk.BOTH)
+
+        #
+        self.har_v = tk.Scrollbar(self.iframe,  # orient='horizontal',
+                                         # width=self.BAR_V_WIDTH,
+                                         )
+        self.text = tk.Text(self.iframe,
+                            wrap='char', borderwidth=0,
+                                   padx=10, pady=10,
+                                    foreground= 'black',
+                                   background='#e8e8e7',  # '#e8e8e7',
+                                   font="微软雅黑 10",
+                                   yscrollcommand=self.har_v.set,
+                                   relief='flat')
+        self.har_v.pack(side=tk.RIGHT, expand=0, fill=tk.Y)
+        self.text.pack(fill=tk.BOTH, expand=1)
+        self.har_v.config(command=self.text.yview)
+        #
+        self.text.configure(state='normal')
+        self.text.delete('1.0', tk.END)
+        self.text.insert(tk.END, self.msg)
+        self.text.configure(state='disabled')
+
+        # 文本框
+        # self.lb = tk.Label(self.iframe, text=self.msg,
+        #                    wraplength=900,
+        #                    justify="left",
+        #                    font="微软雅黑 10")
+        # self.lb.pack(anchor='sw', pady=5)
+        self.text.focus()  # 获得焦点
+        #
         self.sub_window.update()
 
         self.sub_window.bind_all('<space>', self.on_exit)

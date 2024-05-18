@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
-
+import logging
+#
 LOGO_PATH = './src/LOGO.ico'
 LARGE_FONT = 10  # 表头字号
 MON_FONTSIZE = 9  # 正文字号
@@ -24,7 +25,7 @@ class TdProgressWindow:
         self.ui_ratio = ui_ratio
         self.input_value = ''
         self.input_window = tk.Toplevel(self.form0)
-        print('———————————— 进度条激活 ——————————')
+        logging.debug('———————————— 进度条激活 ——————————')
         self.input_window.title('进度')
         self.my_prog = tk.DoubleVar()  # 进度
         self.my_text = prog_text

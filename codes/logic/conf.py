@@ -25,15 +25,19 @@ class td_conf:
             if isfile('../options_for_tagdox.json'):
                 logging.debug('读取上级目录')
                 self.OPTIONS_FILE = '../options_for_tagdox.json'
+                self.OPTIONS_FILE_BAK = '../options_for_tagdox.bak.json'
             elif isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
                 logging.debug('读取开发模式的配置文件')
                 self.OPTIONS_FILE = 'D:/MyPython/开发数据/options_for_tagdox.json'
+                self.OPTIONS_FILE_BAK = 'D:/MyPython/开发数据/options_for_tagdox.bak.json'
             else:
                 logging.debug('读取当前目录配置文件')
                 self.OPTIONS_FILE = 'options_for_tagdox.json'  # 配置文件的名称
+                self.OPTIONS_FILE_BAK = 'options_for_tagdox.bak.json'  # 配置文件的名称
         except:
             logging.debug('读取标准模式的配置文件')
             self.OPTIONS_FILE = 'options_for_tagdox.json'  # 配置文件的名称 # 已改完
+            self.OPTIONS_FILE_BAK = 'options_for_tagdox.bak.json'  # 配置文件的名称
         #
         # 用于显示尺寸的设置
         self.ui_conf = {'FRAME_FOLDER_WIDTH': 360,
@@ -45,6 +49,7 @@ class td_conf:
                         'TREE_WIDTH_MODIFY_TIME': 120,
                         'TREE_WIDTH_SIZE': 60
                         }
+        self.ui = self.ui_conf  # 别名
         # 显示尺寸的配置文件
         try:
             with open('./resources/config/ui_conf.json','r') as f:
@@ -96,6 +101,7 @@ class td_conf:
         self.lst_my_path_long_selected = []  # 已改完
         self.lst_my_path_short = []  # 已改完
         self.lst_my_path_long = []  # 已改完
+        self.lst_open = []  # 用于存储始终展开的文件夹
 
     def exec_json_file_write(self, data=None):
         """
@@ -106,9 +112,10 @@ class td_conf:
             data = self.json_data
         try:
             with open(self.OPTIONS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False)
+                json.dump(data, f, ensure_ascii=False,
+                          indent=4, )
         except Exception as e:
-            logging.error('json文件写入异常', e)
+            logging.error(f'配置文件写入异常:{e}')
 
     def get_json(self):
         """
@@ -141,7 +148,8 @@ class td_conf:
         try:
             with open(self.OPTIONS_FILE, 'r', encoding='utf8') as fp:
                 self.json_data = json.load(fp)
-
+            #
+            # 加载设置项
             if load_settings:
                 try:
                     self.opt_data = self.json_data['options']  # 设置
@@ -187,7 +195,8 @@ class td_conf:
                     pass
                 #
                 logging.info('加载基本参数成功')
-
+            #
+            # 加载文件夹
             if load_folders:
                 # lst_my_path_long_selected=lst_my_path_long.copy() #按文件夹筛选用
                 self.lst_my_path_long = []
@@ -195,51 +204,125 @@ class td_conf:
 
                 self.json_folders_lst = self.json_data['folders']
 
-                for i in self.json_folders_lst:
-                    # lst_my_path_long.append(i)
-                    tmp_L = i['pth']
-                    tmp_L = tmp_L.strip()
+                for dict_folder in self.json_folders_lst:
+                    # lst_my_path_long.append(dict_folder)
+                    tmp_path = dict_folder['pth']  # 获取完整路径
+                    tmp_path = tmp_path.strip().replace('\\', '/')
                     #
                     try:
-                        tmp_S = i['short']  # 如果有自定义名称，优先加载
-                    except:
-                        tmp_S = get_split_path(i['pth'])[-1]
+                        tmp_short = dict_folder['short']  # 如果有自定义名称，优先加载
+                    except Exception as e:
+                        logging.debug(f"读取 {tmp_path} 的 short 属性不成功:{e}，忽略")
+                        tmp_short = get_split_path(dict_folder['pth'])[-1]
+                    tmp_short = tmp_short.replace(' ', '_')  # 修复路径空格bug的权宜之计，以后应该可以优化
                     #
                     try:
-                        tmp_G = i['group']  # 分组名称
-                    except:
-                        tmp_G = self.DEFAULT_GROUP_NAME
-
-                    tmp_S = tmp_S.replace(' ', '_')  # 修复路径空格bug的权宜之计，以后应该可以优化
+                        tmp_group = dict_folder['group']  # 分组名称
+                    except Exception as e:
+                        logging.debug(f"读取 {tmp_path} 的 group 属性不成功:{e}，忽略")
+                        tmp_group = self.DEFAULT_GROUP_NAME
+                    #
+                    try:
+                        tmp_open = dict_folder['open']  # 是否常开
+                    except Exception as e:
+                        logging.debug(f"读取 {tmp_path} 的 open 属性不成功:{e}，忽略")
+                        tmp_open = 'normal'
 
                     # 增加逻辑：避免短路径重名：
                     j = 1
-                    tmp_2 = tmp_S
+                    tmp_2 = tmp_short
                     while tmp_2 in self.lst_my_path_short:
                         j += 1
-                        tmp_2 = tmp_S + "(" + str(j) + ")"
-                        print(tmp_2)
-                    tmp_S = tmp_2
-                    tmp_S = tmp_S.strip()
+                        tmp_2 = f'{tmp_short}({j})'
+                    tmp_short = tmp_2.strip()
 
-                    if tmp_S == '' or tmp_L == '':  # 出现空白文件夹
+                    if tmp_short == '' or tmp_path == '':  # 出现空白文件夹
                         for j in range(len(self.json_folders_lst) - 1, -1, -1):
                             if self.json_folders_lst[j]['pth'].strip() == '':
                                 self.json_folders_lst.pop(j)
                     else:
-                        self.lst_my_path_long.append(tmp_L)
-                        self.lst_my_path_short.append(tmp_S)
+                        self.lst_my_path_long.append(tmp_path)
+                        self.lst_my_path_short.append(tmp_short)
                         #
-                        tmp = {tmp_S: tmp_L}
-                        self.dict_path.update(tmp)
+                        self.dict_path.update({tmp_short: tmp_path})
                         #
-                        tmp_folder_and_group = {tmp_S: tmp_G}
+                        tmp_folder_and_group = {tmp_short: tmp_group}
                         self.dict_folder_groups.update(tmp_folder_and_group)
+                        # 常开文件夹
+                        if tmp_open == 'always':
+                            self.lst_open.append(tmp_path)
 
                 self.lst_my_path_long_selected = self.lst_my_path_long.copy()  # 此处有大量的可优化空间。
                 logging.info('加载关注文件夹列表成功')
-        except:
-            logging.warning('加载json异常，正在重置json文件')
+
+        except Exception as e:
+            logging.warning(f'加载json异常，正在重置json文件。 错误信息为：{e}')
             # need_init_json=1
+            try:
+                # 尝试将旧文件备份一次，避免全部丢失；
+                with open(self.OPTIONS_FILE, 'r', encoding='utf8') as fp:
+                    tmp_old_txt = fp.read()
+                with open(self.OPTIONS_FILE_BAK, 'w+', encoding='utf8') as f:
+                    f.write(tmp_old_txt)
+            except Exception as e:
+                logging.error(f"尝试备份旧文件错误： {e}")
+                pass
             self.json_data = self.OPT_DEFAULT
             self.exec_json_file_write()
+
+    def get_current_folder_detail(self):
+        """
+        获取当前打开的文件夹，或者文件夹分组
+        """
+        tmp = {'type': 'folder',
+               'path': self.lst_my_path_long_selected,
+               'short_name': self.lst_my_path_short,
+               }
+        return tmp
+
+    def get_current_path(self):
+        """
+        获取当前正在打开的文件夹。只返回一个，
+        如果是分组，就返回第一个结果.
+        """
+        return self.lst_my_path_long_selected[0]
+
+    def folder_open_off(self, folder_short=None, folder_path=None):
+        """
+        去掉文件夹的常开状态
+        """
+        logging.debug(f"folder_short={folder_short}, folder_path={folder_path}")
+        if folder_short:
+            folder_long = self.dict_path[folder_short]
+        elif folder_path:
+            folder_long = folder_path
+        else:
+            logging.error(f"ERROR: folder_short={folder_short}, folder_path={folder_path}")
+            return
+        if folder_long in self.lst_open:
+            self.lst_open.remove(folder_long)
+            for tmp_dict in self.json_data['folders']:
+                if tmp_dict['pth'].replace('\\', '/') == folder_long:
+                    tmp_dict['open'] = 'normal'
+                    break
+        self.exec_json_file_write()
+
+    def folder_open_on(self, folder_short=None, folder_path=None):
+        """
+        增加文件夹的常开状态
+        """
+        logging.debug(f"folder_short={folder_short}, folder_path={folder_path}")
+        if folder_short:
+            folder_long = self.dict_path[folder_short]
+        elif folder_path:
+            folder_long = folder_path
+        else:
+            logging.error(f"ERROR: folder_short={folder_short}, folder_path={folder_path}")
+            return
+        if folder_long not in self.lst_open:
+            self.lst_open.append(folder_long)
+            for tmp_dict in self.json_data['folders']:
+                if tmp_dict['pth'].replace('\\', '/')  == folder_long:
+                    tmp_dict['open'] = 'always'
+                    break
+        self.exec_json_file_write()

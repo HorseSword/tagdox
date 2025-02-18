@@ -21,23 +21,25 @@ class td_conf:
         self.V_FOLDERS = 2  # 标签识别文件夹深度，// 可修改 # 已改完
         self.TREE_SUB_SHOW = 'sub_folder'  # 这个项目不再允许调整。 # 已改完
         self.FILE_DRAG_MOVE = 'move'  # 文件拖动到列表的时候，是复制，还是移动。// 可修改。# 取值：'move' 'copy'。 # 已改完
+        self.CONFIG_FILE_NAME = 'options_for_tagdox.json'
+        self.CONFIG_BAK_FILE_NAME = 'options_for_tagdox.bak.json'
         try:
-            if isfile('../options_for_tagdox.json'):
+            if isfile('../'+self.CONFIG_FILE_NAME):
                 logging.debug('读取上级目录')
-                self.OPTIONS_FILE = '../options_for_tagdox.json'
-                self.OPTIONS_FILE_BAK = '../options_for_tagdox.bak.json'
-            elif isfile('D:/MyPython/开发数据/options_for_tagdox.json'):
+                self.OPTIONS_FILE = '../'+self.CONFIG_FILE_NAME
+                self.OPTIONS_FILE_BAK = '../'+self.CONFIG_BAK_FILE_NAME
+            elif isfile('D:/MyPython/开发数据/'+self.CONFIG_FILE_NAME):
                 logging.debug('读取开发模式的配置文件')
-                self.OPTIONS_FILE = 'D:/MyPython/开发数据/options_for_tagdox.json'
-                self.OPTIONS_FILE_BAK = 'D:/MyPython/开发数据/options_for_tagdox.bak.json'
+                self.OPTIONS_FILE = 'D:/MyPython/开发数据/'+self.CONFIG_FILE_NAME
+                self.OPTIONS_FILE_BAK = 'D:/MyPython/开发数据/'+self.CONFIG_BAK_FILE_NAME
             else:
                 logging.debug('读取当前目录配置文件')
-                self.OPTIONS_FILE = 'options_for_tagdox.json'  # 配置文件的名称
-                self.OPTIONS_FILE_BAK = 'options_for_tagdox.bak.json'  # 配置文件的名称
+                self.OPTIONS_FILE = self.CONFIG_FILE_NAME  # 配置文件的名称
+                self.OPTIONS_FILE_BAK = self.CONFIG_BAK_FILE_NAME  # 配置文件的名称
         except:
             logging.debug('读取标准模式的配置文件')
-            self.OPTIONS_FILE = 'options_for_tagdox.json'  # 配置文件的名称 # 已改完
-            self.OPTIONS_FILE_BAK = 'options_for_tagdox.bak.json'  # 配置文件的名称
+            self.OPTIONS_FILE = self.CONFIG_FILE_NAME  # 配置文件的名称 # 已改完
+            self.OPTIONS_FILE_BAK = self.CONFIG_BAK_FILE_NAME  # 配置文件的名称
         #
         # 用于显示尺寸的设置
         self.ui_conf = {'FRAME_FOLDER_WIDTH': 360,
@@ -52,7 +54,7 @@ class td_conf:
         self.ui = self.ui_conf  # 别名
         # 显示尺寸的配置文件
         try:
-            with open('./resources/config/ui_conf.json','r') as f:
+            with open('./resources/config/ui_conf.json', 'r') as f:
                 ui_conf_ext = json.load(f)
             for _key in self.ui_conf.keys():
                 if _key in ui_conf_ext.keys() and ui_conf_ext[_key]>0:
@@ -285,7 +287,10 @@ class td_conf:
         获取当前正在打开的文件夹。只返回一个，
         如果是分组，就返回第一个结果.
         """
-        return self.lst_my_path_long_selected[0]
+        try:
+            return self.lst_my_path_long_selected[0]
+        except:
+            return ''
 
     def folder_open_off(self, folder_short=None, folder_path=None):
         """

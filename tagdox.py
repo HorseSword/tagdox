@@ -5,6 +5,9 @@ Created on Thu Jun 17 09:28:24 2021
 @author: MaJian
 
 ## 近期更新说明
+#### v0.28.1.1 2025年2月18日
+fixed: 修正了无配置文件启动时（全新启动），因列表溢出导致无法启动的bug。
+
 #### v0.28.1.0 2024年5月14日
 左侧文件夹可以设置为常开模式了；
 优化配置文件的显示格式。
@@ -48,7 +51,6 @@ Created on Thu Jun 17 09:28:24 2021
 初步实现了文件夹搜索功能。
 
 """
-import json
 import tkinter as tk
 
 from tkinter import ttk
@@ -78,10 +80,9 @@ from libs.markdown import MarkdownRel  # 对 markdown 的特殊处理
 #
 from codes.logic.conf import td_conf
 # 控件库
-from libs.widgets.windows import TdProgressWindow as TdProgressWindow
-from libs.widgets.windows import TdInputWindow as TdInputWindow
-from libs.widgets.windows import TdSpaceWindow as TdSpaceWindow
-from libs.widgets.windows import TdTextWindow
+from codes.gui.windows import TdProgressWindow as TdProgressWindow
+from codes.gui.windows import TdInputWindow as TdInputWindow
+from codes.gui.windows import TdTextWindow
 ##
 # import my_logger
 # import send2trash # 回收站（目前作废）
@@ -260,7 +261,6 @@ def get_data(ipath=None, update_sub_path=1, need_set_prog=True, is_global=True):
         global lst_sub_path
     else:
         lst_sub_path = []
-        pass  # 这段逻辑的含义是，
 
     if ipath is None:
         ipath = conf.lst_my_path_long
@@ -624,7 +624,8 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
     if flag.flag_inited == 1:
         app.str_btm.set("正在解析标签……")
         app.window.update()
-        if need_set_prog: set_prog_bar(30)
+        if need_set_prog:
+            set_prog_bar(30)
 
     time0 = time.time()
 
@@ -2735,7 +2736,7 @@ def tree_file_tag_add_fast(tag):
         # tree_obj_find(taged_files[-1])
 
 
-def entry_obj_clear(entry_obj):
+def entry_obj_clear(entry_obj: tkinter.Entry):
     """
     前端函数，将输入框清空。
     必须要指定要清空的输入框对象。
@@ -3028,7 +3029,7 @@ def tree_folder_on_choose(event=None, refresh=1, sub_folder=None):  # 点击新�
     # update_current_folder_list()  # 2022年10月13日新增，点击的时候刷新
 
 
-def on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的文件夹之后
+def XX_on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新的文件夹之后
     """
     选择左侧文件夹后启动。
     注意，这个V2函数并没有启用。

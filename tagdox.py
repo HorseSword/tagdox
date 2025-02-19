@@ -83,6 +83,8 @@ from codes.logic.conf import td_conf
 from codes.gui.windows import TdProgressWindow as TdProgressWindow
 from codes.gui.windows import TdInputWindow as TdInputWindow
 from codes.gui.windows import TdTextWindow
+from codes.gui.window_settings import window_settings
+from codes.gui.window_info import window_info
 ##
 # import my_logger
 # import send2trash # 回收站（目前作废）
@@ -100,7 +102,7 @@ class td_const():
         self.URL_ADV = 'https://gitee.com/horse_sword/tagdox/issues'  # 提建议的位置
         self.URL_CHK_UPDATE = 'https://gitee.com/horse_sword/tagdox/releases'  # 检查更新的位置
         self.TAR = 'Tagdox / 标签文库'  # 程序名称
-        self.VER = 'v0.28.1.0'  # 版本号
+        self.VER = 'v0.28.1.1'  # 版本号
 
 conf = td_conf()  # 关键参数
 cst = td_const()  # 常量
@@ -757,50 +759,33 @@ def get_dt(lst_file0=None, need_set_prog=True, FAST_MODE=True):
 # %%
 #######################################################################
 # %%
-def show_window_info():
+class window_manager:
     """
-    显示关于窗口。
-    不需要任何参数。
+    弹窗管理员
     """
-    screenwidth = conf.SCREEN_WIDTH
-    screenheight = conf.SCREEN_HEIGHT
-    w_width = int(660*conf.ui_ratio)
-    w_height = int(560*conf.ui_ratio)
-    info_window = tk.Toplevel(app.window, background='white')
-    info_window.geometry(
-        '%dx%d+%d+%d' % (w_width, w_height, (screenwidth - w_width) / 2, (screenheight - w_height) / 2))
-    info_window.title('关于标签文库')
+    def show_window_info(self, event=None):
+        """
+        打开关于窗口
+        """
+        win_info_obj = window_info(conf, app, cst.VER)
+        win_info_obj.show()
 
-    info_window.transient(app.window)  # 避免在任务栏出现第二个窗口，而且可以实现置顶
-    info_window.grab_set()  # 模态
+    def show_window_settings(self, event=None):
+        """
+        显示设置窗口，但只有在调用的时候才会初始化。
+        """
+        win_settings_obj = window_settings(conf=conf, app=app, update_func=app_refresh)
+        win_settings_obj.show()
 
-    info_window.deiconify()
-    info_window.lift()
-    info_window.focus_force()
-    info_window.iconbitmap(LOGO_PATH)  # 左上角图标
-
-    info_frame = tk.Frame(info_window, padx=5, pady=5, background='white')
-    info_frame.pack(expand=0, fill=tk.BOTH)
-
-    tmp = tk.Label(info_frame, background='white', text='\n')
-    tmp.pack()
-    tmp = tk.Label(info_frame, background='white', text='标签文库 / Tagdox', fg='#2d7d9a', font=('微软雅黑', 16))
-    tmp.pack()
-    tmp = tk.Label(info_frame, background='white', text='\n马剑 个人开发')
-    tmp.pack()
-    tmp = tk.Label(info_frame, background='white', text='版本：' + cst.VER + '')
-    tmp.pack()
-    tmp = tk.Label(info_frame, background='white', text='Powered by Python and Tkinter\n')
-    tmp.pack()
-
-    global p_logo
-    p_logo = tk.PhotoImage(file='.//resources/imgs/二维码设计.png')
-    logolbl = tk.Label(info_frame, background='white', text='A', image=p_logo)
-    logolbl.pack()
-
-    # tmp = tk.Label(info_frame,background='white', text='（欢迎扫码访问产品动态）')
-    # tmp.pack()
-
+    def show_window_closing(self, event=None, need_asking=False):
+        """
+        退出程序。
+        """
+        if need_asking:
+            if tk.messagebox.askokcancel("退出", "真的要退出吗"):
+                app.window.destroy()
+        else:
+            app.window.destroy()
 
 def show_window_input(title_value, body_value='', init_value='', is_file_name=True):
     """
@@ -1224,7 +1209,7 @@ def update_sub_folder_list_via_menu(event=None):
     在右键菜单里面执行刷新子文件夹列表操作。
     """
     update_sub_folder_list()
-    update_main_window(0, fast_mode=True)  # reload_setting=2)
+    app_refresh(0, fast_mode=True)  # reload_setting=2)
 
 
 def update_sub_folder_list(sub_folder_list=None, refresh=True):
@@ -1288,7 +1273,7 @@ def update_sub_folder_list(sub_folder_list=None, refresh=True):
                 tmp = app.XX_tree_lst_sub_folder.get_children()[0]
                 app.XX_tree_lst_sub_folder.selection_set(tmp)
         # 刷新一次；
-        # update_main_window(0,fast_mode=True)#reload_setting=2)
+        # app_refresh(0,fast_mode=True)#reload_setting=2)
     except Exception as e:
         print(e)
         tree_folder_update()
@@ -1320,7 +1305,7 @@ def tree_file_order_by(inp):
             conf.ORDER_DESC = True
         else:
             conf.ORDER_DESC = False  # 其余排序方法，都是升序。
-    # update_main_window(0) # 这个方法虽然可以排序，但是效率太低
+    # app_refresh(0) # 这个方法虽然可以排序，但是效率太低
     #
     # 可视化
     tree_file_order_show()
@@ -2113,7 +2098,7 @@ def tree_file_rename(tar=None):  # 对文件重命名
                 logging.debug(f'tmp_new_name = {tmp_new_name}')
                 # os.rename(tmp_full_path,tmp_new_name)
                 final_name = safe_rename(tmp_full_path, tmp_new_name, sep = conf.V_SEP)
-                update_main_window(0, fast_mode=True)
+                app_refresh(0, fast_mode=True)
                 tree_obj_find(final_name)
             except:
                 t = tk.messagebox.showerror(title='ERROR', message='重命名失败！文件可能被占用，或者您没有操作权限。')
@@ -2143,7 +2128,7 @@ def tree_file_delete(tar=None):
                     exec_remove_to_trash(tmp_full_path)
                     #
                     if len(app.tree_file.selection()) == 1:
-                        update_main_window(0)
+                        app_refresh(0)
                 except:
                     t = tk.messagebox.showerror(title='ERROR', message='删除失败，文件可能被占用！' + str(tmp_full_path))
                     print('删除失败，文件可能被占用')
@@ -2151,7 +2136,7 @@ def tree_file_delete(tar=None):
 
         if len(app.tree_file.selection()) > 1:
             if flag_deleted:
-                update_main_window(0)
+                app_refresh(0)
 
 
 def function_for_testing(event=None):  #
@@ -2430,8 +2415,8 @@ def tree_folder_create_sub_folder(event=None):
                 #
                 # 创建之后刷新一次
                 update_sub_folder_list(refresh=False)
-                update_main_window(0, fast_mode=True)
-                # update_main_window(reload_setting=2)
+                app_refresh(0, fast_mode=True)
+                # app_refresh(reload_setting=2)
                 if FOLDER_TYPE == 2:
                     tree_folder_update()
                 return True
@@ -2535,7 +2520,7 @@ def XX_exec_sub_folder_rename(event=None):
             # 刷新一次
             update_sub_folder_list(refresh=None)
             tree_obj_find(new_folder, True, app.XX_tree_lst_sub_folder, app.bar_sub_folder_v, 0)
-            update_main_window(0, fast_mode=True)
+            app_refresh(0, fast_mode=True)
             return True
         except:
             t = tk.messagebox.showerror(title='ERROR',
@@ -2579,7 +2564,7 @@ def input_new_tag(event=None, tag_name=None):
             # print(new_name)
     if len(app.tree_file.selection()) > 1:  # 多文件的只在最后刷新。
         # (b1, b2) = bar_tree_v.get()
-        update_main_window(0)
+        app_refresh(0)
         tree_file_find_by_lst(taged_files)
         # for i in taged_files:
         # tree_obj_find(i)
@@ -2704,7 +2689,7 @@ def tree_file_tag_add(file_path_full, new_tag, need_update=True):
                         logging.error(f'为文件添加标签失败,e={e}')
     # 刷新并选中
     if len(app.tree_file.selection()) == 1 and need_update:
-        update_main_window(0, fast_mode=True)  # 此处可以优化，避免完全重载
+        app_refresh(0, fast_mode=True)  # 此处可以优化，避免完全重载
         try:
             tmp_final_name = tmp_final_name.replace('\\', '/')
             logging.debug(f'添加标签完成，正在定位 {tmp_final_name}')
@@ -2729,7 +2714,7 @@ def tree_file_tag_add_fast(tag):
         taged_files.append(tree_file_tag_add(tmp_full_name, TAG_STAR))
     if len(app.tree_file.selection()) > 1:
         # (b1, b2) = bar_tree_v.get()
-        update_main_window(0)
+        app_refresh(0)
         # app.tree_file.yview_moveto(b1)
         for file_1 in taged_files:
             tree_obj_find(file_1)
@@ -2752,10 +2737,10 @@ def entry_obj_clear(entry_obj: tkinter.Entry):
 
 
 def exec_clear_search_items(event=None):
-    update_main_window(666, fast_mode=True)
+    app_refresh(666, fast_mode=True)
 
 
-def update_main_window(event=None, reload_setting=False, fast_mode=False):
+def app_refresh(event=None, reload_setting=False, fast_mode=False):
     """
     刷新。
     切换目录之后自动执行此功能。
@@ -2888,18 +2873,6 @@ def show_online_check_update(event=None):
     """
     exec_run(cst.URL_CHK_UPDATE)
 
-
-def show_window_closing(need_asking=False):
-    """
-    退出程序。
-    """
-    if need_asking:
-        if tk.messagebox.askokcancel("退出", "真的要退出吗"):
-            app.window.destroy()
-    else:
-        app.window.destroy()
-
-
 def get_folder_s2l(folder_short_name):
     '''
     文件夹短路径转长路径。
@@ -3019,8 +2992,8 @@ def tree_folder_on_choose(event=None, refresh=1, sub_folder=None):  # 点击新�
     else:  # 选项发生变化：
         tree_obj_clear(app.XX_tree_lst_sub_folder)  # 新增语句 TODO 可能要删掉
         if refresh:
-            # update_main_window(conf.lst_my_path_long_selected)
-            update_main_window(CLEAR_AFTER_CHANGE_FOLDER, fast_mode=True)
+            # app_refresh(conf.lst_my_path_long_selected)
+            app_refresh(CLEAR_AFTER_CHANGE_FOLDER, fast_mode=True)
         app.tree_file.yview_moveto(0)
 
     # flag.flag_running=0 # 标记为没有任务
@@ -3077,8 +3050,8 @@ def XX_on_folder_choose_v2(event=None, refresh=1, sub_folder=None):  # 点击新
 
     if not lst_path_ori == conf.lst_my_path_long_selected:  # 如果前后的选项没有变化的话，就不刷新文件夹列表
         if refresh == 1:
-            # update_main_window(conf.lst_my_path_long_selected)
-            update_main_window(CLEAR_AFTER_CHANGE_FOLDER)
+            # app_refresh(conf.lst_my_path_long_selected)
+            app_refresh(CLEAR_AFTER_CHANGE_FOLDER)
         app.tree_file.yview_moveto(0)
 
     # flag.flag_running=0 # 标记为没有任务
@@ -3137,223 +3110,6 @@ def on_sub_folders_choose(event=None):
     tree_file_search()
     flag.flag_sub_folders_changed = 0
     set_search_tag_selected(0)
-
-
-# %%
-
-
-def show_window_setting():  #
-    """
-    设置窗口
-    """
-    #
-    dict_file_drag = {"复制": "copy", "移动": "move", "每次询问": "ask"}
-    dict_window_mode = {"标签模式": "tag", "子文件夹模式": "sub_folder"}
-    dict_tag_mode = {"包含匹配": 1, "严格全字匹配": 0}
-    dict_yes_no = {"是": 1, "否": 0}
-
-    def setting_yes(event=None):
-        '''
-        点击确定之后，使参数生效
-        '''
-        # 获得新参数
-        need_reboot = False
-        # 先处理要重启的：
-        #
-        if dict_window_mode[v_inp_mode.get()] != conf.TREE_SUB_SHOW \
-                or dict_yes_no[v_last_folder_as_tag.get()] != conf.FOLDER_AS_TAG:
-            if tk.messagebox.askokcancel("请确认", "部分设置需要重启才能生效。确定要保存设置并【关闭程序】吗？"):
-                need_reboot = True
-            else:
-                return
-        #
-        conf.NOTE_EXT = v_inp_note_type.get()
-        conf.set_json_options('note_ext', conf.NOTE_EXT, need_write=False)
-        #
-        conf.V_FOLDERS = v_inp_folder_depth.get()
-        conf.set_json_options('vfolders', conf.V_FOLDERS, need_write=False)
-        #
-        conf.V_SEP = v_inp_sep.get()
-        conf.set_json_options('sep', conf.V_SEP, need_write=False)
-        #
-        conf.FILE_DRAG_MOVE = dict_file_drag[v_inp_drag_type.get()]
-        conf.set_json_options('file_drag_enter', conf.FILE_DRAG_MOVE, need_write=False)
-        #
-        conf.TREE_SUB_SHOW = dict_window_mode[v_inp_mode.get()]
-        conf.set_json_options('TREE_SUB_SHOW', conf.TREE_SUB_SHOW)
-        #
-        conf.FOLDER_AS_TAG = dict_yes_no[v_last_folder_as_tag.get()]
-        conf.set_json_options('FOLDER_AS_TAG', conf.FOLDER_AS_TAG)
-        #
-        conf.TAG_EASY = dict_tag_mode[v_tag_easy.get()]
-        conf.set_json_options('TAG_EASY', conf.TAG_EASY)
-        #
-        # 关闭窗口
-        form_setting.destroy()
-        # 然后刷新文件列表
-        if need_reboot:
-            app.window.destroy()
-        else:
-            update_main_window(None, reload_setting=True)
-        pass
-
-    def add_combo():
-        pass
-
-    form_setting = tk.Toplevel(app.window)
-    form_setting.title('设置')
-    form_setting.resizable(0, 0)  # 限制尺寸
-    form_setting.transient(app.window)  # 避免在任务栏出现第二个窗口，而且可以实现置顶
-    form_setting.grab_set()
-    screenwidth = conf.SCREEN_WIDTH
-    screenheight = conf.SCREEN_HEIGHT
-    w_width = int(500*conf.ui_ratio)  # int(screenwidth*0.8)
-    w_height = int(400*conf.ui_ratio)  # int(screenheight*0.8)
-    # 主窗口中央：
-    x_pos = app.window.winfo_x() + (app.window.winfo_width() - w_width) / 2
-    y_pos = app.window.winfo_y() + (app.window.winfo_height() - w_height) / 2
-    # x_pos = (screenwidth - w_width) / 2
-    # y_pos = (screenheight - w_height) / 2
-    form_setting.geometry('%dx%d+%d+%d' % (w_width, w_height, x_pos, y_pos))
-    form_setting.deiconify()
-    form_setting.lift()
-    form_setting.focus_force()
-    form_setting.iconbitmap(LOGO_PATH)  # 左上角图标
-    # v2sep=tk.StringVar()
-    # v2sep.set(conf.V_SEP)
-
-    # v2sep=conf.V_SEP
-    frame_setting2 = ttk.Frame(form_setting, width=800)
-    frame_setting2.pack(side=tk.BOTTOM, expand=0, fill=tk.X)
-    frame_setting2.columnconfigure(0, weight=1)
-    frame_setting2.columnconfigure(1, weight=1)
-    #
-    # 设置主要框架
-    frame_setting1 = ttk.Frame(form_setting, padding=(0, 10, 0, 0))
-    frame_setting1.pack(expand=1, fill=tk.BOTH)
-    frame_setting1.columnconfigure(0, weight=1)
-    frame_setting1.columnconfigure(1, weight=1)
-
-    # frame_setting2.grid_configure()
-
-    lable_set_sep = ttk.Label(frame_setting1, text='标签分隔符')
-    lable_set_sep.grid(row=0, column=0, padx=10, pady=5, sticky=tk.W)
-
-    v_inp_sep = ttk.Entry(frame_setting1, width=16, text=conf.V_SEP)
-    entry_obj_clear(v_inp_sep)
-    v_inp_sep.insert(0, conf.V_SEP)
-    v_inp_sep.grid(row=0, column=1, padx=10, pady=5, sticky=tk.EW)
-
-    lable_set_folder_depth = ttk.Label(frame_setting1, text='识别为标签的文件夹层数')
-    lable_set_folder_depth.grid(row=1, column=0, padx=10, pady=5, sticky=tk.W)
-
-    v_inp_folder_depth = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
-    lst_folder_depth = ['0', '1', '2', '3', '4', '5', '6', '7', '8']
-    v_inp_folder_depth['values'] = lst_folder_depth
-    v_inp_folder_depth['state'] = 'readonly'
-    tmp_n = lst_folder_depth.index(str(conf.V_FOLDERS))
-    v_inp_folder_depth.current(tmp_n)
-    v_inp_folder_depth.grid(row=1, column=1, padx=10, pady=5, sticky=tk.EW)
-
-    nr = 2
-    #
-    # 是否将最后的目录视为标签
-    nr += 1
-    lable_ = ttk.Label(frame_setting1, text='将最后一层文件夹作为标签 *')
-    lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
-    #
-    v_last_folder_as_tag = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
-    v_last_folder_as_tag['values'] = list(dict_yes_no.keys())
-    v_last_folder_as_tag['state'] = 'readonly'
-    v_last_folder_as_tag.current(0)
-    tmp_list = list(dict_yes_no.values())
-    logging.debug(f'{tmp_list}')
-    tmp_n = tmp_list.index(conf.FOLDER_AS_TAG)
-    v_last_folder_as_tag.current(tmp_n)
-    v_last_folder_as_tag.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
-    # 笔记类型
-    nr += 1
-    lable_set_note_type = ttk.Label(frame_setting1, text='笔记类型')
-    lable_set_note_type.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
-
-    v_inp_note_type = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
-    v_inp_note_type['values'] = conf.NOTE_EXT_LIST
-    v_inp_note_type['state'] = 'readonly'
-    v_inp_note_type.current(0)
-    tmp_n = conf.NOTE_EXT_LIST.index(conf.NOTE_EXT)
-    v_inp_note_type.current(tmp_n)
-    v_inp_note_type.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
-
-    # 拖动是移动还是复制
-    nr += 1
-    # lable_drag_type
-    lable_ = ttk.Label(frame_setting1, text='拖拽添加文件的操作')
-    lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
-    #
-    v_inp_drag_type = ttk.Combobox(frame_setting1, width=16)
-    the_combo = v_inp_drag_type
-    the_dict = dict_file_drag
-    the_val = conf.FILE_DRAG_MOVE
-    #
-    the_combo['values'] = list(the_dict.keys())
-    the_combo['state'] = 'readonly'
-    the_combo.current(0)
-    tmp_list = list(the_dict.values())
-    tmp_n = tmp_list.index(the_val)
-    the_combo.current(tmp_n)
-    the_combo.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
-
-    # 拖动是移动还是复制
-    nr += 1
-    # lable_drag_type
-    lable_ = ttk.Label(frame_setting1, text='标签搜索模式')
-    lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
-    #
-    v_tag_easy = ttk.Combobox(frame_setting1, width=16)
-    the_combo = v_tag_easy
-    the_dict = dict_tag_mode
-    the_val = conf.TAG_EASY
-    #
-    the_combo['values'] = list(the_dict.keys())
-    the_combo['state'] = 'readonly'
-    the_combo.current(0)
-    tmp_list = list(the_dict.values())
-    tmp_n = tmp_list.index(the_val)
-    the_combo.current(tmp_n)
-    the_combo.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
-
-    # 布局是标签模式还是子文件夹模式  # TODO 不再生效
-    nr += 1
-    lable_ = tk.Label(frame_setting1, text='显示模式 *')
-    if FOLDER_TYPE == 1:
-        lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
-    #
-    v_inp_mode = ttk.Combobox(frame_setting1, width=16)  # ,textvariable=v2fdepth)
-    v_inp_mode['values'] = list(dict_window_mode.keys())
-    v_inp_mode['state'] = 'readonly'
-    v_inp_mode.current(0)
-    tmp_list = list(dict_window_mode.values())
-    print(tmp_list)
-    tmp_n = tmp_list.index(conf.TREE_SUB_SHOW)
-    v_inp_mode.current(tmp_n)
-    if FOLDER_TYPE == 1:
-        v_inp_mode.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
-    #
-    nr += 1
-    lable_ = ttk.Label(frame_setting1, text='（注意：标*的项目需要重启生效）')
-    lable_.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.W)
-
-    # 下面的设置区域
-    nr = 100
-    bt_setting_yes = ttk.Button(frame_setting2, text='确定', command=setting_yes)
-    bt_setting_yes.grid(row=nr, column=0, padx=10, pady=5, sticky=tk.EW)
-    # bt_setting_yes.pack(side=tk.LEFT,expand=0,fill=tk.X)
-
-    bt_setting_cancel = ttk.Button(frame_setting2, text='取消', command=form_setting.destroy)
-    bt_setting_cancel.grid(row=nr, column=1, padx=10, pady=5, sticky=tk.EW)
-    # bt_setting_cancel.pack(side=tk.LEFT,expand=0,fill=tk.X)
-
-    # app.window.wait_window(form_setting)
 
 
 def tree_folder_star_add_by_dialog(event=None):  #
@@ -3545,11 +3301,11 @@ def tree_file_drag_enter(files, drag_type=None, target_path=None):
     # 刷新：
     if flag.flag_folder_changed:
         tree_folder_update()
-        # update_main_window(fast_mode=True)
+        # app_refresh(fast_mode=True)
         pass
 
     if flag.flag_file_changed:
-        update_main_window(0, fast_mode=True)  # 这里不刷新的话，后面排序或者筛选都会出错。
+        app_refresh(0, fast_mode=True)  # 这里不刷新的话，后面排序或者筛选都会出错。
         # 高亮文件
         try:
             tree_file_find_by_lst(new_file_lst)
@@ -3676,7 +3432,7 @@ def tree_folder_clipboard_paste(event=None, tar_folder_from=None,
         #
         if need_update:
             tree_folder_update()
-            update_main_window(fast_mode=True)
+            app_refresh(fast_mode=True)
 
     except Exception as e:
         tk.messagebox.showerror(title='错误',
@@ -3779,7 +3535,7 @@ def tree_folder_star_add(path_list, group_name = None):
     if need_update:
         update_folder_and_json_file()
         # 刷新之后应该再刷新文件一次；
-        update_main_window(fast_mode=True)
+        app_refresh(fast_mode=True)
 
 
 def tree_folder_star_remove():  # 删除关注的目录
@@ -3991,11 +3747,11 @@ def exec_create_note(event=None, my_ext=None):  # 添加笔记
 
                     # 刷新
                     if event == 'exec_create_note_here':  # 【这里有bug，刷新之后不能显示内容】
-                        update_main_window(1, fast_mode=True)
+                        app_refresh(1, fast_mode=True)
                         tree_obj_find(fpth)
                         # return fpth
                     else:
-                        update_main_window(1, fast_mode=True)  # 没有这句话会搜不到
+                        app_refresh(1, fast_mode=True)  # 没有这句话会搜不到
                         tree_obj_find(fpth)
                     # else:
                     #     return fpth
@@ -4028,7 +3784,7 @@ def exec_create_note_here(event=None):
     fpth = exec_create_note('exec_create_note_here')
     conf.lst_my_path_long_selected = lst_tmp.copy()
     if fpth is not None:
-        update_main_window(1)
+        app_refresh(1)
         tree_obj_find(fpth)
 
 
@@ -4061,7 +3817,7 @@ def show_popup_menu_main(event):
     设置菜单的弹出
     """
     menu_main = tk.Menu(app.window, tearoff=0)
-    menu_main.add_command(label='设置…', command=show_window_setting)
+    menu_main.add_command(label='设置…', command=win_manager.show_window_settings)
     menu_main.add_separator()
     menu_main.add_command(label="添加文件夹到关注列表…", command=tree_folder_star_add_by_dialog)
     menu_main.add_separator()
@@ -4069,9 +3825,9 @@ def show_popup_menu_main(event):
     menu_main.add_command(label='访问主页（联网）', command=show_online_help)
     menu_main.add_command(label='建议和反馈（联网）', command=show_online_advice)
     menu_main.add_command(label='检查更新（联网）', command=show_online_check_update)
-    menu_main.add_command(label='关于…', command=show_window_info)
+    menu_main.add_command(label='关于…', command=win_manager.show_window_info)
     menu_main.add_separator()
-    menu_main.add_command(label='退出', command=show_window_closing)
+    menu_main.add_command(label='退出', command=win_manager.show_window_closing)
     #
     menu_main.post(event.x_root, event.y_root)
 
@@ -4190,7 +3946,7 @@ def XX_show_popup_menu_sub_folder(event):
         else:
             menu_sub_folder.add_command(label='重命名所选文件夹', state=tk.DISABLED)
         menu_sub_folder.add_separator()
-        # menu_sub_folder.add_command(label='刷新', command=update_main_window)
+        # menu_sub_folder.add_command(label='刷新', command=app_refresh)
         menu_sub_folder.add_command(label='刷新子文件夹列表', command=update_sub_folder_list_via_menu)
         #
         menu_sub_folder.post(event.x_root, event.y_root)
@@ -4294,7 +4050,7 @@ def tree_file_tag_remove(event=None):
                 tmp_final_name = safe_rename(tmp_full_name, new_full_name, sep = conf.V_SEP)
             res_lst.append(new_full_name)
 
-    update_main_window(0, fast_mode=True)  # 此处可以优化，避免完全重载
+    app_refresh(0, fast_mode=True)  # 此处可以优化，避免完全重载
     tree_file_find_by_lst(res_lst)
     # for tmp_final_name in res_lst:
     #     tmp_final_name = tmp_final_name.replace('\\', '/')
@@ -4421,7 +4177,7 @@ def show_popup_menu_file(event):
     #                       command=tree_file_pick_nothing)
 
     menu_file.add_separator()
-    menu_file.add_command(label="刷新", command=update_main_window, accelerator='F5')
+    menu_file.add_command(label="刷新", command=app_refresh, accelerator='F5')
     #
     # 没有选中项目的时候
     #
@@ -4446,12 +4202,12 @@ def show_popup_menu_file(event):
     # menu_file_no_selection.add_command(label="取消", state=tk.DISABLED if len(app.clipboard_files) == 0 else tk.NORMAL,
     #                                    command=tree_file_pick_nothing)
     menu_file_no_selection.add_separator()
-    menu_file_no_selection.add_command(label="刷新", command=update_main_window, accelerator='F5')
+    menu_file_no_selection.add_command(label="刷新", command=app_refresh, accelerator='F5')
     #
     menu_file_one_folder = tk.Menu(app.window, tearoff=0)
     menu_file_one_folder.add_command(label="粘贴到此（程序内）", state=tk.DISABLED if len(app.clipboard_files) == 0 else tk.NORMAL,
                           command=tree_file_paste_here, accelerator='Ctrl+V')
-    menu_file_one_folder.add_command(label="刷新", command=update_main_window, accelerator='F5')
+    menu_file_one_folder.add_command(label="刷新", command=app_refresh, accelerator='F5')
     #
     # 开始判断显示什么菜单
     #
@@ -4579,22 +4335,7 @@ def show_popup_menu_file(event):
         menu_file_no_selection.post(event.x_root, event.y_root)
 
 
-def fixed_map(option):
-    # Fix for setting text colour for Tkinter 8.6.9
-    # From: https://core.tcl.tk/tk/info/509cafafae
-    #
-    # Returns the style map for 'option' with any styles starting with
-    # ('!disabled', '!selected', ...) filtered out.
 
-    # style.map() returns an empty list for missing options, so this
-    # should be future-safe.
-    return [elm for elm in style.map('Treeview', query_opt=option) if
-            elm[:2] != ('!disabled', '!selected')]
-
-
-def fixed_map_v2(tar, option):
-    return [elm for elm in style.map(tar, query_opt=option) if
-            elm[:2] != ('!disabled', '!selected')]
 
 
 def tree_folder_mouse_highlight_remove(event):
@@ -4694,6 +4435,22 @@ def set_style(style):
     """
     # style = ttk.Style()
     # 修复 treeview 背景色的bug；
+    def fixed_map(option):
+        # Fix for setting text colour for Tkinter 8.6.9
+        # From: https://core.tcl.tk/tk/info/509cafafae
+        #
+        # Returns the style map for 'option' with any styles starting with
+        # ('!disabled', '!selected', ...) filtered out.
+
+        # style.map() returns an empty list for missing options, so this
+        # should be future-safe.
+        return [elm for elm in style.map('Treeview', query_opt=option) if
+                elm[:2] != ('!disabled', '!selected')]
+
+    def fixed_map_v2(tar, option):
+        return [elm for elm in style.map(tar, query_opt=option) if
+                elm[:2] != ('!disabled', '!selected')]
+
     style.map('Treeview',
               foreground=fixed_map('foreground'),
               background=fixed_map('background')
@@ -5543,12 +5300,12 @@ class td_main_app:
         # self.canvas_space.pack(side=tk.RIGHT, fill='y', expand=0,)
         #
         # self.bt_folder_add.pack(side=tk.LEFT, expand=0, padx=vPDX, pady=vPDY)  #
-        # self.bt_new_note = ttk.Button(self.frame_top, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
+        # self.bt_new_note = ttk.Button(self.frame_top, text='新建笔记')  # ,state=tk.DISABLED)#,command=app_refresh)
         # self.bt_new_note.pack(side=tk.LEFT, expand=0, padx=0, pady=vPDY)  #
         #
         self.bt_reload = ttk.Button(self.frame_bottom,
                                     text='刷新',
-                                    command=update_main_window,
+                                    command=app_refresh,
                                     )
         self.bt_reload.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
@@ -5556,10 +5313,10 @@ class td_main_app:
                                      command=tree_file_tag_add_via_dialog)  # , command=input_new_tag
         self.bt_add_tag.pack(side=tk.RIGHT, expand=0, padx=0, pady=vPDY)  #
 
-        self.bt_new_note = ttk.Button(self.frame_bottom, text='新建笔记')  # ,state=tk.DISABLED)#,command=update_main_window)
+        self.bt_new_note = ttk.Button(self.frame_bottom, text='新建笔记')  # ,state=tk.DISABLED)#,command=app_refresh)
         self.bt_new_note.pack(side=tk.RIGHT, expand=0, padx=vPDX, pady=vPDY)  #
 
-        self.bt_readme = ttk.Button(self.frame_bottom, text='readme')  # ,state=tk.DISABLED)#,command=update_main_window)
+        self.bt_readme = ttk.Button(self.frame_bottom, text='readme')  # ,state=tk.DISABLED)#,command=app_refresh)
         self.bt_readme.pack(side=tk.RIGHT, expand=0, padx=0, pady=vPDY)  #
 
         # 新标签的输入框（不再使用）
@@ -5588,6 +5345,7 @@ class td_main_app:
         """
         用于更新 readme 里面的内容
         """
+        README_MAX_LENGTH= 5000
         text_to_show = text_in
         current_path = conf.get_current_path()
         #
@@ -5602,10 +5360,10 @@ class td_main_app:
                     app.frame_readme.configure(height= conf.ui_conf['FRAME_README_HEIGHT']) # 原来是600
                     try:
                         with open(current_path+'/readme.md', 'rb') as f:
-                            text_to_show = f.read(5000).decode('utf-8')
+                            text_to_show = f.read(README_MAX_LENGTH).decode('utf-8')
                     except Exception as e:
                         with open(current_path+ '/readme.md', 'rb') as f:
-                            text_to_show = f.read(5000).decode('gbk','ignore')
+                            text_to_show = f.read(README_MAX_LENGTH).decode('gbk','ignore')
                     if len(text_to_show)==0:
                         text_to_show = '（当前目录的说明文档 readme.md 内容为空）'
                 else:
@@ -5673,7 +5431,7 @@ class td_main_app:
         # self.tree_file.bind("<Button-3>", tree_file_right_click)  # 绑定文件区域的右键功能
         # self.tree_file.bind("<Button-1>", tree_file_left_click)  # 绑定文件区域的右键功能
         # self.tree_file.bind("<ButtonRelease-3>", show_popup_menu_file)  # 绑定文件夹区域的右键起功能
-        # self.tree_file.bind('<F5>', update_main_window)  # 刷新。
+        # self.tree_file.bind('<F5>', app_refresh)  # 刷新。
         # self.tree_file.bind('<space>', self.call_space)  # 刷新。
         # #
         # self.tree_file.bind('<Insert>', exec_create_txt_note)  # 快速新建txt笔记
@@ -5811,7 +5569,7 @@ class td_tree_file():
         self.tree_body.bind("<Button-3>", tree_file_right_click)  # 绑定文件区域的右键功能
         self.tree_body.bind("<Button-1>", tree_file_left_click)  # 绑定文件区域的左键功能
         self.tree_body.bind("<ButtonRelease-3>", show_popup_menu_file)  # 绑定文件夹区域的右键起功能
-        self.tree_body.bind('<F5>', update_main_window)  # 刷新。
+        self.tree_body.bind('<F5>', app_refresh)  # 刷新。
         self.tree_body.bind('<space>', self.call_space)  # 预览基本情况。
         #
         self.tree_body.bind('<Insert>', exec_create_txt_note)  # 快速新建txt笔记
@@ -5877,48 +5635,6 @@ class td_tree_file():
 ###########################################################
 ###########################################################
 
-
-"""
-def check_single_instance():  # 检查是否已经运行；
-    import win32gui
-    import win32com.client
-    import sys
-
-    wd_name = cst.TAR + ' ' + cst.VER
-    pr_name = 'tagdox'
-    have_exe = 0
-    try:
-        # win32gui.GetWindow()
-        shell = win32com.client.Dispatch("WScript.Shell")  # 未找到函数
-        shell.AppActivate(wd_name)
-        # print('\n已经存在打开的实例\n')
-        have_exe = 1
-        
-        win = win32gui.FindWindow(None,wd_name)
-        print(win)
-        if win:
-            have_exe = 1
-            root = tk.Tk()
-            t = tk.messagebox.showerror(title='ERROR',
-                message='本程序已经在运行。')
-            root.destroy()
-            # win.ShowWindow(win32con.SW_SHOWNORMAL)
-            print('\n已经存在打开的实例\n')
-        else:
-            print('\n不存在打开的实例\n')
-    except Exception as e:
-        print(e)
-        have_exe = 0
-    return have_exe
-"""
-
-# from tendo import singleton
-# me = singleton.SingleInstance() # will sys.exit(-1) if other instance is running
-
-# have_exe = check_single_instance()
-# if __name__ == '__main__' and have_exe==0:
-
-
 class td_flag:
     def __init__(self):
         self.flag_inited = 0  # 代表是否已经加载完成
@@ -5980,7 +5696,7 @@ if __name__ == '__main__':
     style = ttk.Style()
 
     set_style(style)
-
+    win_manager = window_manager()
     # str_btm = tk.StringVar()  # 最下面显示状态用的
     # str_btm.set("加载中")
     # prog = tk.DoubleVar()  # 进度

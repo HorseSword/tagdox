@@ -5,6 +5,8 @@ import shutil
 import tkinter as tk
 import time
 from tkinter import ttk
+from tkinter import filedialog
+
 import logging
 import windnd  # 用于拖拽
 import os
@@ -819,6 +821,18 @@ class tree_folder:
                 filenames.append(item)
         if len(folders) > 0:
             self.star_add(folders)
+
+    def star_add_via_dialog(self, event=None):
+        """
+        通过点击的方式，添加新的目录
+        """
+        res = filedialog.askdirectory()  # 选择目录，返回目录名
+        res_lst = [res]
+        if res == '':
+            logging.debug('取消添加文件夹')
+        else:
+            logging.debug(f"通过对话框的方式添加{res}")
+            self.star_add(res_lst)
 
     def star_from_menu(self, event=None, group_name=None):
         """

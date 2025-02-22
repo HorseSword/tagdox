@@ -943,36 +943,13 @@ def tree_order_size(inp=None):
 def tree_order_path(inp=None):
     tree_file_order_by(4)
 
-def set_sub_folder_selected(inp):
+def set_sub_folder_selected(inp):  # TODO 估计没啥用
     if type(inp) is str:
         tmp_n = app.lst_sub_path.index(inp)
         app.v_sub_folders.current(tmp_n + 1)
     elif type(inp) is int:
         app.v_sub_folders.current(inp)
 
-
-# def set_search_tag_selected(ind):
-#     """
-#     设置标签，选中指定的项目。
-#     如果输入的是字符串，则选中字符串。
-#     """
-#     # 如果是字符串的话；
-#     if type(ind) is str:
-#         try:
-#             tags2 = app.v_tag['values']
-#             set_search_tag_selected(tags2.index(ind))
-#         except:
-#             set_search_tag_selected(0)
-#     # 如果是数字的话
-#     elif type(ind) is int:
-#         #
-#         # 下拉框
-#         app.v_tag.current(ind)
-#         #
-#         # 列表：
-#         # tree_obj_find('（全部）',the_tree=app.tree_lst_sub_tag,the_bar=app.bar_sub_tag_v,the_col=0)
-#     else:
-#         app.v_tag.current(0)
 
 def get_search_items(event=None, res_lst=False):
     """
@@ -1893,19 +1870,6 @@ def tree_file_search(event=None):
     app.v_tag.configure(state='readonly')
 
 
-def tree_folder_star_add_by_dialog(event=None):  #
-    """
-    通过点击的方式，添加新的目录
-    """
-    res = filedialog.askdirectory()  # 选择目录，返回目录名
-    res_lst = [res]
-    logging.debug(res)
-    if res == '':
-        logging.debug('取消添加文件夹')
-    else:
-        tree_folder_star_add(res_lst)
-
-
 def tree_file_drag_enter_popupmenu(files, method=None):
     """
     ###########################################
@@ -2238,7 +2202,7 @@ def show_popup_menu_main(event):
     menu_main = tk.Menu(app.window, tearoff=0)
     menu_main.add_command(label='设置…', command=win_manager.show_window_settings)
     menu_main.add_separator()
-    menu_main.add_command(label="添加文件夹到关注列表…", command=tree_folder_star_add_by_dialog)
+    menu_main.add_command(label="添加文件夹到关注列表…", command=app.tree_folder.star_add_via_dialog)
     menu_main.add_separator()
     # menu_main.add_command(label='使用说明')#,command=show_online_help)
     menu_main.add_command(label='访问主页（联网）', command=show_online_help)
@@ -2996,7 +2960,7 @@ class td_main_app:
         self.bt_folder_add = ttk.Button(self.frame_top, text='添加文件夹到关注列表')  # state=tk.DISABLED,,command=setting_fun
         self.bt_folder_drop = ttk.Button(self.frameFolderCtl, text='移除文件夹')
         #
-        self.v_sub_folders = ttk.Combobox(self.frame_top)  # 子文件夹选择框
+        self.v_sub_folders = ttk.Combobox(self.frame_top)  # 子文件夹选择框  TODO 准备作废
         self.v_tag = ttk.Combobox(self.frame_top)  # 标签选择框
         self.entry_search_files = ttk.Entry(self.frame_top)  # 搜索框
         self.v_folders = ttk.Combobox(self.frame_folder)  # 文件夹选择框
@@ -3336,7 +3300,7 @@ class td_main_app:
     def bind_funcs(self):
         # 功能绑定
         #
-        self.bt_folder_add.configure(command=tree_folder_star_add_by_dialog)  # 增加文件夹
+        self.bt_folder_add.configure(command=self.tree_folder.star_add_via_dialog)  # 增加文件夹
         self.bt_folder_drop.configure(command=self.tree_folder.star_remove)  # 减少文件夹
         #
         # 设置拖拽反映函数
